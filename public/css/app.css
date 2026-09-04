@@ -166,10 +166,10 @@ html[data-theme="night"] .layer-stars { opacity: 1; }
 
 .layer-clouds {
   color: var(--cloud);
-  opacity: 1;
+  opacity: 0.35;
   transition: opacity 1.4s ease, color 1.4s ease;
 }
-html[data-theme="night"] .layer-clouds { opacity: 0.15; }
+html[data-theme="night"] .layer-clouds { opacity: 0.08; }
 
 .cloud-svg,
 .grid-svg,
@@ -203,15 +203,15 @@ html[data-theme="night"] .layer-clouds { opacity: 0.15; }
 }
 
 .layer-far {
-  height: 52%;
+  height: 36%;
   color: var(--far);
 }
 .layer-mid {
-  height: 46%;
+  height: 28%;
   color: var(--mid);
 }
 .layer-near {
-  height: 40%;
+  height: 20%;
   color: var(--near);
 }
 
@@ -229,8 +229,8 @@ html[data-theme="night"] .layer-clouds { opacity: 0.15; }
 
 .layer-vignette {
   background:
-    linear-gradient(to right, color-mix(in srgb, var(--bg) 55%, transparent), transparent 28%, transparent 72%, color-mix(in srgb, var(--bg) 25%, transparent)),
-    linear-gradient(to top, var(--bg) 0%, transparent 28%);
+    linear-gradient(to right, color-mix(in srgb, var(--bg) 78%, transparent) 0%, color-mix(in srgb, var(--bg) 40%, transparent) 34%, transparent 58%),
+    linear-gradient(to top, var(--bg) 0%, color-mix(in srgb, var(--bg) 70%, transparent) 14%, transparent 32%);
   transition: background 1.4s ease;
 }
 
@@ -485,19 +485,29 @@ html.theme-animated .mini-moon {
 
 .hero {
   position: relative;
-  min-height: calc(100svh - 9rem);
+  min-height: calc(100svh - 10rem);
   display: flex;
-  align-items: flex-end;
-  padding: 2rem 0 4rem;
+  align-items: flex-start;
+  padding: 2.75rem 0 7rem;
+}
+
+.hero-scrim {
+  position: absolute;
+  inset: -1rem 18% -2rem -2.5rem;
+  background: linear-gradient(
+    100deg,
+    color-mix(in srgb, var(--bg) 94%, transparent) 0%,
+    color-mix(in srgb, var(--bg) 82%, transparent) 46%,
+    transparent 78%
+  );
+  pointer-events: none;
+  z-index: 0;
 }
 
 .hero-copy {
   position: relative;
+  z-index: 1;
   max-width: 38rem;
-}
-
-.hero-scrim {
-  display: none;
 }
 
 .kicker {
@@ -601,7 +611,19 @@ html.theme-animated .mini-moon {
 }
 
 .band {
-  margin: 4.5rem 0 0;
+  position: relative;
+  margin: 3.25rem 0 0;
+  padding: 1.25rem 0 0.25rem;
+}
+
+.band::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  inset: -0.75rem -1.25rem -1.5rem;
+  background: color-mix(in srgb, var(--bg) 90%, transparent);
+  border-radius: 12px;
+  pointer-events: none;
 }
 
 .band.tight {
@@ -941,8 +963,8 @@ html.theme-animated .mini-moon {
   }
 
   .celestial-axis {
-    left: 78%;
-    top: 40%;
+    left: 88%;
+    top: 22%;
   }
 
   .sun { top: -28vh; }
@@ -956,7 +978,32 @@ html.theme-animated .mini-moon {
 
   .hero {
     min-height: auto;
-    padding-top: 1rem;
+    padding: 1.25rem 0 5.5rem;
+  }
+
+  .hero-scrim {
+    display: none;
+  }
+
+  .hero-copy {
+    background: var(--panel-a);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.15rem 1.1rem 1.3rem;
+    box-shadow: var(--shadow);
+  }
+
+  .layer-far { height: 26%; opacity: 0.7; }
+  .layer-mid { height: 18%; opacity: 0.7; }
+  .layer-near { height: 14%; opacity: 0.65; }
+
+  .site-header {
+    padding: 0.55rem 1rem;
+  }
+
+  .nav a {
+    min-height: 40px;
+    font-size: 0.88rem;
   }
 
   .nav {
