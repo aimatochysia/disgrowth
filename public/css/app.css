@@ -54,7 +54,6 @@ html[data-theme="day"] {
   --halo: rgba(255, 196, 70, 0.5);
   --shadow: 0 10px 40px rgba(40, 28, 16, 0.08);
   --cloud: rgba(255, 252, 246, 0.55);
-  color-scheme: light;
 }
 
 html[data-theme="night"] {
@@ -84,7 +83,6 @@ html[data-theme="night"] {
   --halo: rgba(180, 200, 220, 0.28);
   --shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
   --cloud: rgba(180, 200, 220, 0.08);
-  color-scheme: dark;
 }
 
 *,
@@ -780,12 +778,14 @@ html.theme-animated .band::before {
   letter-spacing: -0.03em;
   margin: 0 0 1.4rem;
   color: var(--text);
+  -webkit-text-fill-color: var(--text);
 }
 
 .display em {
   font-weight: 360;
   font-style: italic;
   color: var(--accent);
+  -webkit-text-fill-color: var(--accent);
 }
 
 .display-page {
@@ -794,6 +794,7 @@ html.theme-animated .band::before {
 
 .lede {
   color: var(--text);
+  -webkit-text-fill-color: var(--text);
   margin: 0 0 1.5rem;
   max-width: 38rem;
 }
