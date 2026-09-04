@@ -1,11 +1,5 @@
 # Disgrowth web store — full requirements (self-contained)
 
-> **Copy this entire file into the new website repository.** That repo will not have the Discord bot, `spec.md`, or this `docs/` tree. Every product lock, schema, legal draft, design token, and payment rule needed to build the store is inlined below. Do not assume any other file exists.
->
-> **This is the next plan.** Implement the website in a **new repo**. After the store is live, the bot leftover work lives in a separate plan on the bot repo: `docs/superpowers/plans/2026-09-04-bot-store-leftovers.md`.
->
-> **Not legal advice.** Draft Terms, Privacy, Refunds, Cookies, and Virtual Items copy below are operator templates with `{{PLACEHOLDERS}}`. A qualified lawyer in the operator’s jurisdiction must review before taking real money. Lemon Squeezy is Merchant of Record for checkout tax/VAT; the operator still needs its own game/license terms and privacy notice.
-
 ---
 
 ## 0. How to use this file
