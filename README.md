@@ -19,7 +19,7 @@ A **small public website** that is the **only real-money store** for a Discord t
 
 | Name | Use |
 | --- | --- |
-| **Market Game** | Internal / legal / repo name of the game |
+| **Market Game** | Internal / legal / repo name of the game (dont use. use disgrowth for naming, but the repo is called market-game)|
 | **Disgrowth** | Player-facing game name (Discord slash command `/disgrowth`) |
 | **MARKET GAME — STORE** | Site header / tab title voice |
 
