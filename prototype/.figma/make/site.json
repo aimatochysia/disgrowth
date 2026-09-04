@@ -1,0 +1,10 @@
+{
+  "description": "Immerse yourself in a unique management simulation game that blends botanical gardening with stock market dynamics, offering an engaging and cozy experience for players.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
