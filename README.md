@@ -4,11 +4,10 @@
 
 ## 0. How to use this file
 
-1. Create a new git repository (suggested name: `disgrowth-store` or `market-game-store`).
-2. Paste this file as `SPEC.md` (or `README.md` + keep a copy as `SPEC.md`).
-3. Fill **§19 Operator fill-in checklist** before launch (legal entity, emails, jurisdiction, Discord application secret, Lemon Squeezy store).
-4. Implement **§16 Implementation tasks** in order.
-5. Point the Discord bot `/shop` Link buttons at this site’s `/buy/...` URLs (bot change is **not** this repo).
+
+1. Fill **§19 Operator fill-in checklist** before launch (legal entity, emails, jurisdiction, Discord application secret, Lemon Squeezy store).
+2. Implement **§16 Implementation tasks** in order.
+3. Point the Discord bot `/shop` Link buttons at this site’s `/buy/...` URLs (bot change is **not** this repo).
 
 **Success looks like:** a player logs in with Discord, sees their wallets, buys Gold Bars or the Accountant pass on Lemon Squeezy, and the grant lands on the same `players` row the Discord bot uses — without selling Credits, without checkout before login, and with legal pages that actually match what the store does.
 
