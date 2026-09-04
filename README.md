@@ -1,3 +1,28 @@
+# MARKET GAME — STORE (Disgrowth)
+
+Public website for the Disgrowth Discord economy game: Discord login, Lemon Squeezy checkout, grants written to the **same Postgres** the bot uses.
+
+This repository is the store, not the game client. The Discord bot lives in the sibling `aimatochysia/market-game` repo. The specification below was copied from that bot so this site can be built without opening the bot tree.
+
+## Run
+
+```bash
+cp .env.example .env
+npm install
+npm test
+npm run dev
+```
+
+- Node.js 20+ (JavaScript, not TypeScript)
+- `GET /healthz` — process + database ping
+- `npm run migrate` — creates `store_orders` on the game database
+- Pages: `/` landing, `/store` shop, `/legal` policies, `/account`, `/buy/:sku`
+- Drop illustrated plates into `public/art/` (see that folder’s README) when you have them
+
+Operator fill-in: `OPERATOR.md`. Incident notes: `RUNBOOK.md`.
+
+---
+
 # Disgrowth web store — full requirements (self-contained)
 
 ---
