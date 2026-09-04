@@ -541,7 +541,7 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
 .site-header {
   position: sticky;
   top: 28px;
-  z-index: 30;
+  z-index: 50;
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -549,6 +549,7 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   background: color-mix(in srgb, var(--bg) 55%, transparent);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid var(--border);
+  overflow: visible;
 }
 
 .brand {
@@ -586,6 +587,7 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   position: relative;
   display: flex;
   align-items: center;
+  z-index: 40;
 }
 
 .nav {
@@ -1333,6 +1335,7 @@ html.theme-animated .band::before {
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
+  z-index: 60;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
@@ -1362,7 +1365,8 @@ html.theme-animated .band::before {
 }
 
 .site-header.is-compact .nav.is-open a {
-  animation: navDrop 0.34s ease forwards;
+  opacity: 1;
+  animation: navDrop 0.34s ease both;
 }
 
 .site-header.is-compact .nav.is-open a:nth-child(1) { animation-delay: 0.02s; }
@@ -1410,6 +1414,7 @@ html.theme-animated .band::before {
     position: absolute;
     top: calc(100% + 8px);
     right: 0;
+    z-index: 60;
     display: flex;
     flex-direction: column;
     align-items: flex-end;
@@ -1439,7 +1444,8 @@ html.theme-animated .band::before {
   }
 
   .nav.is-open a {
-    animation: navDrop 0.34s ease forwards;
+    opacity: 1;
+    animation: navDrop 0.34s ease both;
   }
 
   .nav.is-open a:nth-child(1) { animation-delay: 0.02s; }
