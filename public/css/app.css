@@ -203,7 +203,7 @@ html[data-theme="night"] .layer-stars { opacity: 1; }
 
 html.theme-animated .layer-sky-day,
 html.theme-animated .layer-sky-night {
-  transition: opacity 1.45s ease;
+  transition: opacity 1.6s ease;
 }
 
 html.theme-animated .layer-stars {
@@ -275,29 +275,41 @@ html.theme-animated .grid-svg line {
 
 .layer-far {
   height: 36%;
-  color: #7d8d6e;
 }
 .layer-mid {
   height: 28%;
-  color: #445536;
 }
 .layer-near {
   height: 20%;
-  color: #243018;
 }
 
-html[data-theme="night"] .layer-far { color: #163044; }
-html[data-theme="night"] .layer-mid { color: #0e1c18; }
-html[data-theme="night"] .layer-near { color: #070d0a; }
+.sil {
+  position: absolute;
+  inset: 0;
+  color: inherit;
+}
 
-html.theme-animated .layer-far {
-  transition: color 1.3s ease 0.65s;
+.layer-far .sil-day { color: #7d8d6e; }
+.layer-far .sil-night { color: #163044; }
+.layer-mid .sil-day { color: #445536; }
+.layer-mid .sil-night { color: #0e1c18; }
+.layer-near .sil-day { color: #243018; }
+.layer-near .sil-night { color: #070d0a; }
+
+.sil-day { opacity: 1; }
+.sil-night { opacity: 0; }
+
+html[data-theme="night"] .sil-day { opacity: 0; }
+html[data-theme="night"] .sil-night { opacity: 1; }
+
+html.theme-animated .layer-far .sil {
+  transition: opacity 1.35s ease 0.75s;
 }
-html.theme-animated .layer-mid {
-  transition: color 1.35s ease 0.95s;
+html.theme-animated .layer-mid .sil {
+  transition: opacity 1.4s ease 1.1s;
 }
-html.theme-animated .layer-near {
-  transition: color 1.4s ease 1.25s;
+html.theme-animated .layer-near .sil {
+  transition: opacity 1.5s ease 1.45s;
 }
 
 .layer-fog {
@@ -413,7 +425,7 @@ html[data-page="account"] .layer-vignette::after {
 }
 
 html.theme-animated .celestial-axis {
-  transition: transform 1.8s cubic-bezier(0.65, 0, 0.35, 1);
+  transition: transform 2.2s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 html.theme-animated .sun-ray {

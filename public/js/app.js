@@ -29,8 +29,10 @@
   }
 
   requestAnimationFrame(() => {
-    root.classList.add('theme-animated');
-    syncToggle(currentTheme());
+    requestAnimationFrame(() => {
+      root.classList.add('theme-animated');
+      syncToggle(currentTheme());
+    });
   });
 
   const nav = document.getElementById('site-nav');

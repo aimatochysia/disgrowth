@@ -11,4 +11,9 @@
   } catch {
     document.documentElement.dataset.theme = 'day';
   }
+  window.addEventListener('load', () => {
+    requestAnimationFrame(() => {
+      document.documentElement.classList.add('theme-animated');
+    });
+  });
 })();

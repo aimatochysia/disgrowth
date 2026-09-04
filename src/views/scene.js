@@ -41,15 +41,18 @@ export function sceneMarkup() {
       <div class="layer layer-grid" data-depth="0.02">${ledgerGrid()}</div>
 
       <div class="layer layer-far" data-depth="0.14">
-        ${farRidge()}
+        <div class="sil sil-day">${farRidge()}</div>
+        <div class="sil sil-night">${farRidge()}</div>
       </div>
       <div class="layer layer-fog fog-far" data-depth="0.2"></div>
       <div class="layer layer-mid" data-depth="0.32">
-        ${midCanopy()}
+        <div class="sil sil-day">${midCanopy()}</div>
+        <div class="sil sil-night">${midCanopy()}</div>
       </div>
       <div class="layer layer-fog fog-near" data-depth="0.42"></div>
       <div class="layer layer-near" data-depth="0.58">
-        ${nearGrove()}
+        <div class="sil sil-day">${nearGrove()}</div>
+        <div class="sil sil-night">${nearGrove()}</div>
       </div>
       <div class="layer layer-vignette"></div>
     </div>
