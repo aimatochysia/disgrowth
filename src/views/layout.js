@@ -20,13 +20,6 @@ function discordSvg() {
   `;
 }
 
-const NAV = [
-  { href: '/', label: 'Home', match: (p) => p === '/' },
-  { href: '/store', label: 'Store', match: (p) => p === '/store' || p.startsWith('/buy') },
-  { href: '/account', label: 'Account', match: (p) => p === '/account' },
-  { href: '/legal', label: 'Legal', match: (p) => p.startsWith('/legal') },
-];
-
 export function layout(data) {
   const {
     title,
@@ -40,7 +33,8 @@ export function layout(data) {
 
   const year = new Date().getUTCFullYear();
   const artClass = data.artClass || '';
-  const pageTitle = title ? `${title} — Market Game` : 'Store — Market Game';
+  const pageTitle = title ? `${title} — Disgrowth` : 'Store — Disgrowth';
+  const ownerLine = config.previewLegal ? 'Disgrowth' : config.OPERATOR_LEGAL_NAME;
 
   return html`<!DOCTYPE html>
 <html lang="en" data-theme="day" data-page="${page}" class="${artClass}">
@@ -74,28 +68,30 @@ export function layout(data) {
   <header class="site-header">
     <a class="brand" href="/">
       ${markSvg('mark')}
-      <span>MARKET GAME — STORE</span>
+      <span class="brand-name">Disgrowth</span>
+      <span class="brand-sub">Store</span>
     </a>
-    <nav class="nav" aria-label="Primary">
-      ${NAV.map((item) => html`
-        <a href="${item.href}" class="${item.match(path) ? 'is-on' : ''}">${item.label}</a>
-      `)}
+    <nav class="nav" id="site-nav" aria-label="Primary">
+      <a href="/store" class="${path === '/store' || path.startsWith('/buy') ? 'is-on' : ''}">Shop</a>
       ${user
-        ? html`<a class="nav-user" href="/account"><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" />${user.globalName || user.username}</a><a href="/logout">Logout</a>`
-        : html`<a href="/login?next=${encodeURIComponent(path || '/account')}">Login</a>`}
-      <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Toggle day and night">
+        ? html`<a class="nav-user ${path === '/account' ? 'is-on' : ''}" href="/account"><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" />${user.globalName || user.username}</a>`
+        : html`<a href="/login?next=${encodeURIComponent(path && path !== '/' ? path : '/store')}">Log in</a>`}
+      <a href="/support" class="nav-support ${path === '/support' ? 'is-on' : ''}">Help</a>
+      ${user ? html`<a href="/logout">Log out</a>` : ''}
+    </nav>
+    <div class="header-tools">
+      <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Switch day and night">
         <span class="theme-toggle-face" aria-hidden="true">
           <span class="mini-sun"></span>
           <span class="mini-moon"></span>
         </span>
-        <span class="theme-toggle-label" data-theme-label>Daylight</span>
+        <span class="theme-toggle-label" data-theme-label>Day</span>
       </button>
-    </nav>
+      <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+        <span class="nav-toggle-bars" aria-hidden="true"></span>
+      </button>
+    </div>
   </header>
-
-  ${config.previewLegal
-    ? html`<div class="preview-banner" role="status">Store in preview — legal entity and policies are drafts.</div>`
-    : ''}
 
   <main id="content" class="wrap">
     ${body}
@@ -104,16 +100,19 @@ export function layout(data) {
   <footer class="site-footer">
     <div class="footer-rule"></div>
     <div class="footer-row">
-      <p class="fine">© ${String(year)} ${config.OPERATOR_LEGAL_NAME}. Game: Disgrowth. Payments: Lemon Squeezy (Merchant of Record).</p>
-      <p class="fine muted">Not the game — play in Discord. Not affiliated with Discord Inc.</p>
+      <p class="fine">© ${String(year)} ${ownerLine}. Played in Discord. Card payments by Lemon Squeezy.</p>
+      <p class="fine muted">Not affiliated with Discord Inc.</p>
+      ${config.previewLegal
+        ? html`<p class="fine">Store in preview. Policies are still drafts.</p>`
+        : ''}
     </div>
     <nav class="footer-links" aria-label="Legal">
+      <a href="/support">Help</a>
       <a href="/legal/terms">Terms</a>
       <a href="/legal/privacy">Privacy</a>
       <a href="/legal/refunds">Refunds</a>
       <a href="/legal/cookies">Cookies</a>
       <a href="/legal/virtual-items">Virtual items</a>
-      <a href="/support">Support</a>
     </nav>
   </footer>
   <script src="/js/app.js" defer></script>
@@ -125,15 +124,11 @@ function tickerUnit() {
   return html`
     <span>DISGROWTH</span>
     <span class="dot">◆</span>
+    <span>PLAYED IN DISCORD</span>
+    <span class="dot">◆</span>
+    <span>GOLD BARS ON THIS STORE</span>
+    <span class="dot">◆</span>
     <span>CREDITS ARE EARNED IN PLAY</span>
-    <span class="dot">◆</span>
-    <span>GOLD BARS CONVERT 1:1 TO BONDS IN /SHOP</span>
-    <span class="dot">◆</span>
-    <span>NEVER INTO CREDITS</span>
-    <span class="dot">◆</span>
-    <span>ACCOUNTANT PASS · 12 BN / IN-GAME DAY</span>
-    <span class="dot">◆</span>
-    <span>LEMON SQUEEZY IS MERCHANT OF RECORD</span>
     <span class="dot">◆</span>
   `;
 }
@@ -144,9 +139,9 @@ export function playCta(config) {
   if (config.DISCORD_BOT_PUBLIC_URL) {
     return html`<a class="btn btn-ghost" href="${config.DISCORD_BOT_PUBLIC_URL}" rel="noopener">Open Discord</a>`;
   }
-  return html`<p class="hint">Use <code>/disgrowth</code> in the Market Game Discord server.</p>`;
+  return html`<p class="hint">In Discord, run <code>/disgrowth</code> to play.</p>`;
 }
 
-export function loginHref(next = '/account') {
+export function loginHref(next = '/store') {
   return `/login?next=${encodeURIComponent(next)}`;
 }

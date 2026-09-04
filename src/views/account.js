@@ -6,19 +6,23 @@ function n(value) {
 }
 
 function fmtUtc(value) {
-  if (!value) return '—';
+  if (!value) return 'No end date on file';
   const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return '—';
-  return `${d.toISOString().replace('.000', '')} UTC`;
+  if (Number.isNaN(d.getTime())) return 'No end date on file';
+  const text = d.toLocaleString('en-GB', {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+    timeZone: 'UTC',
+  });
+  return `${text} UTC`;
 }
 
 export function accountPage({ user, player, dbReady }) {
   if (!dbReady) {
     return html`
       <section class="page-hero">
-        <p class="kicker">— Account</p>
         <h1 class="display display-page">${user.globalName || user.username}</h1>
-        <p class="lede narrow">The game database is not connected in this environment. Login works; wallets cannot be read.</p>
+        <p class="lede narrow">You’re logged in. Wallets will show here once the store is connected to the game.</p>
       </section>
     `;
   }
@@ -26,9 +30,8 @@ export function accountPage({ user, player, dbReady }) {
   if (!player) {
     return html`
       <section class="page-hero">
-        <p class="kicker">— Account</p>
         <h1 class="display display-page">${user.globalName || user.username}</h1>
-        <p class="lede narrow">No player row. Run <code>/disgrowth</code> in Discord, then refresh. Checkout stays closed until that exists.</p>
+        <p class="lede narrow">No Disgrowth character on this Discord account yet. Run <code>/disgrowth</code> in Discord, then refresh. You can’t check out until that exists.</p>
       </section>
     `;
   }
@@ -43,14 +46,13 @@ export function accountPage({ user, player, dbReady }) {
     <section class="page-hero account-hero">
       <img class="avatar" src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="64" height="64" />
       <div>
-        <p class="kicker">— Account</p>
         <h1 class="display display-page">${user.globalName || user.username}</h1>
-        <p class="hint">Discord id ${user.discordId}</p>
+        <p class="hint">Discord character</p>
       </div>
     </section>
 
     ${needsTutorial
-      ? html`<p class="flash">Finish the Discord tutorial. Daily Bonds wait until onboarding is complete.</p>`
+      ? html`<p class="flash">Finish the tutorial in Discord. Daily Bonds wait until that’s done.</p>`
       : ''}
 
     <section class="band tight">
@@ -65,13 +67,13 @@ export function accountPage({ user, player, dbReady }) {
           <span class="code">BN</span>
           <h3>Bonds</h3>
           <p class="balance">${n(player.bonds)}</p>
-          <p class="stamp">Daily, granted in Discord</p>
+          <p class="stamp">Granted in Discord</p>
         </article>
         <article class="panel wallet wallet-gold">
           <span class="code">GL</span>
           <h3>Gold Bars</h3>
           <p class="balance">${n(player.gold_bars)}</p>
-          <p class="stamp">Premium · convert in /shop</p>
+          <p class="stamp">Convert with /shop</p>
         </article>
       </div>
 
@@ -80,9 +82,11 @@ export function accountPage({ user, player, dbReady }) {
           <p class="kicker">Accountant pass</p>
           <p class="pass-flag ${passOn ? 'on' : 'off'}">${passOn ? 'On' : 'Off'}</p>
         </div>
-        <p>Expires ${fmtUtc(player.subscription_expires_at)}</p>
-        <p class="hint">Website login is not guild activity. Hints may pause after three real days without server interaction.</p>
-        <a class="btn btn-accent" href="/buy/accountant-pass">Manage pass</a>
+        <p>${passOn ? `Active until ${fmtUtc(player.subscription_expires_at)}` : 'Not active'}</p>
+        <p class="hint">Hints may pause if you haven’t been in the Discord server for a few days. Logging into this website doesn’t count.</p>
+        ${passOn
+          ? html`<a class="btn btn-ghost" href="/store">Back to shop</a>`
+          : html`<a class="btn btn-accent" href="/buy/accountant-pass">Get the pass</a>`}
       </article>
     </section>
   `;

@@ -8,25 +8,22 @@ export function buyPage({ sku, user, player, error, checkoutReady }) {
       : formatUsd(sku.usdPlaceholder);
   const grant =
     sku.kind === 'subscription'
-      ? 'Accountant pass (extra daily Bonds and occasional DM hints)'
+      ? 'Accountant pass — extra daily Bonds and occasional hints in Discord'
       : `${formatQty(sku.gold)} Gold Bars`;
 
   if (!player) {
     return html`
       <section class="page-hero">
-        <p class="kicker">— Checkout held</p>
-        <h1 class="display display-page">Run /disgrowth first</h1>
+        <h1 class="display display-page">Play once in Discord first</h1>
         <p class="lede narrow">
-          You are logged in as <strong>${user.globalName || user.username}</strong>, but there is no player row yet. Open Discord, run <code>/disgrowth</code>, then refresh this page. We will not start checkout and we will not create a half-formed character.
+          You’re logged in as <strong>${user.globalName || user.username}</strong>, but this Discord account doesn’t have a Disgrowth character yet. In your server, run <code>/disgrowth</code>, then come back and refresh.
         </p>
-        <p class="hint">Logged in · no game account</p>
       </section>
     `;
   }
 
   return html`
     <section class="page-hero">
-      <p class="kicker">— Confirm purchase</p>
       <h1 class="display display-page">${sku.label}</h1>
     </section>
 
@@ -34,23 +31,23 @@ export function buyPage({ sku, user, player, error, checkoutReady }) {
       <div class="panel buy-summary">
         <dl class="facts">
           <div><dt>Item</dt><dd>${sku.label}</dd></div>
-          <div><dt>Grant</dt><dd>${grant}</dd></div>
-          <div><dt>Price</dt><dd>${price} <span class="muted">(placeholder)</span></dd></div>
-          <div><dt>Character</dt><dd>${user.globalName || user.username} · ${user.discordId}</dd></div>
+          <div><dt>You get</dt><dd>${grant}</dd></div>
+          <div><dt>Price</dt><dd>${price}</dd></div>
+          <div><dt>Character</dt><dd>${user.globalName || user.username}</dd></div>
         </dl>
         <p>${sku.blurb}</p>
         <p class="hint">
-          Virtual items have no cash value and cannot be sold for money.
-          See <a href="/legal/virtual-items">Virtual items</a>,
-          <a href="/legal/terms">Terms</a>, and
-          <a href="/legal/refunds">Refunds</a>.
+          These are virtual items with no cash value.
+          <a href="/legal/virtual-items">Virtual items</a> ·
+          <a href="/legal/terms">Terms</a> ·
+          <a href="/legal/refunds">Refunds</a>
         </p>
       </div>
 
       ${error ? html`<p class="flash" role="alert">${error}</p>` : ''}
 
       ${!checkoutReady
-        ? html`<p class="flash" role="status">Checkout is not configured in this environment. The operator still needs Lemon Squeezy variant ids.</p>`
+        ? html`<p class="flash" role="status">Purchases aren’t open yet. Check back soon.</p>`
         : ''}
 
       <form class="panel buy-form" method="post" action="/buy/${sku.sku_key}" data-buy-form>
@@ -60,14 +57,14 @@ export function buyPage({ sku, user, player, error, checkoutReady }) {
         </label>
         <label class="check">
           <input type="checkbox" name="terms" value="yes" required />
-          <span>I agree to the <a href="/legal/terms">Terms of Service</a> and <a href="/legal/virtual-items">Virtual Items Policy</a>. I consent to immediate delivery of digital content and acknowledge that I lose any withdrawal right that depends on that consent.</span>
+          <span>I agree to the <a href="/legal/terms">Terms of Service</a> and <a href="/legal/virtual-items">Virtual Items Policy</a>. I want digital items delivered now, and I understand that means I may lose a cooling-off withdrawal right.</span>
         </label>
         <label class="check">
           <input type="checkbox" name="novalue" value="yes" required />
           <span>I understand Gold Bars and the pass have no cash value and cannot be sold for money.</span>
         </label>
         <button class="${sku.kind === 'subscription' ? 'btn btn-accent' : 'btn btn-gold'}" type="submit" ${checkoutReady ? '' : 'disabled'}>
-          Continue to Lemon Squeezy
+          Continue to checkout
         </button>
       </form>
     </section>

@@ -9,8 +9,8 @@ export const CATALOG = {
     usdPlaceholder: 9.99,
     variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_STARTER',
     ledger: 'GL-S',
-    summary: 'Five hundred Gold Bars for the premium wallet. Convert 1:1 to Bonds in Discord with /shop.',
-    blurb: 'Covers an Instant month after conversion, or most of CEO sharpness. Does not cover a blitz.',
+    summary: '500 Gold Bars for the premium wallet. Convert 1:1 to Bonds in Discord with /shop.',
+    blurb: 'A starter stack. Convert to Bonds in Discord when you need them.',
   },
   'gold-pack': {
     sku_key: 'gold-pack',
@@ -20,8 +20,8 @@ export const CATALOG = {
     usdPlaceholder: 24.99,
     variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_PACK',
     ledger: 'GL-P',
-    summary: 'One thousand six hundred Gold Bars. Same wallet, larger grant.',
-    blurb: 'Covers one Network rescue after conversion, or a blitz with a remainder.',
+    summary: '1,600 Gold Bars. Same wallet, larger stack.',
+    blurb: 'A larger stack for bigger spends after you convert to Bonds in Discord.',
   },
   'accountant-pass': {
     sku_key: 'accountant-pass',
@@ -31,8 +31,8 @@ export const CATALOG = {
     usdPlaceholder: 6.99,
     variantEnv: 'LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS',
     ledger: 'PASS',
-    summary: 'Monthly subscription. Extra daily Bonds and occasional DM hints while the pass is active.',
-    blurb: '12 Bonds per in-game day instead of 5. Hints are imperfect, not always sent, and may pause if you are inactive in the Discord server. Not a Gold Bars dump. Not professional advice.',
+    summary: 'Monthly. Extra daily Bonds and occasional hints in Discord while the pass is on.',
+    blurb: '12 Bonds per in-game day instead of 5. Hints are imperfect, not always sent, and may pause if you have been away from the Discord server. Not a Gold Bars pack.',
   },
 };
 

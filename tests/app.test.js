@@ -109,7 +109,7 @@ test('/buy without player row does not redirect to Lemon Squeezy', async () => {
     });
     assert.equal(res.status, 200);
     const html = await res.text();
-    assert.match(html, /Run \/disgrowth first/);
+    assert.match(html, /\/disgrowth/);
     assert.doesNotMatch(html, /lemonsqueezy.com/);
   });
 });
@@ -221,7 +221,7 @@ test('landing and legal pages render', async () => {
     const home = await fetch(`${base}/`);
     assert.equal(home.status, 200);
     const html = await home.text();
-    assert.match(html, /MARKET GAME — STORE/);
+    assert.match(html, /Disgrowth/);
     assert.match(html, /celestial-axis/);
     const legal = await fetch(`${base}/legal/terms`);
     assert.equal(legal.status, 200);

@@ -10,7 +10,7 @@
     document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
       btn.setAttribute('aria-pressed', theme === 'night' ? 'true' : 'false');
       const label = btn.querySelector('[data-theme-label]');
-      if (label) label.textContent = theme === 'night' ? 'Night' : 'Daylight';
+      if (label) label.textContent = theme === 'night' ? 'Night' : 'Day';
     });
   }
 
@@ -33,9 +33,23 @@
     syncToggle(currentTheme());
   });
 
+  const nav = document.getElementById('site-nav');
+  const navBtn = document.querySelector('[data-nav-toggle]');
+
+  function setNavOpen(open) {
+    if (!nav || !navBtn) return;
+    nav.classList.toggle('is-open', open);
+    navBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
+    navBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
+  }
+
   document.addEventListener('click', (event) => {
-    const btn = event.target.closest('[data-theme-toggle]');
-    if (btn) toggleTheme();
+    if (event.target.closest('[data-theme-toggle]')) toggleTheme();
+    const toggle = event.target.closest('[data-nav-toggle]');
+    if (toggle) setNavOpen(!nav.classList.contains('is-open'));
+    else if (nav && nav.classList.contains('is-open') && !event.target.closest('#site-nav')) {
+      setNavOpen(false);
+    }
   });
 
   const layers = [...document.querySelectorAll('[data-depth]')];
