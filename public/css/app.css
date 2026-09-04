@@ -2,9 +2,11 @@
    Day / night atmospheric storefront. Tokens follow the game cards;
    the scene is a separate, quieter layer so type stays readable.
 
-   Theme order: sky first, then atmosphere, then far → mid → near,
-   then UI. Literal colors on silhouettes (not var()) so they interpolate;
-   unregistered custom properties snap and would flip the trees first. */
+   Theme cascade: each layer STARTS just after the one behind it
+   (sky → hills → trees → type → boxes). They overlap; nothing waits
+   for the sky to finish. Animate registered tokens on html only —
+   also transitioning `color` on body/hero made type flash to the
+   end color, snap back, then ease. */
 
 @property --bg { syntax: "<color>"; inherits: true; initial-value: #efe6d6; }
 @property --bg-deep { syntax: "<color>"; inherits: true; initial-value: #e4d7c2; }
@@ -95,6 +97,8 @@ html,
 body {
   margin: 0;
   min-height: 100%;
+  color: var(--text);
+  background: var(--bg);
 }
 
 body {
@@ -108,27 +112,23 @@ body {
 
 html.theme-animated {
   transition:
-    --halo 1.35s ease,
-    --grid 1.3s ease 0.18s,
-    --bg 1.15s ease 1.15s,
-    --bg-deep 1.15s ease 1.15s,
-    --panel 1.15s ease 1.15s,
-    --panel-a 1.15s ease 1.15s,
-    --border 1.15s ease 1.15s,
-    --text 1.15s ease 1.15s,
-    --muted 1.15s ease 1.15s,
-    --accent 1.15s ease 1.15s,
-    --accent-ink 1.15s ease 1.15s,
-    --gold 1.15s ease 1.15s,
-    --gold-ink 1.15s ease 1.15s,
-    --positive 1.15s ease 1.15s,
-    --negative 1.15s ease 1.15s,
-    --ticker-bg 1.15s ease 1.15s,
-    --ticker-fg 1.15s ease 1.15s;
-}
-
-html.theme-animated body {
-  transition: background-color 1.15s ease 1.15s, color 1.15s ease 1.15s;
+    --halo 1.15s ease,
+    --grid 1.15s ease 0.08s,
+    --bg 1.15s ease 0.4s,
+    --bg-deep 1.15s ease 0.4s,
+    --text 1.15s ease 0.48s,
+    --muted 1.15s ease 0.48s,
+    --accent 1.15s ease 0.48s,
+    --accent-ink 1.15s ease 0.48s,
+    --gold 1.15s ease 0.48s,
+    --gold-ink 1.15s ease 0.48s,
+    --positive 1.15s ease 0.48s,
+    --negative 1.15s ease 0.48s,
+    --ticker-bg 1.15s ease 0.48s,
+    --ticker-fg 1.15s ease 0.48s,
+    --panel 1.15s ease 0.56s,
+    --panel-a 1.15s ease 0.56s,
+    --border 1.15s ease 0.56s;
 }
 
 img {
@@ -203,11 +203,11 @@ html[data-theme="night"] .layer-stars { opacity: 1; }
 
 html.theme-animated .layer-sky-day,
 html.theme-animated .layer-sky-night {
-  transition: opacity 1.6s ease;
+  transition: opacity 1.15s ease;
 }
 
 html.theme-animated .layer-stars {
-  transition: opacity 1.35s ease 0.1s;
+  transition: opacity 1.15s ease 0.08s;
 }
 
 .star {
@@ -227,7 +227,7 @@ html[data-theme="night"] .layer-clouds {
 }
 
 html.theme-animated .layer-clouds {
-  transition: opacity 1.3s ease 0.12s, color 1.3s ease 0.12s;
+  transition: opacity 1.15s ease 0.08s, color 1.15s ease 0.08s;
 }
 
 .cloud-svg,
@@ -258,7 +258,7 @@ html[data-theme="night"] .grid-svg line {
 }
 
 html.theme-animated .grid-svg line {
-  transition: stroke 1.3s ease 0.18s;
+  transition: stroke 1.15s ease 0.08s;
 }
 
 .layer-far,
@@ -303,13 +303,13 @@ html[data-theme="night"] .sil-day { opacity: 0; }
 html[data-theme="night"] .sil-night { opacity: 1; }
 
 html.theme-animated .layer-far .sil {
-  transition: opacity 1.35s ease 0.9s;
+  transition: opacity 1.15s ease 0.16s;
 }
 html.theme-animated .layer-mid .sil {
-  transition: opacity 1.4s ease 1.2s;
+  transition: opacity 1.15s ease 0.24s;
 }
 html.theme-animated .layer-near .sil {
-  transition: opacity 1.5s ease 1.55s;
+  transition: opacity 1.15s ease 0.32s;
 }
 
 .layer-fog {
@@ -356,11 +356,11 @@ html[data-theme="night"] .fog-near::after {
 
 html.theme-animated .fog-far::before,
 html.theme-animated .fog-far::after {
-  transition: opacity 1.3s ease 1.0s;
+  transition: opacity 1.15s ease 0.24s;
 }
 html.theme-animated .fog-near::before,
 html.theme-animated .fog-near::after {
-  transition: opacity 1.35s ease 1.4s;
+  transition: opacity 1.15s ease 0.32s;
 }
 
 .layer-vignette {
@@ -392,7 +392,7 @@ html[data-theme="night"] .layer-vignette::after { opacity: 1; }
 
 html.theme-animated .layer-vignette::before,
 html.theme-animated .layer-vignette::after {
-  transition: opacity 1.25s ease 1.35s;
+  transition: opacity 1.15s ease 0.4s;
 }
 
 html[data-page="legal"] .layer-vignette::before,
@@ -425,17 +425,17 @@ html[data-page="account"] .layer-vignette::after {
 }
 
 html.theme-animated .celestial-axis {
-  transition: transform 2.2s cubic-bezier(0.65, 0, 0.35, 1);
+  transition: transform 1.6s cubic-bezier(0.65, 0, 0.35, 1);
 }
 
 html.theme-animated .sun-ray {
-  transition: opacity 1.4s ease;
+  transition: opacity 1.15s ease;
 }
 
 html.theme-animated .sun-core,
 html.theme-animated .moon-core,
 html.theme-animated .orb-halo {
-  transition: box-shadow 1.4s ease, background 1.4s ease, opacity 1.4s ease;
+  transition: box-shadow 1.15s ease, background 1.15s ease, opacity 1.15s ease;
 }
 
 html[data-theme="night"] .celestial-axis {
@@ -719,15 +719,11 @@ html.theme-animated .site-header,
 html.theme-animated .hero-scrim,
 html.theme-animated .btn,
 html.theme-animated .ticker {
-  transition:
-    background-color 1.15s ease 1.15s,
-    background 1.15s ease 1.15s,
-    color 1.15s ease 1.15s,
-    border-color 1.15s ease 1.15s;
+  transition: none;
 }
 
 html.theme-animated .band::before {
-  transition: background 1.15s ease 1.2s;
+  transition: none;
 }
 
 /* ── Layout ────────────────────────────────────────────── */
@@ -783,6 +779,7 @@ html.theme-animated .band::before {
   line-height: 0.98;
   letter-spacing: -0.03em;
   margin: 0 0 1.4rem;
+  color: var(--text);
 }
 
 .display em {
