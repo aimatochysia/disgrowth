@@ -303,13 +303,13 @@ html[data-theme="night"] .sil-day { opacity: 0; }
 html[data-theme="night"] .sil-night { opacity: 1; }
 
 html.theme-animated .layer-far .sil {
-  transition: opacity 1.35s ease 0.75s;
+  transition: opacity 1.35s ease 0.9s;
 }
 html.theme-animated .layer-mid .sil {
-  transition: opacity 1.4s ease 1.1s;
+  transition: opacity 1.4s ease 1.2s;
 }
 html.theme-animated .layer-near .sil {
-  transition: opacity 1.5s ease 1.45s;
+  transition: opacity 1.5s ease 1.55s;
 }
 
 .layer-fog {
@@ -356,11 +356,11 @@ html[data-theme="night"] .fog-near::after {
 
 html.theme-animated .fog-far::before,
 html.theme-animated .fog-far::after {
-  transition: opacity 1.3s ease 0.75s;
+  transition: opacity 1.3s ease 1.0s;
 }
 html.theme-animated .fog-near::before,
 html.theme-animated .fog-near::after {
-  transition: opacity 1.35s ease 1.15s;
+  transition: opacity 1.35s ease 1.4s;
 }
 
 .layer-vignette {
@@ -392,7 +392,7 @@ html[data-theme="night"] .layer-vignette::after { opacity: 1; }
 
 html.theme-animated .layer-vignette::before,
 html.theme-animated .layer-vignette::after {
-  transition: opacity 1.4s ease 0.16s;
+  transition: opacity 1.25s ease 1.35s;
 }
 
 html[data-page="legal"] .layer-vignette::before,
