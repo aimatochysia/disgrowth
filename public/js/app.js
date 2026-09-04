@@ -1,10 +1,27 @@
 (() => {
   const root = document.documentElement;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const header = document.querySelector('.site-header');
+  const nav = document.getElementById('site-nav');
+  const navBtn = document.querySelector('[data-nav-toggle]');
+  const axis = document.querySelector('.celestial-axis');
+  const COMPACT_AT = 28;
 
   function currentTheme() {
     return root.dataset.theme === 'night' ? 'night' : 'day';
   }
+
+  let celestialAngle = currentTheme() === 'night' ? 180 : 0;
+
+  function applyCelestialAngle() {
+    const transform = `rotate(${celestialAngle}deg)`;
+    if (axis) axis.style.transform = transform;
+    document.querySelectorAll('.theme-toggle-face').forEach((el) => {
+      el.style.transform = transform;
+    });
+  }
+
+  applyCelestialAngle();
 
   function syncToggle(theme) {
     document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
@@ -26,6 +43,8 @@
 
   function toggleTheme() {
     setTheme(currentTheme() === 'night' ? 'day' : 'night');
+    celestialAngle += 180;
+    applyCelestialAngle();
   }
 
   requestAnimationFrame(() => {
@@ -35,23 +54,40 @@
     });
   });
 
-  const nav = document.getElementById('site-nav');
-  const navBtn = document.querySelector('[data-nav-toggle]');
-
   function setNavOpen(open) {
     if (!nav || !navBtn) return;
     nav.classList.toggle('is-open', open);
+    navBtn.classList.toggle('is-open', open);
     navBtn.setAttribute('aria-expanded', open ? 'true' : 'false');
     navBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   }
 
+  function syncCompact() {
+    if (!header) return;
+    const mobile = window.matchMedia('(max-width: 900px)').matches;
+    const compact = mobile || window.scrollY > COMPACT_AT;
+    header.classList.toggle('is-compact', compact);
+    if (!compact) setNavOpen(false);
+  }
+
+  syncCompact();
+  window.addEventListener('scroll', syncCompact, { passive: true });
+  window.addEventListener('resize', syncCompact);
+
   document.addEventListener('click', (event) => {
     if (event.target.closest('[data-theme-toggle]')) toggleTheme();
     const toggle = event.target.closest('[data-nav-toggle]');
-    if (toggle) setNavOpen(!nav.classList.contains('is-open'));
-    else if (nav && nav.classList.contains('is-open') && !event.target.closest('#site-nav')) {
+    if (toggle) {
+      setNavOpen(!nav.classList.contains('is-open'));
+      return;
+    }
+    if (nav && nav.classList.contains('is-open') && !event.target.closest('#site-nav')) {
       setNavOpen(false);
     }
+  });
+
+  document.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') setNavOpen(false);
   });
 
   const layers = [...document.querySelectorAll('[data-depth]')];

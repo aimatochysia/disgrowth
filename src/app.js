@@ -23,7 +23,7 @@ import { homePage } from './views/home.js';
 import { storePage } from './views/store.js';
 import { buyPage } from './views/buy.js';
 import { accountPage } from './views/account.js';
-import { legalDocPage, legalHubPage, loginPage, notFoundPage, successPage, supportPage } from './views/misc.js';
+import { legalHubPage, loginPage, notFoundPage, successPage, supportPage } from './views/misc.js';
 import { getLegalDoc } from './legal.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -126,7 +126,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     page(req, res, {
       title: 'Store',
       page: 'home',
-      body: homePage({ user: readSession(req, config), config }),
+      body: homePage({ config }),
     });
   });
 
@@ -299,7 +299,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   });
 
   app.get('/legal', (req, res) => {
-    page(req, res, { title: 'Legal', page: 'legal', body: legalHubPage() });
+    page(req, res, { title: 'Legal', page: 'legal', body: legalHubPage(config) });
   });
 
   app.get('/legal/:slug', (req, res) => {
@@ -308,7 +308,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
       return;
     }
-    page(req, res, { title: doc.title, page: 'legal', body: legalDocPage(doc) });
+    res.redirect(302, `/legal#${doc.slug}`);
   });
 
   app.use((req, res) => {

@@ -7,7 +7,7 @@ export function storePage() {
     <section class="page-hero">
       <h1 class="display display-page">Shop</h1>
       <p class="lede narrow">
-        Gold Bar packs and the Accountant pass. Credits cannot be bought. Convert Gold Bars to Bonds in Discord with <code>/shop</code> — not on this site.
+        Gold Bars for the city. Larger packs include Patron — extra daily Bonds and occasional hints in Discord.
       </p>
     </section>
 

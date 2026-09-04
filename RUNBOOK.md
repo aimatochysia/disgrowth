@@ -10,7 +10,7 @@ Rotate `SESSION_SECRET` logs everyone out.
 
 ## Catalog pause
 
-Hide or unpublish the three Lemon Squeezy products. Existing `/buy/:sku` still renders; checkout redirect fails closed if variant ids are cleared.
+Hide or unpublish the four Lemon Squeezy Gold Bar products. Existing `/buy/:sku` still renders; checkout redirect fails closed if variant ids are cleared.
 
 ## Schema
 
@@ -44,7 +44,8 @@ WHERE discord_id = :snowflake;
 Point shop Link buttons at this origin, not raw Lemon Squeezy URLs:
 
 ```
-LEMONSQUEEZY_CHECKOUT_STARTER={{STORE_ORIGIN}}/buy/gold-starter
-LEMONSQUEEZY_CHECKOUT_PACK={{STORE_ORIGIN}}/buy/gold-pack
-LEMONSQUEEZY_CHECKOUT_PASS={{STORE_ORIGIN}}/buy/accountant-pass
+LEMONSQUEEZY_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
+LEMONSQUEEZY_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
+LEMONSQUEEZY_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
+LEMONSQUEEZY_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
 ```

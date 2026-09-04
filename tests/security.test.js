@@ -3,12 +3,12 @@ import { test } from 'node:test';
 import { redactPayload, safeNextPath } from '../src/lib/security.js';
 
 test('next= open redirects are rejected', () => {
-  assert.equal(safeNextPath('/buy/gold-starter'), '/buy/gold-starter');
+  assert.equal(safeNextPath('/buy/gold-10'), '/buy/gold-10');
   assert.equal(safeNextPath('/account'), '/account');
   assert.equal(safeNextPath('https://evil.example'), '/account');
   assert.equal(safeNextPath('//evil.example'), '/account');
   assert.equal(safeNextPath('/\\evil'), '/account');
-  assert.equal(safeNextPath('https://example.com/buy/gold-starter'), '/account');
+  assert.equal(safeNextPath('https://example.com/buy/gold-10'), '/account');
   assert.equal(safeNextPath('login'), '/account');
   assert.equal(safeNextPath(['/store', 'https://evil.example']), '/store');
 });

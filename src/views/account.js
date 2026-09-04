@@ -79,14 +79,12 @@ export function accountPage({ user, player, dbReady }) {
 
       <article class="panel pass-status">
         <div>
-          <p class="kicker">Accountant pass</p>
+          <p class="kicker">Patron</p>
           <p class="pass-flag ${passOn ? 'on' : 'off'}">${passOn ? 'On' : 'Off'}</p>
         </div>
         <p>${passOn ? `Active until ${fmtUtc(player.subscription_expires_at)}` : 'Not active'}</p>
-        <p class="hint">Hints may pause if you haven’t been in the Discord server for a few days. Logging into this website doesn’t count.</p>
-        ${passOn
-          ? html`<a class="btn btn-ghost" href="/store">Back to shop</a>`
-          : html`<a class="btn btn-accent" href="/buy/accountant-pass">Get the pass</a>`}
+        <p class="hint">Included with Gold Bar packs from $25. Extra daily Bonds and occasional hints in Discord. Hints may pause if you haven’t been in the server. Logging into this website doesn’t count.</p>
+        <a class="btn ${passOn ? 'btn-ghost' : 'btn-gold'}" href="/store">${passOn ? 'Back to shop' : 'Shop Gold Bars'}</a>
       </article>
     </section>
   `;

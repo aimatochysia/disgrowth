@@ -1,8 +1,7 @@
 import { html } from '../lib/html.js';
-import { CATALOG, formatQty, formatUsd } from '../catalog.js';
-import { discordSvg, loginHref, playCta } from './layout.js';
+import { formatQty, formatUsd } from '../catalog.js';
 
-export function homePage({ user, config }) {
+export function homePage({ config }) {
   return html`
     <section class="hero">
       <div class="hero-scrim"></div>
@@ -12,48 +11,12 @@ export function homePage({ user, config }) {
           <em>under the canopy.</em>
         </h1>
         <p class="lede">
-          Disgrowth is a Discord game. You run a shop on a shared city market — in Discord, not here. This site is only the real-money store.
+          Rent a stall, stock the shelves, and grow a company on a shared city market. Everyone plays in the same season.
         </p>
         <div class="cta-row">
-          ${user
-            ? html`<a class="btn btn-accent" href="/store">Open the shop</a>`
-            : html`<a class="btn btn-accent" href="${loginHref('/store')}">${discordSvg()} Log in with Discord</a>`}
-          ${playCta(config)}
+          <a class="btn btn-accent" href="${config.DISCORD_COMMUNITY_INVITE}" rel="noopener noreferrer" target="_blank">Join the community</a>
+          <a class="btn btn-ghost" href="/store">Shop Gold Bars</a>
         </div>
-      </div>
-    </section>
-
-    <section class="band">
-      <h2 class="section-title">Three wallets. One of them is for sale.</h2>
-      <div class="wallet-grid">
-        <article class="panel wallet">
-          <span class="code">CR</span>
-          <h3>Credits</h3>
-          <p>The city economy: rent, stock, tax, wages. You earn these by playing.</p>
-          <p class="stamp">Cannot be purchased</p>
-        </article>
-        <article class="panel wallet">
-          <span class="code">BN</span>
-          <h3>Bonds</h3>
-          <p>Daily spend in Discord. Free players get 5 per in-game day. The Accountant pass raises that to 12.</p>
-          <p class="stamp">Granted in Discord</p>
-        </article>
-        <article class="panel wallet wallet-gold">
-          <span class="code">GL</span>
-          <h3>Gold Bars</h3>
-          <p>The premium wallet, sold here. Convert 1 Gold Bar to 1 Bond in Discord with <code>/shop</code> — one way only, never into Credits.</p>
-          <p class="stamp">Sold here</p>
-        </article>
-      </div>
-    </section>
-
-    <section class="band">
-      <div class="section-head">
-        <h2 class="section-title">On the shelf</h2>
-        <a class="text-link" href="/store">Full shop →</a>
-      </div>
-      <div class="sku-grid">
-        ${Object.values(CATALOG).map((item) => skuCard(item, { compact: true }))}
       </div>
     </section>
 
@@ -70,27 +33,24 @@ export function homePage({ user, config }) {
 }
 
 export function skuCard(item, { compact = false } = {}) {
-  const price =
-    item.kind === 'subscription'
-      ? `${formatUsd(item.usdPlaceholder)} / month`
-      : formatUsd(item.usdPlaceholder);
-  const grant =
-    item.kind === 'subscription' ? 'Monthly' : `${formatQty(item.gold)} Gold Bars`;
-  const ctaClass = item.kind === 'subscription' ? 'btn btn-accent' : 'btn btn-gold';
-  const ctaLabel = item.kind === 'subscription' ? 'Get the pass' : 'Buy Gold Bars';
+  const price = formatUsd(item.usdPlaceholder);
+  const grant = `${formatQty(item.gold)} Gold Bars`;
+  const perk = item.patronDays
+    ? `Includes ${item.patronDays} days of Patron`
+    : 'One-time';
 
   return html`
-    <article class="panel sku ${item.kind === 'one_time' ? 'sku-gold' : 'sku-pass'}">
+    <article class="panel sku sku-gold">
       <div class="sku-meta">
-        <span class="kind">${item.kind === 'subscription' ? 'Subscription' : 'One-time'}</span>
+        <span class="kind">${perk}</span>
       </div>
       <h3>${item.label}</h3>
       <p class="sku-grant">${grant}</p>
-      <p>${compact ? item.summary : item.blurb}</p>
+      <p class="sku-blurb">${compact ? item.summary : item.blurb}</p>
       <p class="hint">Delivered to your Discord character.</p>
       <div class="sku-foot">
         <span class="price">${price}</span>
-        <a class="${ctaClass}" href="/buy/${item.sku_key}">${ctaLabel}</a>
+        <a class="btn btn-gold" href="/buy/${item.sku_key}">Buy Gold Bars</a>
       </div>
     </article>
   `;

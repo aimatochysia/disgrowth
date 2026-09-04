@@ -27,7 +27,7 @@ export function layout(data) {
     user,
     config,
     page = 'default',
-    description = 'Disgrowth store. Gold Bars and the Accountant pass for the Discord economy game.',
+    description = 'Disgrowth store. Gold Bars for the Discord city market.',
     body,
   } = data;
 
@@ -35,6 +35,7 @@ export function layout(data) {
   const artClass = data.artClass || '';
   const pageTitle = title ? `${title} — Disgrowth` : 'Store — Disgrowth';
   const ownerLine = config.previewLegal ? 'Disgrowth' : config.OPERATOR_LEGAL_NAME;
+  const loginNext = path && path !== '/' ? path : '/store';
 
   return html`<!DOCTYPE html>
 <html lang="en" data-theme="day" data-page="${page}" class="${artClass}">
@@ -71,15 +72,18 @@ export function layout(data) {
       <span class="brand-name">Disgrowth</span>
       <span class="brand-sub">Store</span>
     </a>
-    <nav class="nav" id="site-nav" aria-label="Primary">
-      <a href="/store" class="${path === '/store' || path.startsWith('/buy') ? 'is-on' : ''}">Shop</a>
-      ${user
-        ? html`<a class="nav-user ${path === '/account' ? 'is-on' : ''}" href="/account"><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" />${user.globalName || user.username}</a>`
-        : html`<a href="/login?next=${encodeURIComponent(path && path !== '/' ? path : '/store')}">Log in</a>`}
-      <a href="/support" class="nav-support ${path === '/support' ? 'is-on' : ''}">Help</a>
-      ${user ? html`<a href="/logout">Log out</a>` : ''}
-    </nav>
-    <div class="header-tools">
+    <div class="header-end">
+      <div class="nav-cluster">
+        <nav class="nav" id="site-nav" aria-label="Primary">
+          <a href="/" class="${path === '/' ? 'is-on' : ''}">Home</a>
+          <a href="/store" class="${path === '/store' || path.startsWith('/buy') ? 'is-on' : ''}">Shop</a>
+          <a href="/legal" class="${path.startsWith('/legal') ? 'is-on' : ''}">Terms</a>
+          ${user ? html`<a href="/logout">Log out</a>` : ''}
+        </nav>
+        <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
+          <span class="nav-toggle-bars" aria-hidden="true"></span>
+        </button>
+      </div>
       <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Switch day and night">
         <span class="theme-toggle-face" aria-hidden="true">
           <span class="mini-sun"></span>
@@ -87,9 +91,9 @@ export function layout(data) {
         </span>
         <span class="theme-toggle-label" data-theme-label>Day</span>
       </button>
-      <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
-        <span class="nav-toggle-bars" aria-hidden="true"></span>
-      </button>
+      ${user
+        ? html`<a class="btn btn-discord btn-account ${path === '/account' ? 'is-on' : ''}" href="/account"><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" /><span>${user.globalName || user.username}</span></a>`
+        : html`<a class="btn btn-discord" href="${loginHref(loginNext)}">${discordSvg()} Log in</a>`}
     </div>
   </header>
 
@@ -108,11 +112,11 @@ export function layout(data) {
     </div>
     <nav class="footer-links" aria-label="Legal">
       <a href="/support">Help</a>
-      <a href="/legal/terms">Terms</a>
-      <a href="/legal/privacy">Privacy</a>
-      <a href="/legal/refunds">Refunds</a>
-      <a href="/legal/cookies">Cookies</a>
-      <a href="/legal/virtual-items">Virtual items</a>
+      <a href="/legal#terms">Terms</a>
+      <a href="/legal#privacy">Privacy</a>
+      <a href="/legal#refunds">Refunds</a>
+      <a href="/legal#cookies">Cookies</a>
+      <a href="/legal#virtual-items">Virtual items</a>
     </nav>
   </footer>
   <script src="/js/app.js" defer></script>
@@ -124,11 +128,11 @@ function tickerUnit() {
   return html`
     <span>DISGROWTH</span>
     <span class="dot">◆</span>
+    <span>CITY MARKET</span>
+    <span class="dot">◆</span>
+    <span>GOLD BARS</span>
+    <span class="dot">◆</span>
     <span>PLAYED IN DISCORD</span>
-    <span class="dot">◆</span>
-    <span>GOLD BARS ON THIS STORE</span>
-    <span class="dot">◆</span>
-    <span>CREDITS ARE EARNED IN PLAY</span>
     <span class="dot">◆</span>
   `;
 }

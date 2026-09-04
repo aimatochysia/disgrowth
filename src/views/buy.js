@@ -2,14 +2,10 @@ import { html } from '../lib/html.js';
 import { formatQty, formatUsd } from '../catalog.js';
 
 export function buyPage({ sku, user, player, error, checkoutReady }) {
-  const price =
-    sku.kind === 'subscription'
-      ? `${formatUsd(sku.usdPlaceholder)} / month`
-      : formatUsd(sku.usdPlaceholder);
-  const grant =
-    sku.kind === 'subscription'
-      ? 'Accountant pass — extra daily Bonds and occasional hints in Discord'
-      : `${formatQty(sku.gold)} Gold Bars`;
+  const price = formatUsd(sku.usdPlaceholder);
+  const grant = sku.patronDays
+    ? `${formatQty(sku.gold)} Gold Bars + ${sku.patronDays} days of Patron`
+    : `${formatQty(sku.gold)} Gold Bars`;
 
   if (!player) {
     return html`
@@ -38,9 +34,9 @@ export function buyPage({ sku, user, player, error, checkoutReady }) {
         <p>${sku.blurb}</p>
         <p class="hint">
           These are virtual items with no cash value.
-          <a href="/legal/virtual-items">Virtual items</a> ·
-          <a href="/legal/terms">Terms</a> ·
-          <a href="/legal/refunds">Refunds</a>
+          <a href="/legal#virtual-items">Virtual items</a> ·
+          <a href="/legal#terms">Terms</a> ·
+          <a href="/legal#refunds">Refunds</a>
         </p>
       </div>
 
@@ -57,13 +53,13 @@ export function buyPage({ sku, user, player, error, checkoutReady }) {
         </label>
         <label class="check">
           <input type="checkbox" name="terms" value="yes" required />
-          <span>I agree to the <a href="/legal/terms">Terms of Service</a> and <a href="/legal/virtual-items">Virtual Items Policy</a>. I want digital items delivered now, and I understand that means I may lose a cooling-off withdrawal right.</span>
+          <span>I agree to the <a href="/legal#terms">Terms of Service</a> and <a href="/legal#virtual-items">Virtual Items Policy</a>. I want digital items delivered now, and I understand that means I may lose a cooling-off withdrawal right.</span>
         </label>
         <label class="check">
           <input type="checkbox" name="novalue" value="yes" required />
-          <span>I understand Gold Bars and the pass have no cash value and cannot be sold for money.</span>
+          <span>I understand Gold Bars and Patron have no cash value and cannot be sold for money.</span>
         </label>
-        <button class="${sku.kind === 'subscription' ? 'btn btn-accent' : 'btn btn-gold'}" type="submit" ${checkoutReady ? '' : 'disabled'}>
+        <button class="btn btn-gold" type="submit" ${checkoutReady ? '' : 'disabled'}>
           Continue to checkout
         </button>
       </form>

@@ -16,9 +16,10 @@ function config(over = {}) {
     LEMONSQUEEZY_STORE_ID: '1',
     LEMONSQUEEZY_WEBHOOK_SECRET: 'whsec',
     LEMONSQUEEZY_CHECKOUT_BASE: 'https://store.lemonsqueezy.com/checkout/buy',
-    LEMONSQUEEZY_VARIANT_GOLD_STARTER: '111',
-    LEMONSQUEEZY_VARIANT_GOLD_PACK: '222',
-    LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS: '333',
+    LEMONSQUEEZY_VARIANT_GOLD_10: '111',
+    LEMONSQUEEZY_VARIANT_GOLD_25: '222',
+    LEMONSQUEEZY_VARIANT_GOLD_50: '444',
+    LEMONSQUEEZY_VARIANT_GOLD_100: '555',
     ...over,
   });
 }
@@ -93,9 +94,9 @@ test('/buy without session redirects to login', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb(), art: {} });
   await withServer(app, async (base) => {
-    const res = await fetch(`${base}/buy/gold-starter`, { redirect: 'manual' });
+    const res = await fetch(`${base}/buy/gold-10`, { redirect: 'manual' });
     assert.equal(res.status, 302);
-    assert.match(res.headers.get('location'), /\/login\?next=%2Fbuy%2Fgold-starter/);
+    assert.match(res.headers.get('location'), /\/login\?next=%2Fbuy%2Fgold-10/);
   });
 });
 
@@ -103,7 +104,7 @@ test('/buy without player row does not redirect to Lemon Squeezy', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb({ player: null }), art: {} });
   await withServer(app, async (base) => {
-    const res = await fetch(`${base}/buy/gold-starter`, {
+    const res = await fetch(`${base}/buy/gold-10`, {
       redirect: 'manual',
       headers: { cookie: sessionCookie(cfg) },
     });
@@ -118,7 +119,7 @@ test('POST /buy without player does not 302 to Lemon Squeezy', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb({ player: null }), art: {} });
   await withServer(app, async (base) => {
-    const res = await fetch(`${base}/buy/gold-starter`, {
+    const res = await fetch(`${base}/buy/gold-10`, {
       method: 'POST',
       redirect: 'manual',
       headers: {
@@ -186,7 +187,7 @@ test('idempotent double order_created does not grant twice', async () => {
   const raw = JSON.stringify({
     meta: {
       event_name: 'order_created',
-      custom_data: { discord_id: '42', sku_key: 'gold-starter' },
+      custom_data: { discord_id: '42', sku_key: 'gold-10' },
     },
     data: {
       id: '5001',
@@ -214,6 +215,39 @@ test('idempotent double order_created does not grant twice', async () => {
   });
 });
 
+test('gold-25 order_created extends Patron', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const db = mockDb({ player });
+  const app = createApp({ config: cfg, db, art: {} });
+  const raw = JSON.stringify({
+    meta: {
+      event_name: 'order_created',
+      custom_data: { discord_id: '42', sku_key: 'gold-25' },
+    },
+    data: {
+      id: '5002',
+      attributes: { store_id: 1, first_order_item: { variant_id: 222 } },
+    },
+  });
+  const sig = createHmac('sha256', cfg.LEMONSQUEEZY_WEBHOOK_SECRET).update(raw).digest('hex');
+
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/api/webhooks/lemonsqueezy`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-signature': sig },
+      body: raw,
+    });
+    assert.equal(res.status, 200);
+    const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
+    assert.equal(grants.length, 1);
+    assert.equal(grants[0].params[0], 1300);
+    const patron = db.statements.filter((s) => /INTERVAL '1 day'/.test(s.text));
+    assert.equal(patron.length, 1);
+    assert.equal(patron[0].params[1], 30);
+  });
+});
+
 test('landing and legal pages render', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb(), art: {} });
@@ -223,10 +257,31 @@ test('landing and legal pages render', async () => {
     const html = await home.text();
     assert.match(html, /Disgrowth/);
     assert.match(html, /celestial-axis/);
-    const legal = await fetch(`${base}/legal/terms`);
-    assert.equal(legal.status, 200);
-    assert.match(await legal.text(), /Terms of Service/);
+    assert.match(html, /Join the community/);
+    assert.match(html, /discord\.gg\/XMadQ9tAd/);
+    assert.match(html, />Home</);
+    assert.match(html, />Shop</);
+    assert.match(html, />Terms</);
+    assert.match(html, /btn-discord/);
+    assert.doesNotMatch(html, /Three wallets/);
+    assert.doesNotMatch(html, /On the shelf/);
+    assert.doesNotMatch(html, /this site is only the real-money store/);
+    assert.doesNotMatch(html, /nav-support/);
+    const legal = await fetch(`${base}/legal/terms`, { redirect: 'manual' });
+    assert.equal(legal.status, 302);
+    assert.match(legal.headers.get('location'), /\/legal#terms/);
+    const book = await fetch(`${base}/legal`);
+    assert.equal(book.status, 200);
+    const legalHtml = await book.text();
+    assert.match(legalHtml, /Terms of Service/);
+    assert.match(legalHtml, /Refund Policy/);
+    assert.match(legalHtml, /two \(2\) hours/);
+    assert.match(legalHtml, /Patron time included with a Gold Bar pack is/);
     const store = await fetch(`${base}/store`);
-    assert.match(await store.text(), /Gold Bars — starter/);
+    const storeHtml = await store.text();
+    assert.match(storeHtml, /Gold Bars — 500/);
+    assert.match(storeHtml, /Gold Bars — 5,600/);
+    assert.doesNotMatch(storeHtml, /Accountant pass/);
+    assert.doesNotMatch(storeHtml, /Get the pass/);
   });
 });

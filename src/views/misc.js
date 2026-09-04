@@ -1,6 +1,6 @@
 import { html } from '../lib/html.js';
 import { discordSvg } from './layout.js';
-import { getLegalDoc, legalIndexPage } from '../legal.js';
+import { getLegalDoc, legalBookPage, legalToc } from '../legal.js';
 
 export function loginPage({ next, oauthReady, error }) {
   return html`
@@ -11,7 +11,7 @@ export function loginPage({ next, oauthReady, error }) {
       </p>
       ${error ? html`<p class="flash" role="alert">${error}</p>` : ''}
       ${oauthReady
-        ? html`<a class="btn btn-accent" href="/auth/discord?next=${encodeURIComponent(next)}">${discordSvg()} Continue to Discord</a>`
+        ? html`<a class="btn btn-discord" href="/auth/discord?next=${encodeURIComponent(next)}">${discordSvg()} Continue to Discord</a>`
         : html`<p class="flash" role="status">Login isn’t available yet. Try again later.</p>`}
     </section>
   `;
@@ -22,7 +22,7 @@ export function successPage() {
     <section class="page-hero">
       <h1 class="display display-page">Payment sent</h1>
       <p class="lede narrow">
-        Gold Bars and the pass usually show up in Discord within a few seconds. Open <code>/shop</code>, or check your account here. If nothing appears, wait a moment and refresh.
+        Gold Bars — and Patron, if the pack includes it — usually show up in Discord within a few seconds. Open <code>/shop</code>, or check your account here. If nothing appears, wait a moment and refresh.
       </p>
       <div class="cta-row">
         <a class="btn btn-accent" href="/account">Open account</a>
@@ -33,8 +33,9 @@ export function successPage() {
 }
 
 export function supportPage({ config }) {
-  const invite = config.DISCORD_SUPPORT_INVITE
-    ? html`<p><a class="text-link" href="${config.DISCORD_SUPPORT_INVITE}" rel="noopener">Discord help server</a></p>`
+  const invite = config.DISCORD_SUPPORT_INVITE || config.DISCORD_COMMUNITY_INVITE;
+  const inviteLink = invite
+    ? html`<p><a class="text-link" href="${invite}" rel="noopener">Discord community</a></p>`
     : '';
 
   return html`
@@ -45,24 +46,25 @@ export function supportPage({ config }) {
       </p>
       <div class="panel">
         <p>Email <a href="mailto:${config.SUPPORT_EMAIL}">${config.SUPPORT_EMAIL}</a></p>
-        ${invite}
+        ${inviteLink}
         <p class="hint">We aim to answer in ${String(config.SLA_DAYS)} business days.</p>
       </div>
     </section>
   `;
 }
 
-export function legalHubPage() {
+export function legalHubPage(config) {
   return html`
     <section class="page-hero">
       <h1 class="display display-page">Policies</h1>
-      <p class="lede narrow">How the store, your data, refunds, and virtual items work.</p>
+      <p class="lede narrow">Terms, privacy, refunds, cookies, and virtual items — in one place.</p>
     </section>
-    <section class="band tight">
-      <div class="legal-grid">
-        ${legalIndexPage()}
-      </div>
-    </section>
+    <nav class="legal-toc" aria-label="Chapters">
+      ${legalToc()}
+    </nav>
+    <article class="legal-doc legal-book">
+      ${legalBookPage(config)}
+    </article>
   `;
 }
 

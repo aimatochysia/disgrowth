@@ -28,6 +28,16 @@ SET subscription_active = FALSE,
 WHERE id = $2
 `.trim();
 
+export const PATRON_EXTEND_SQL = `
+UPDATE players
+SET subscription_active = TRUE,
+    subscription_expires_at = GREATEST(
+      COALESCE(subscription_expires_at, NOW()),
+      NOW()
+    ) + ($2::int * INTERVAL '1 day')
+WHERE id = $1
+`.trim();
+
 const ACTIVE_STATUSES = new Set(['on_trial', 'active', 'past_due']);
 const INACTIVE_STATUSES = new Set(['paused', 'unpaid', 'expired']);
 
@@ -138,6 +148,7 @@ export function interpretWebhook(body, ctx, now = new Date()) {
     lemonOrderId: orderIdOf(eventName, data, attrs),
     lemonSubscriptionId: subscriptionIdOf(eventName, data, attrs),
     goldDelta: 0,
+    patronDays: 0,
     subscriptionActive: undefined,
     expiresAt: undefined,
     reason: null,
@@ -155,7 +166,12 @@ export function interpretWebhook(body, ctx, now = new Date()) {
       if (catalogItem.kind === 'subscription') {
         return { ...base, apply: false, effect: 'ignored', reason: 'pass_order_wait_subscription' };
       }
-      return { ...base, effect: 'gold_grant', goldDelta: goldDeltaFor(skuKey, 1) };
+      return {
+        ...base,
+        effect: 'gold_grant',
+        goldDelta: goldDeltaFor(skuKey, 1),
+        patronDays: catalogItem.patronDays || 0,
+      };
     }
     case 'order_refunded': {
       if (!catalogItem) {
@@ -234,6 +250,9 @@ export async function applyInterpretation(client, interpretation, player) {
   const goldAbs = Math.abs(interpretation.goldDelta || 0);
   if (interpretation.effect === 'gold_grant' && goldAbs) {
     await client.query(GOLD_GRANT_SQL, [goldAbs, player.id]);
+  }
+  if (interpretation.effect === 'gold_grant' && Number(interpretation.patronDays) > 0) {
+    await client.query(PATRON_EXTEND_SQL, [player.id, interpretation.patronDays]);
   }
   if (interpretation.effect === 'gold_refund' && goldAbs) {
     await client.query(GOLD_REFUND_SQL, [goldAbs, player.id]);

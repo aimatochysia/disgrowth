@@ -119,15 +119,16 @@ Prices are Bonds. Tuned ~20× so they are not casual snacks. Website copy may sa
 
 ### 2.3 Real-money SKUs (this website only)
 
-| `sku_key` | Player label | Type | Grant | USD (placeholder) |
+| `sku_key` | Player label | Type | Grant | USD |
 | --- | --- | --- | --- | --- |
-| `gold-starter` | Gold Bars — starter | One-time | **500 GL** | **$9.99** |
-| `gold-pack` | Gold Bars — pack | One-time | **1,600 GL** | **$24.99** |
-| `accountant-pass` | Accountant pass | Subscription, calendar month | Set `subscription_active` / `subscription_expires_at` | **$6.99 / month** |
+| `gold-10` | Gold Bars — 500 | One-time | **500 GL** | **$10** |
+| `gold-25` | Gold Bars — 1,300 | One-time | **1,300 GL** + 30 days Patron | **$25** |
+| `gold-50` | Gold Bars — 2,700 | One-time | **2,700 GL** + 30 days Patron | **$50** |
+| `gold-100` | Gold Bars — 5,600 | One-time | **5,600 GL** + 30 days Patron | **$100** |
 
 These USD amounts and GL counts are **placeholders for launch**. Label them `placeholder` in code comments. Do not bikeshed during implementation. Operator may retune in Lemon Squeezy and env before going live.
 
-**Why these numbers:** the floor is not a $0.99 impulse pack. Starter covers Instant month (400 BN after convert) or most of Sharpness; it does **not** buy a 1000 BN blitz. Pack covers one rescue (1600) or one blitz + leftover. Pass is hints + 12 BN/day, **not** a Gold Bars dump and **not** purchasable with BN.
+**Why these numbers:** Gold Bars per dollar rises slightly with pack size (50 → 52 → 54 → 56 GL/$). Packs from $25 include 30 days of Patron (the same `subscription_active` / `subscription_expires_at` flags the bot already uses). Patron is **not** sold as a standalone Lemon subscription on this store.
 
 **Never sell:** CR packs, extra companies, extra branches, tax cuts, offline cap, equity, board seats, “win the sector” buffs.
 
@@ -183,15 +184,15 @@ Not sacred; swap if you have a strong reason. Defaults chosen so Lemon Squeezy�
 ### 3.1 Sequence (happy path)
 
 ```
-Player clicks /shop "Gold Bars — starter" in Discord
-  → https://{{STORE_ORIGIN}}/buy/gold-starter
-  → if no session: Discord OAuth (identify), return to /buy/gold-starter
+Player clicks /shop "Gold Bars — 500" in Discord
+  → https://{{STORE_ORIGIN}}/buy/gold-10
+  → if no session: Discord OAuth (identify), return to /buy/gold-10
   → load players WHERE discord_id = session
   → if no row: "Run /disgrowth in Discord first"
   → age + ToS checkboxes
   → redirect to Lemon Squeezy checkout URL with
         checkout[custom][discord_id]={{snowflake}}
-        checkout[custom][sku_key]=gold-starter
+        checkout[custom][sku_key]=gold-10
   → player pays on Lemon Squeezy
   → LS POST {{STORE_ORIGIN}}/api/webhooks/lemonsqueezy
   → verify HMAC, idempotent insert store_orders, UPDATE players gold_bars+marks
@@ -259,13 +260,14 @@ Lemon Squeezy is **Merchant of Record**: they collect payment, charge sales tax/
 
 ### 5.2 Products / variants
 
-Create **three** products (one variant each for v1):
+Create **four** one-time products (one variant each):
 
 | Product | LS type | Variant | Env var for variant id |
 | --- | --- | --- | --- |
-| Gold Bars — starter | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_STARTER` |
-| Gold Bars — pack | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_PACK` |
-| Accountant pass | Subscription, **monthly** | Default | `LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS` |
+| Gold Bars — 500 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_10` |
+| Gold Bars — 1,300 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_25` |
+| Gold Bars — 2,700 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_50` |
+| Gold Bars — 5,600 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_100` |
 
 Share **checkout overlay / hosted** buy URLs as well (optional if you always build URLs from variant ids):
 
@@ -368,19 +370,16 @@ All pages: dark theme, footer legal links, “Not the game — play in Discord�
 
 | Route | Auth | Purpose |
 | --- | --- | --- |
-| `/` | Public | Landing. What Disgrowth is, three wallets, CTA Login with Discord, catalog preview. |
+| `/` | Public | Landing. Community invite, shop link. |
 | `/login` | Public | Button → Discord OAuth. Query `?next=` allowed only as relative path on this origin. |
 | `/api/auth/discord/callback` | Public | OAuth callback. |
 | `/logout` | Session | Clear cookie, redirect `/`. |
-| `/store` | Public ok; buy requires login | Catalog of 3 SKUs, prices, “what you get”. |
-| `/buy/:sku_key` | **Required** | Validates sku, session, player row, checkboxes, redirects to LS. `sku_key` ∈ `gold-starter`, `gold-pack`, `accountant-pass`. |
-| `/account` | **Required** | Avatar, username, CR (read-only), BN (read-only), GL, pass on/off + expiry. Note convert in `/shop`. |
-| `/success` | Session optional | “Payment sent. Gold Bars and the pass update after the webhook (usually seconds). Open Discord `/shop`.” |
-| `/legal/terms` | Public | Terms of Service (§12.3). |
-| `/legal/privacy` | Public | Privacy (§12.4). |
-| `/legal/refunds` | Public | Refunds (§12.5). |
-| `/legal/cookies` | Public | Cookies (§12.6). |
-| `/legal/virtual-items` | Public | Virtual currency license (§12.7). |
+| `/store` | Public ok; buy requires login | Four Gold Bar packs. $25+ include Patron. |
+| `/buy/:sku_key` | **Required** | Validates sku, session, player row, checkboxes, redirects to LS. `sku_key` ∈ `gold-10`, `gold-25`, `gold-50`, `gold-100`. |
+| `/account` | **Required** | Avatar, username, CR (read-only), BN (read-only), GL, Patron on/off + expiry. |
+| `/success` | Session optional | Payment sent. Gold Bars (and Patron if included) update after the webhook. |
+| `/legal` | Public | Terms, privacy, refunds, cookies, virtual items as chapters. |
+| `/legal/:slug` | Public | Redirects to `/legal#slug`. |
 | `/support` | Public | `{{SUPPORT_EMAIL}}`, Discord server invite `{{DISCORD_SUPPORT_INVITE}}`, “purchases need Discord login”. |
 | `/healthz` | Public | `200 { "ok": true, "db": "up"|"down" }` — do not expose secrets. |
 | `POST /api/webhooks/lemonsqueezy` | LS HMAC | Grants. No session. |
@@ -476,33 +475,45 @@ If the website inserts a row **without** that grant, the bot will find the row l
 
 ### 7.4 Catalog map (code)
 
-```ts
+```js
 export const CATALOG = {
-  'gold-starter': {
-    sku_key: 'gold-starter',
-    label: 'Gold Bars — starter',
+  'gold-10': {
+    sku_key: 'gold-10',
+    label: 'Gold Bars — 500',
     kind: 'one_time',
     gold: 500,
-    usdPlaceholder: 9.99,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_STARTER',
+    usdPlaceholder: 10,
+    patronDays: 0,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_10',
   },
-  'gold-pack': {
-    sku_key: 'gold-pack',
-    label: 'Gold Bars — pack',
+  'gold-25': {
+    sku_key: 'gold-25',
+    label: 'Gold Bars — 1,300',
     kind: 'one_time',
-    gold: 1600,
-    usdPlaceholder: 24.99,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_PACK',
+    gold: 1300,
+    usdPlaceholder: 25,
+    patronDays: 30,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_25',
   },
-  'accountant-pass': {
-    sku_key: 'accountant-pass',
-    label: 'Accountant pass',
-    kind: 'subscription',
-    gold: 0,
-    usdPlaceholder: 6.99,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS',
+  'gold-50': {
+    sku_key: 'gold-50',
+    label: 'Gold Bars — 2,700',
+    kind: 'one_time',
+    gold: 2700,
+    usdPlaceholder: 50,
+    patronDays: 30,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_50',
   },
-} as const;
+  'gold-100': {
+    sku_key: 'gold-100',
+    label: 'Gold Bars — 5,600',
+    kind: 'one_time',
+    gold: 5600,
+    usdPlaceholder: 100,
+    patronDays: 30,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_100',
+  },
+};
 ```
 
 Map inbound `variant_id` → `sku_key` using those env ids. If `meta.custom_data.sku_key` is present and matches the variant map, use it; if they disagree, **do not grant**, log, mark `effect = 'ignored'`, alert `{{SUPPORT_EMAIL}}`.
@@ -598,8 +609,10 @@ DATABASE_URL=postgres://...
 # Lemon Squeezy
 LEMONSQUEEZY_STORE_ID=
 LEMONSQUEEZY_WEBHOOK_SECRET=
-LEMONSQUEEZY_VARIANT_GOLD_STARTER=
-LEMONSQUEEZY_VARIANT_GOLD_PACK=
+LEMONSQUEEZY_VARIANT_GOLD_10=
+LEMONSQUEEZY_VARIANT_GOLD_25=
+LEMONSQUEEZY_VARIANT_GOLD_50=
+LEMONSQUEEZY_VARIANT_GOLD_100=
 LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS=
 # Used to build hosted checkout URLs:
 LEMONSQUEEZY_CHECKOUT_BASE=https://YOUR-STORE.lemonsqueezy.com/checkout/buy
@@ -623,9 +636,10 @@ DISCORD_BOT_PUBLIC_URL=
 Bot repo (later, not this website) should set Link buttons to:
 
 ```
-LEMONSQUEEZY_CHECKOUT_STARTER={{STORE_ORIGIN}}/buy/gold-starter
-LEMONSQUEEZY_CHECKOUT_PACK={{STORE_ORIGIN}}/buy/gold-pack
-LEMONSQUEEZY_CHECKOUT_PASS={{STORE_ORIGIN}}/buy/accountant-pass
+LEMONSQUEEZY_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
+LEMONSQUEEZY_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
+LEMONSQUEEZY_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
+LEMONSQUEEZY_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
 ```
 
 Those bot env names are historical; values must be **this website**, not raw LS URLs.
@@ -1075,11 +1089,12 @@ Until this is filled, keep a site banner: “Store in preview — legal entity a
 
 ## 20. Catalog numbers recap (placeholders)
 
-| sku_key | GL | USD | LS type |
-| --- | --- | --- | --- |
-| gold-starter | 500 | 9.99 | one-time |
-| gold-pack | 1600 | 24.99 | one-time |
-| accountant-pass | 0 | 6.99 / month | subscription |
+| sku_key | GL | USD | Patron | LS type |
+| --- | --- | --- | --- | --- |
+| gold-10 | 500 | 10 | — | one-time |
+| gold-25 | 1300 | 25 | 30 days | one-time |
+| gold-50 | 2700 | 50 | 30 days | one-time |
+| gold-100 | 5600 | 100 | 30 days | one-time |
 
 Daily Bonds (bot): 5 free / 12 pass. Convert 1 GL = 1 BN in Discord only.
 

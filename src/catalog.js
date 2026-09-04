@@ -1,38 +1,53 @@
 /** Placeholder USD and GL counts for launch. Operator retunes in Lemon Squeezy + env. */
 
 export const CATALOG = {
-  'gold-starter': {
-    sku_key: 'gold-starter',
-    label: 'Gold Bars — starter',
+  'gold-10': {
+    sku_key: 'gold-10',
+    label: 'Gold Bars — 500',
     kind: 'one_time',
     gold: 500,
-    usdPlaceholder: 9.99,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_STARTER',
-    ledger: 'GL-S',
-    summary: '500 Gold Bars for the premium wallet. Convert 1:1 to Bonds in Discord with /shop.',
-    blurb: 'A starter stack. Convert to Bonds in Discord when you need them.',
+    usdPlaceholder: 10,
+    patronDays: 0,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_10',
+    ledger: 'GL-10',
+    summary: '500 Gold Bars for the premium wallet.',
+    blurb: 'A first stack for when the daily Bonds are not enough. Convert them in Discord with /shop.',
   },
-  'gold-pack': {
-    sku_key: 'gold-pack',
-    label: 'Gold Bars — pack',
+  'gold-25': {
+    sku_key: 'gold-25',
+    label: 'Gold Bars — 1,300',
     kind: 'one_time',
-    gold: 1600,
-    usdPlaceholder: 24.99,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_PACK',
-    ledger: 'GL-P',
-    summary: '1,600 Gold Bars. Same wallet, larger stack.',
-    blurb: 'A larger stack for bigger spends after you convert to Bonds in Discord.',
+    gold: 1300,
+    usdPlaceholder: 25,
+    patronDays: 30,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_25',
+    ledger: 'GL-25',
+    summary: '1,300 Gold Bars, plus 30 days of Patron.',
+    blurb: 'A larger stack and 30 days of Patron: extra daily Bonds and occasional hints in Discord.',
   },
-  'accountant-pass': {
-    sku_key: 'accountant-pass',
-    label: 'Accountant pass',
-    kind: 'subscription',
-    gold: 0,
-    usdPlaceholder: 6.99,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS',
-    ledger: 'PASS',
-    summary: 'Monthly. Extra daily Bonds and occasional hints in Discord while the pass is on.',
-    blurb: '12 Bonds per in-game day instead of 5. Hints are imperfect, not always sent, and may pause if you have been away from the Discord server. Not a Gold Bars pack.',
+  'gold-50': {
+    sku_key: 'gold-50',
+    label: 'Gold Bars — 2,700',
+    kind: 'one_time',
+    gold: 2700,
+    usdPlaceholder: 50,
+    patronDays: 30,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_50',
+    ledger: 'GL-50',
+    summary: '2,700 Gold Bars, plus 30 days of Patron.',
+    blurb: 'A serious reserve and 30 days of Patron. Slightly more Gold Bars per dollar than the smaller packs.',
+  },
+  'gold-100': {
+    sku_key: 'gold-100',
+    label: 'Gold Bars — 5,600',
+    kind: 'one_time',
+    gold: 5600,
+    usdPlaceholder: 100,
+    patronDays: 30,
+    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_100',
+    ledger: 'GL-100',
+    summary: '5,600 Gold Bars, plus 30 days of Patron.',
+    blurb: 'The largest stack we sell, with 30 days of Patron included. Best Gold Bars per dollar on the shelf.',
   },
 };
 
@@ -43,9 +58,12 @@ export function isSku(value) {
 }
 
 export function formatUsd(n) {
+  const whole = Number.isInteger(n);
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
+    minimumFractionDigits: whole ? 0 : 2,
+    maximumFractionDigits: 2,
   }).format(n);
 }
 
@@ -55,8 +73,11 @@ export function formatQty(n) {
 
 export function variantMapFromEnv(env) {
   return {
-    'gold-starter': env.LEMONSQUEEZY_VARIANT_GOLD_STARTER || '',
-    'gold-pack': env.LEMONSQUEEZY_VARIANT_GOLD_PACK || '',
+    'gold-10': env.LEMONSQUEEZY_VARIANT_GOLD_10 || '',
+    'gold-25': env.LEMONSQUEEZY_VARIANT_GOLD_25 || '',
+    'gold-50': env.LEMONSQUEEZY_VARIANT_GOLD_50 || '',
+    'gold-100': env.LEMONSQUEEZY_VARIANT_GOLD_100 || '',
+    // Legacy Lemon subscription product — still honoured on webhooks, not sold here.
     'accountant-pass': env.LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS || '',
   };
 }
