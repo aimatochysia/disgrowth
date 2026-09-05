@@ -74,6 +74,23 @@
   window.addEventListener('scroll', syncCompact, { passive: true });
   window.addEventListener('resize', syncCompact);
 
+  const toTop = document.querySelector('[data-to-top]');
+  function syncToTop() {
+    if (!toTop) return;
+    const show = window.scrollY > 280;
+    toTop.classList.toggle('is-visible', show);
+    toTop.setAttribute('aria-hidden', show ? 'false' : 'true');
+    toTop.tabIndex = show ? 0 : -1;
+  }
+  syncToTop();
+  window.addEventListener('scroll', syncToTop, { passive: true });
+  if (toTop) {
+    toTop.addEventListener('click', (event) => {
+      event.preventDefault();
+      window.scrollTo({ top: 0, behavior: reduce ? 'auto' : 'smooth' });
+    });
+  }
+
   document.addEventListener('click', (event) => {
     if (event.target.closest('[data-theme-toggle]')) toggleTheme();
     const toggle = event.target.closest('[data-nav-toggle]');

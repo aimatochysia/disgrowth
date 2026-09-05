@@ -1,4 +1,4 @@
-/** Placeholder USD and GL counts for launch. Operator retunes in Lemon Squeezy + env. */
+/** Pack sizes for launch. Operator retunes in Paddle + env. */
 
 export const CATALOG = {
   'gold-10': {
@@ -8,7 +8,7 @@ export const CATALOG = {
     gold: 500,
     usdPlaceholder: 10,
     patronDays: 0,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_10',
+    variantEnv: 'PADDLE_PRICE_GOLD_10',
     ledger: 'GL-10',
     summary: '500 Gold Bars for the premium wallet.',
     blurb: 'A first stack for when the daily Bonds are not enough. Convert them in Discord with /shop.',
@@ -20,7 +20,7 @@ export const CATALOG = {
     gold: 1300,
     usdPlaceholder: 25,
     patronDays: 30,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_25',
+    variantEnv: 'PADDLE_PRICE_GOLD_25',
     ledger: 'GL-25',
     summary: '1,300 Gold Bars, plus 30 days of Patron.',
     blurb: 'A larger stack and 30 days of Patron: extra daily Bonds and occasional hints in Discord.',
@@ -32,7 +32,7 @@ export const CATALOG = {
     gold: 2700,
     usdPlaceholder: 50,
     patronDays: 30,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_50',
+    variantEnv: 'PADDLE_PRICE_GOLD_50',
     ledger: 'GL-50',
     summary: '2,700 Gold Bars, plus 30 days of Patron.',
     blurb: 'A serious reserve and 30 days of Patron. Slightly more Gold Bars per dollar than the smaller packs.',
@@ -44,7 +44,7 @@ export const CATALOG = {
     gold: 5600,
     usdPlaceholder: 100,
     patronDays: 30,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_100',
+    variantEnv: 'PADDLE_PRICE_GOLD_100',
     ledger: 'GL-100',
     summary: '5,600 Gold Bars, plus 30 days of Patron.',
     blurb: 'The largest stack we sell, with 30 days of Patron included. Best Gold Bars per dollar on the shelf.',
@@ -73,12 +73,10 @@ export function formatQty(n) {
 
 export function variantMapFromEnv(env) {
   return {
-    'gold-10': env.LEMONSQUEEZY_VARIANT_GOLD_10 || '',
-    'gold-25': env.LEMONSQUEEZY_VARIANT_GOLD_25 || '',
-    'gold-50': env.LEMONSQUEEZY_VARIANT_GOLD_50 || '',
-    'gold-100': env.LEMONSQUEEZY_VARIANT_GOLD_100 || '',
-    // Legacy Lemon subscription product — still honoured on webhooks, not sold here.
-    'accountant-pass': env.LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS || '',
+    'gold-10': env.PADDLE_PRICE_GOLD_10 || '',
+    'gold-25': env.PADDLE_PRICE_GOLD_25 || '',
+    'gold-50': env.PADDLE_PRICE_GOLD_50 || '',
+    'gold-100': env.PADDLE_PRICE_GOLD_100 || '',
   };
 }
 

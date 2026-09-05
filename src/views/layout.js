@@ -56,7 +56,7 @@ export function layout(data) {
   <link rel="stylesheet" href="/art.css" />
   <script src="/js/theme-boot.js"></script>
 </head>
-<body>
+<body id="top">
   <a class="skip" href="#content">Skip to content</a>
   ${sceneMarkup()}
 
@@ -104,7 +104,7 @@ export function layout(data) {
   <footer class="site-footer">
     <div class="footer-rule"></div>
     <div class="footer-row">
-      <p class="fine">© ${String(year)} ${ownerLine}. Played in Discord. Card payments by Lemon Squeezy.</p>
+      <p class="fine">© ${String(year)} ${ownerLine}. Played in Discord. Card payments by Paddle.</p>
       <p class="fine muted">Not affiliated with Discord Inc.</p>
       ${config.previewLegal
         ? html`<p class="fine">Store in preview. Policies are still drafts.</p>`
@@ -119,6 +119,9 @@ export function layout(data) {
       <a href="/legal#virtual-items">Virtual items</a>
     </nav>
   </footer>
+  <a class="to-top" href="#top" data-to-top aria-label="Back to top" tabindex="-1" aria-hidden="true">
+    <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.5 5.8 11.7l1.4 1.4L11 8.3V19h2V8.3l3.8 4.8 1.4-1.4z"/></svg>
+  </a>
   <script src="/js/app.js" defer></script>
 </body>
 </html>`;

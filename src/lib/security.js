@@ -1,12 +1,37 @@
 import crypto from 'node:crypto';
 
-export function verifyLemonSqueezySignature(rawBody, header, secret) {
+const PADDLE_TS_MAX_AGE_SEC = 300;
+
+export function verifyPaddleSignature(rawBody, header, secret, now = Date.now()) {
   if (!header || !secret) return false;
-  const digestHex = crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-  const signature = Buffer.from(String(header).trim(), 'hex');
-  const hmac = Buffer.from(digestHex, 'hex');
-  if (signature.length !== hmac.length) return false;
-  return crypto.timingSafeEqual(hmac, signature);
+  const parts = String(header).split(';');
+  let ts = '';
+  const signatures = [];
+  for (const part of parts) {
+    const trimmed = part.trim();
+    if (trimmed.startsWith('ts=')) ts = trimmed.slice(3);
+    if (trimmed.startsWith('h1=')) signatures.push(trimmed.slice(3));
+  }
+  if (!ts || !signatures.length) return false;
+
+  const tsNum = Number(ts);
+  if (!Number.isFinite(tsNum)) return false;
+  const age = Math.abs(Math.floor(now / 1000) - tsNum);
+  if (age > PADDLE_TS_MAX_AGE_SEC) return false;
+
+  const body = Buffer.isBuffer(rawBody) ? rawBody : Buffer.from(rawBody);
+  const expected = crypto.createHmac('sha256', secret).update(ts).update(':').update(body).digest('hex');
+  const expectedBuf = Buffer.from(expected, 'hex');
+
+  return signatures.some((sig) => {
+    try {
+      const got = Buffer.from(sig, 'hex');
+      if (got.length !== expectedBuf.length) return false;
+      return crypto.timingSafeEqual(got, expectedBuf);
+    } catch {
+      return false;
+    }
+  });
 }
 
 export function safeNextPath(next, fallback = '/account') {

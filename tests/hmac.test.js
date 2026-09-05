@@ -1,21 +1,29 @@
 import assert from 'node:assert/strict';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
-import { verifyLemonSqueezySignature } from '../src/lib/security.js';
+import { verifyPaddleSignature } from '../src/lib/security.js';
 
-test('HMAC accept matching hex digest of raw body', () => {
-  const secret = 'whsec_test';
-  const raw = '{"meta":{"event_name":"order_created"}}';
-  const header = createHmac('sha256', secret).update(raw).digest('hex');
-  assert.equal(verifyLemonSqueezySignature(raw, header, secret), true);
+function sign(raw, secret, ts) {
+  return createHmac('sha256', secret).update(String(ts)).update(':').update(raw).digest('hex');
+}
+
+test('Paddle HMAC accepts matching ts+h1 of raw body', () => {
+  const secret = 'pdl_ntfsec_test';
+  const raw = '{"event_type":"transaction.completed"}';
+  const ts = Math.floor(Date.now() / 1000);
+  const header = `ts=${ts};h1=${sign(raw, secret, ts)}`;
+  assert.equal(verifyPaddleSignature(raw, header, secret), true);
 });
 
-test('HMAC reject wrong secret, missing header, and length mismatch', () => {
-  const secret = 'whsec_test';
+test('Paddle HMAC rejects wrong secret, missing header, stale ts, and length mismatch', () => {
+  const secret = 'pdl_ntfsec_test';
   const raw = '{"ok":true}';
-  const header = createHmac('sha256', secret).update(raw).digest('hex');
-  assert.equal(verifyLemonSqueezySignature(raw, header, 'other'), false);
-  assert.equal(verifyLemonSqueezySignature(raw, null, secret), false);
-  assert.equal(verifyLemonSqueezySignature(raw, 'ab', secret), false);
-  assert.equal(verifyLemonSqueezySignature(raw, header, ''), false);
+  const ts = Math.floor(Date.now() / 1000);
+  const header = `ts=${ts};h1=${sign(raw, secret, ts)}`;
+  assert.equal(verifyPaddleSignature(raw, header, 'other'), false);
+  assert.equal(verifyPaddleSignature(raw, null, secret), false);
+  assert.equal(verifyPaddleSignature(raw, 'ab', secret), false);
+  assert.equal(verifyPaddleSignature(raw, header, ''), false);
+  const stale = `ts=${ts - 400};h1=${sign(raw, secret, ts - 400)}`;
+  assert.equal(verifyPaddleSignature(raw, stale, secret), false);
 });

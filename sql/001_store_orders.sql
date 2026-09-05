@@ -3,7 +3,7 @@
 
 CREATE TABLE IF NOT EXISTS store_orders (
   id                    BIGSERIAL PRIMARY KEY,
-  provider              TEXT NOT NULL DEFAULT 'lemonsqueezy',
+  provider              TEXT NOT NULL DEFAULT 'paddle',
   provider_event_id     TEXT NOT NULL,
   event_name            TEXT NOT NULL,
   lemon_store_id        INTEGER,

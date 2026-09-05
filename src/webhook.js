@@ -1,26 +1,26 @@
-import { interpretWebhook, applyInterpretation } from './grants.js';
-import { redactPayload, verifyLemonSqueezySignature } from './lib/security.js';
+import { interpretWebhook, applyInterpretation, goldDeltaFor } from './grants.js';
+import { redactPayload, verifyPaddleSignature } from './lib/security.js';
 import { variantMapFromEnv } from './catalog.js';
 
 export function webhookContext(config) {
   return {
-    storeId: config.LEMONSQUEEZY_STORE_ID,
     variantMap: variantMapFromEnv(config),
   };
 }
 
-export async function handleLemonSqueezyWebhook({ rawBody, signature, config, db, log = console }) {
-  if (!config.LEMONSQUEEZY_WEBHOOK_SECRET) {
+export async function handlePaddleWebhook({ rawBody, signature, config, db, log = console }) {
+  if (!config.PADDLE_WEBHOOK_SECRET) {
     return { status: 503, body: { ok: false, error: 'webhook_unconfigured' } };
   }
 
-  if (!verifyLemonSqueezySignature(rawBody, signature, config.LEMONSQUEEZY_WEBHOOK_SECRET)) {
+  if (!verifyPaddleSignature(rawBody, signature, config.PADDLE_WEBHOOK_SECRET)) {
     return { status: 401, body: { ok: false, error: 'invalid_signature' } };
   }
 
   let payload;
   try {
-    payload = JSON.parse(rawBody);
+    const text = Buffer.isBuffer(rawBody) ? rawBody.toString('utf8') : String(rawBody);
+    payload = JSON.parse(text);
   } catch {
     return { status: 400, body: { ok: false, error: 'invalid_json' } };
   }
@@ -45,7 +45,7 @@ export async function handleLemonSqueezyWebhook({ rawBody, signature, config, db
              lemon_order_id, lemon_subscription_id, lemon_variant_id,
              sku_key, discord_id, player_id, effect, gold_delta, payload
            ) VALUES (
-             'lemonsqueezy', $1, $2, $3,
+             'paddle', $1, $2, $3,
              $4, $5, $6,
              $7, $8, NULL, $9, $10, $11::jsonb
            )`,
@@ -74,6 +74,37 @@ export async function handleLemonSqueezyWebhook({ rawBody, signature, config, db
         return { ignored: true, reason: interpretation.reason };
       }
 
+      if (interpretation.lookupOrder) {
+        const prior = await client.query(
+          `SELECT sku_key, discord_id FROM store_orders
+           WHERE provider = 'paddle'
+             AND lemon_order_id = $1
+             AND effect = 'gold_grant'
+           ORDER BY id DESC
+           LIMIT 1`,
+          [interpretation.lemonOrderId],
+        );
+        const row = prior.rows[0];
+        if (!row?.sku_key || !row?.discord_id) {
+          await client.query(
+            `UPDATE store_orders
+             SET effect = 'ignored'
+             WHERE provider = 'paddle' AND provider_event_id = $1`,
+            [interpretation.providerEventId],
+          );
+          return { ignored: true, reason: 'refund_no_original' };
+        }
+        interpretation.skuKey = row.sku_key;
+        interpretation.discordId = String(row.discord_id);
+        interpretation.goldDelta = goldDeltaFor(row.sku_key, -1);
+        await client.query(
+          `UPDATE store_orders
+           SET sku_key = $1, discord_id = $2, gold_delta = $3
+           WHERE provider = 'paddle' AND provider_event_id = $4`,
+          [interpretation.skuKey, interpretation.discordId, interpretation.goldDelta, interpretation.providerEventId],
+        );
+      }
+
       const locked = await client.query(
         `SELECT id, discord_id FROM players WHERE discord_id = $1 FOR UPDATE`,
         [interpretation.discordId],
@@ -83,7 +114,7 @@ export async function handleLemonSqueezyWebhook({ rawBody, signature, config, db
         await client.query(
           `UPDATE store_orders
            SET effect = 'error_no_player', player_id = NULL
-           WHERE provider = 'lemonsqueezy' AND provider_event_id = $1`,
+           WHERE provider = 'paddle' AND provider_event_id = $1`,
           [interpretation.providerEventId],
         );
         log.warn?.('[store] webhook error_no_player', {
@@ -96,7 +127,7 @@ export async function handleLemonSqueezyWebhook({ rawBody, signature, config, db
 
       await client.query(
         `UPDATE store_orders SET player_id = $1
-         WHERE provider = 'lemonsqueezy' AND provider_event_id = $2`,
+         WHERE provider = 'paddle' AND provider_event_id = $2`,
         [player.id, interpretation.providerEventId],
       );
 

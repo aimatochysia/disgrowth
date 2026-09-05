@@ -5,7 +5,7 @@ import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { CATALOG, isSku } from './catalog.js';
 import { artCss, artHtmlClass, detectArt } from './art.js';
-import { buildCheckoutUrl, checkoutConfigured, variantIdForSku } from './checkout.js';
+import { checkoutConfigured, createPaddleCheckoutUrl, priceIdForSku } from './checkout.js';
 import { authorizeUrl, exchangeCode, fetchIdentify, newOAuthState, sessionFromDiscordUser } from './oauth.js';
 import { render } from './lib/html.js';
 import { safeNextPath } from './lib/security.js';
@@ -17,7 +17,7 @@ import {
   setOAuthCookie,
   setSessionCookie,
 } from './session.js';
-import { handleLemonSqueezyWebhook } from './webhook.js';
+import { handlePaddleWebhook } from './webhook.js';
 import { layout } from './views/layout.js';
 import { homePage } from './views/home.js';
 import { storePage } from './views/store.js';
@@ -47,8 +47,8 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'https://cdn.discordapp.com', 'data:'],
           connectSrc: ["'self'"],
-          frameSrc: ['https://*.lemonsqueezy.com'],
-          formAction: ["'self'", 'https://*.lemonsqueezy.com'],
+          frameSrc: ['https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
+          formAction: ["'self'", 'https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
           objectSrc: ["'none'"],
           upgradeInsecureRequests: config.production ? [] : null,
         },
@@ -59,13 +59,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   );
 
   app.post(
-    '/api/webhooks/lemonsqueezy',
+    '/api/webhooks/paddle',
     express.raw({ type: 'application/json', limit: '1mb' }),
     async (req, res) => {
       const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
-      const result = await handleLemonSqueezyWebhook({
+      const result = await handlePaddleWebhook({
         rawBody,
-        signature: req.headers['x-signature'],
+        signature: req.headers['paddle-signature'],
         config,
         db,
         log: console,
@@ -280,14 +280,21 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       show('Checkout is not configured.');
       return;
     }
-    const url = buildCheckoutUrl({
-      base: config.LEMONSQUEEZY_CHECKOUT_BASE,
-      variantId: variantIdForSku(sku.sku_key, config),
-      discordId: req.user.discordId,
-      skuKey: sku.sku_key,
-      origin: config.STORE_ORIGIN,
-    });
-    res.redirect(302, url);
+    try {
+      const url = await createPaddleCheckoutUrl({
+        apiKey: config.PADDLE_API_KEY,
+        apiBase: config.PADDLE_API_BASE,
+        priceId: priceIdForSku(sku.sku_key, config),
+        discordId: req.user.discordId,
+        skuKey: sku.sku_key,
+        successUrl: `${config.STORE_ORIGIN}/success`,
+        fetchImpl,
+      });
+      res.redirect(302, url);
+    } catch (err) {
+      console.error('[store] paddle checkout', err.message, err.detail || '');
+      show('Checkout could not be started. Try again in a moment.');
+    }
   });
 
   app.get('/success', (req, res) => {

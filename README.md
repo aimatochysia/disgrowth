@@ -1,6 +1,6 @@
 # MARKET GAME — STORE (Disgrowth)
 
-Public website for the Disgrowth Discord economy game: Discord login, Lemon Squeezy checkout, grants written to the **same Postgres** the bot uses.
+Public website for the Disgrowth Discord economy game: Discord login, Paddle checkout, grants written to the **same Postgres** the bot uses.
 
 This repository is the store, not the game client. The Discord bot lives in the sibling `aimatochysia/market-game` repo. The specification below was copied from that bot so this site can be built without opening the bot tree.
 
@@ -30,11 +30,11 @@ Operator fill-in: `OPERATOR.md`. Incident notes: `RUNBOOK.md`.
 ## 0. How to use this file
 
 
-1. Fill **§19 Operator fill-in checklist** before launch (legal entity, emails, jurisdiction, Discord application secret, Lemon Squeezy store).
+1. Fill **§19 Operator fill-in checklist** before launch (legal entity, emails, jurisdiction, Discord application secret, Paddle store).
 2. Implement **§16 Implementation tasks** in order.
 3. Point the Discord bot `/shop` Link buttons at this site’s `/buy/...` URLs (bot change is **not** this repo).
 
-**Success looks like:** a player logs in with Discord, sees their wallets, buys Gold Bars or the Accountant pass on Lemon Squeezy, and the grant lands on the same `players` row the Discord bot uses — without selling Credits, without checkout before login, and with legal pages that actually match what the store does.
+**Success looks like:** a player logs in with Discord, buys a Gold Bar pack on Paddle (Patron included from $25), and the grant lands on the same `players` row the Discord bot uses — without selling Credits, without checkout before login, and with legal pages that actually match what the store does.
 
 ---
 
@@ -51,7 +51,7 @@ A **small public website** that is the **only real-money store** for a Discord t
 The game itself is a **Discord bot**. Players run shops, a city market, companies, and (when unlocked) a franchise network **inside Discord**, on canvas cards. The website is **not** a game client. It does not simulate days, shops, or trades. It sells two real-money things and shows account balances.
 
 **Play:** Discord bot, slash commands, canvas GUI.  
-**Pay:** this website → Lemon Squeezy checkout → webhook writes wallets on the **shared game Postgres**.
+**Pay:** this website → Paddle checkout → webhook writes wallets on the **shared game Postgres**.
 
 ### 1.1 One-paragraph product (paste on the landing page)
 
@@ -126,9 +126,9 @@ Prices are Bonds. Tuned ~20× so they are not casual snacks. Website copy may sa
 | `gold-50` | Gold Bars — 2,700 | One-time | **2,700 GL** + 30 days Patron | **$50** |
 | `gold-100` | Gold Bars — 5,600 | One-time | **5,600 GL** + 30 days Patron | **$100** |
 
-These USD amounts and GL counts are **placeholders for launch**. Label them `placeholder` in code comments. Do not bikeshed during implementation. Operator may retune in Lemon Squeezy and env before going live.
+These USD amounts and GL counts are **placeholders for launch**. Label them `placeholder` in code comments. Do not bikeshed during implementation. Operator may retune in Paddle and env before going live.
 
-**Why these numbers:** Gold Bars per dollar rises slightly with pack size (50 → 52 → 54 → 56 GL/$). Packs from $25 include 30 days of Patron (the same `subscription_active` / `subscription_expires_at` flags the bot already uses). Patron is **not** sold as a standalone Lemon subscription on this store.
+**Why these numbers:** Gold Bars per dollar rises slightly with pack size (50 → 52 → 54 → 56 GL/$). Packs from $25 include 30 days of Patron (the same `subscription_active` / `subscription_expires_at` flags the bot already uses). Patron is **not** sold as a standalone Paddle subscription on this store.
 
 **Never sell:** CR packs, extra companies, extra branches, tax cuts, offline cap, equity, board seats, “win the sector” buffs.
 
@@ -146,7 +146,7 @@ Bot behavior the store’s marketing must not overclaim:
 - Pass daily Bonds: 12 vs free 5 (bot grant).
 - Full TXT financial-statement pack in Discord is a **separate** gated feature (`entity.financialStatementEnabled`, currently **false**). Do not advertise “full accountant reports” on the store.
 
-Bot treats pass as active when `subscription_active` is true **and** (`subscription_expires_at` is null **or** `subscription_expires_at > now`). Prefer always setting an expiry from Lemon Squeezy `renews_at` / `ends_at` so a stuck `true` cannot last forever.
+Bot treats pass as active when `subscription_active` is true **and** (`subscription_expires_at` is null **or** `subscription_expires_at > now`). Prefer always setting an expiry from Paddle `renews_at` / `ends_at` so a stuck `true` cannot last forever.
 
 ### 2.5 Feature flags in the live game (do not contradict on the site)
 
@@ -164,7 +164,7 @@ Do not sell gacha pulls. Do not promise named recruit banners.
 
 ## 3. Recommended tech stack (website repo)
 
-Not sacred; swap if you have a strong reason. Defaults chosen so Lemon Squeezy’s Next.js webhook recipe works and the raw body is available for HMAC.
+Not sacred; swap if you have a strong reason. Defaults chosen so the Paddle webhook raw body is available for HMAC.
 
 | Layer | Choice |
 | --- | --- |
@@ -173,7 +173,7 @@ Not sacred; swap if you have a strong reason. Defaults chosen so Lemon Squeezy�
 | DB | **The game’s PostgreSQL** via `pg` (or Drizzle/Kysely). Same `DATABASE_URL` as the bot. Website v1 does **not** own a second source of truth. |
 | Session | Encrypted httpOnly cookie (`iron-session` or similar). Store `discord_id`, `username`, `avatar`. |
 | Auth | Discord OAuth2, scope **`identify` only**. No email scope in v1. |
-| Payments | **Lemon Squeezy** hosted checkout (Merchant of Record). Optional Lemon.js overlay later. |
+| Payments | **Paddle** hosted checkout (Merchant of Record). Optional Paddle.js overlay later. |
 | Hosting | Any HTTPS host with Node (Fly, Railway, Vercel **if** webhook uses Node runtime + raw body). |
 | CSS | Small custom CSS using tokens in §10. No Discord-blurple theme. No Tailwind-default purple SaaS look. |
 
@@ -190,17 +190,15 @@ Player clicks /shop "Gold Bars — 500" in Discord
   → load players WHERE discord_id = session
   → if no row: "Run /disgrowth in Discord first"
   → age + ToS checkboxes
-  → redirect to Lemon Squeezy checkout URL with
-        checkout[custom][discord_id]={{snowflake}}
-        checkout[custom][sku_key]=gold-10
-  → player pays on Lemon Squeezy
-  → LS POST {{STORE_ORIGIN}}/api/webhooks/lemonsqueezy
+  → POST /transactions (custom_data.discord_id + sku_key)
+  → player pays on Paddle
+  → Paddle POST {{STORE_ORIGIN}}/api/webhooks/paddle
   → verify HMAC, idempotent insert store_orders, UPDATE players gold_bars+marks
   → player returns to /success
   → Discord /shop and /dashboard show new GL
 ```
 
-Login **before** checkout is mandatory. Never put a raw Lemon Squeezy URL in Discord without `custom[discord_id]` — the webhook would not know whom to credit.
+Login **before** checkout is mandatory. Never put a raw Paddle URL in Discord without `custom_data.discord_id` — the webhook would not know whom to credit.
 
 ---
 
@@ -246,121 +244,80 @@ If `avatar` is null, use Discord’s default embed avatar by discriminator/id mo
 
 ---
 
-## 5. Lemon Squeezy setup (operator dashboard)
+## 5. Paddle Billing setup (operator dashboard)
 
-Lemon Squeezy is **Merchant of Record**: they collect payment, charge sales tax/VAT where they must, invoice the buyer, and pay the operator. The operator does **not** handle card data (PCI). Buyers also accept Lemon Squeezy’s checkout terms. The operator still publishes **game** Terms / Privacy / Refunds / Virtual Items (this site).
+Paddle is **Merchant of Record**: they collect payment, charge sales tax/VAT where they must, invoice the buyer, and pay the operator. The operator does **not** handle card data (PCI). Buyers also accept Paddle's checkout terms. The operator still publishes **game** Terms / Privacy / Refunds / Virtual Items (this site).
 
-### 5.1 Store
+Use **Paddle Billing** (API version 1), not Paddle Classic.
 
-1. Create a Lemon Squeezy store (test mode first).
-2. Confirm the operator can be a seller from their country (payouts, identity, tax forms). If LS cannot onboard the entity, **stop** and change MoR — do not fake it.
-3. Store name: `Market Game` or `Disgrowth`.
+### 5.1 Account
+
+1. Create a Paddle account (sandbox first).
+2. Confirm the operator can be a seller from their country (payouts, identity, tax forms). If Paddle cannot onboard the entity, **stop** and change MoR — do not fake it.
+3. Catalog / checkout name: `Disgrowth`.
 4. Support email: `{{SUPPORT_EMAIL}}`.
-5. Link store policies to this site’s `/legal/*` URLs.
+5. Default payment-link success URL: `https://{{STORE_ORIGIN}}/success`.
 
-### 5.2 Products / variants
+### 5.2 Prices
 
-Create **four** one-time products (one variant each):
+Create **four** one-time catalog prices (not a subscription):
 
-| Product | LS type | Variant | Env var for variant id |
-| --- | --- | --- | --- |
-| Gold Bars — 500 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_10` |
-| Gold Bars — 1,300 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_25` |
-| Gold Bars — 2,700 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_50` |
-| Gold Bars — 5,600 | Standard (one-time) | Default | `LEMONSQUEEZY_VARIANT_GOLD_100` |
+| Product | Type | Env var for price id |
+| --- | --- | --- |
+| Gold Bars — 500 | One-time $10 | `PADDLE_PRICE_GOLD_10` |
+| Gold Bars — 1,300 | One-time $25 | `PADDLE_PRICE_GOLD_25` |
+| Gold Bars — 2,700 | One-time $50 | `PADDLE_PRICE_GOLD_50` |
+| Gold Bars — 5,600 | One-time $100 | `PADDLE_PRICE_GOLD_100` |
 
-Share **checkout overlay / hosted** buy URLs as well (optional if you always build URLs from variant ids):
+Product descriptions must say: virtual currency for a Discord game; not cash-out; not a security; login required on this store; Credits cannot be bought. Packs from $25 include 30 days of Patron. Patron is **not** a Paddle subscription.
 
-```
-https://{{LS_STORE}}.lemonsqueezy.com/checkout/buy/{{VARIANT_ID}}
-```
+The site creates a Paddle transaction (`POST /transactions`) with `custom_data.discord_id` and `custom_data.sku_key`, then 302s to `data.checkout.url`. Never put a raw Paddle payment link in Discord.
 
-Product descriptions must say: virtual currency / subscription for a Discord game; not cash-out; not a security; login required on the Market Game store; Credits cannot be bought.
+Docs: <https://developer.paddle.com/api-reference/transactions/create>
 
-Enable Lemon Squeezy’s checkout confirmation that the buyer agrees to terms; point the URL at `https://{{STORE_ORIGIN}}/legal/terms`.
+### 5.3 Webhook endpoint
 
-### 5.3 Custom data (required)
+Dashboard → Notifications / webhook destination:
 
-Append to every checkout URL the site generates (never a naked buy link from Discord):
-
-```
-?checkout[custom][discord_id]={{snowflake}}
-&checkout[custom][sku_key]={{gold-starter|gold-pack|accountant-pass}}
-```
-
-Optional: `checkout[email]` only if you collect email (v1: **do not**; LS collects email itself for the receipt).
-
-Webhook payloads expose this as `meta.custom_data.discord_id` and `meta.custom_data.sku_key` (values may be strings).
-
-Docs: <https://docs.lemonsqueezy.com/help/checkout/passing-custom-data>
-
-### 5.4 Webhook endpoint
-
-Dashboard → Settings → Webhooks:
-
-- URL: `https://{{STORE_ORIGIN}}/api/webhooks/lemonsqueezy`
-- Signing secret → `LEMONSQUEEZY_WEBHOOK_SECRET`
+- URL: `https://{{STORE_ORIGIN}}/api/webhooks/paddle`
+- Signing secret → `PADDLE_WEBHOOK_SECRET`
 - Events (subscribe **only** these):
 
 | Event | Why |
 | --- | --- |
-| `order_created` | Grant GL for one-time SKUs. **Ignore** GL grant if the variant is the pass (subscription). |
-| `order_refunded` | Reverse GL (clamp at 0) or deactivate pass if that order was the pass. |
-| `subscription_created` | Turn pass on; set expiry. |
-| `subscription_updated` | Sync status / `renews_at` / `ends_at`. |
-| `subscription_cancelled` | Keep access until `ends_at` if LS still has a period left; then off. |
-| `subscription_resumed` | Turn pass on again. |
-| `subscription_expired` | `subscription_active = false`. |
-| `subscription_paused` | Treat as inactive for game perks (`subscription_active = false`) unless you explicitly want pause-with-access — **v1: inactive**. |
-| `subscription_unpaused` | Restore active + expiry. |
-| `subscription_payment_success` | Refresh `subscription_expires_at` from `renews_at`. |
-| `subscription_payment_failed` | Do not immediately revoke if `ends_at`/`renews_at` still in the future; mark store_orders; bot expiry handles it. |
-| `subscription_payment_recovered` | Same as payment_success. |
+| `transaction.completed` | Grant Gold Bars (and Patron days from the catalog if the pack includes them). |
+| `adjustment.updated` | Reverse Gold Bars when a refund or chargeback is **approved**. Lookup the original transaction if custom data is missing. Do not reverse Patron. |
 
-Return **HTTP 200** quickly after signature verify + durable insert. LS retries ~3 times on non-200.
+Do **not** subscribe to `transaction.updated` — that can double-grant. Patron is not billed as a Paddle subscription, so ignore subscription events.
 
-### 5.5 Signature verification (mandatory)
+Return **HTTP 200** after signature verify + durable insert. Paddle retries on non-200.
 
-1. Read the **raw request body bytes/text** (do not `JSON.parse` first).
-2. `X-Signature` header is hex HMAC-SHA256 of that raw body with `LEMONSQUEEZY_WEBHOOK_SECRET`.
-3. Compare with `crypto.timingSafeEqual` on buffers of equal length.
+### 5.4 Signature verification (mandatory)
 
-Sketch (Node, Next.js Node runtime):
+1. Read the **raw request body bytes** (do not `JSON.parse` first).
+2. `Paddle-Signature` header is `ts=…;h1=…`.
+3. HMAC-SHA256 of `ts + ':' + rawBody` with `PADDLE_WEBHOOK_SECRET`.
+4. Reject timestamps older than a few minutes. Compare hex digests with `crypto.timingSafeEqual`.
 
-```ts
-import crypto from 'node:crypto';
+Reject 401 on failure. Never process unverified bodies.
 
-function verifyLemonSqueezySignature(rawBody: string, header: string | null, secret: string): boolean {
-  if (!header || !secret) return false;
-  const signature = Buffer.from(header, 'hex');
-  const hmac = Buffer.from(crypto.createHmac('sha256', secret).update(rawBody).digest('hex'), 'hex');
-  if (signature.length !== hmac.length) return false;
-  return crypto.timingSafeEqual(hmac, signature);
-}
-```
+Docs: <https://developer.paddle.com/webhooks/signature-verification>
 
-Reject 400/401 on failure. Never process unverified bodies.
+### 5.5 Idempotency
 
-Official Next.js note: <https://docs.lemonsqueezy.com/guides/tutorials/webhooks-nextjs>
-
-### 5.6 Idempotency
-
-Lemon Squeezy can deliver the same event more than once. Uniqueness:
+Paddle can deliver the same event more than once. Uniqueness:
 
 ```
 UNIQUE (provider, provider_event_id)
 ```
 
-Use `meta.event_name` + `data.id` (and for payment events the invoice id) as `provider_event_id`, e.g. `order_created:12345`. If insert conflicts, return 200 and **do not** grant again.
+Use `event_id` as `provider_event_id`. If insert conflicts, return 200 and **do not** grant again.
 
-Also unique-guard the **economic effect**:
+One-time GL: at most one successful grant per Paddle transaction id (`lemon_order_id` column, kept for compatibility) + sku.
 
-- One-time GL: at most one successful grant per `lemon_squeezy_order_id` + sku.
-- Pass: latest subscription status wins; do not add GL.
+### 5.6 Test mode
 
-### 5.7 Test mode
-
-Use LS test mode + test cards. Simulate subscription events from the LS dashboard. Keep `LEMONSQUEEZY_STORE_ID` and reject webhooks whose `store_id` does not match (prevents another LS store from crediting you). Optionally require `test_mode` to match `NODE_ENV`.
+Use sandbox (`PADDLE_ENV=sandbox`) + sandbox API key + sandbox `pri_…` ids. Simulate `transaction.completed` and refund adjustments from the Paddle dashboard. Isolation is the webhook secret, not a store id. Switch to `PADDLE_ENV=production` only with live keys.
 
 ---
 
@@ -375,17 +332,17 @@ All pages: dark theme, footer legal links, “Not the game — play in Discord�
 | `/api/auth/discord/callback` | Public | OAuth callback. |
 | `/logout` | Session | Clear cookie, redirect `/`. |
 | `/store` | Public ok; buy requires login | Four Gold Bar packs. $25+ include Patron. |
-| `/buy/:sku_key` | **Required** | Validates sku, session, player row, checkboxes, redirects to LS. `sku_key` ∈ `gold-10`, `gold-25`, `gold-50`, `gold-100`. |
+| `/buy/:sku_key` | **Required** | Validates sku, session, player row, checkboxes, redirects to Paddle. `sku_key` ∈ `gold-10`, `gold-25`, `gold-50`, `gold-100`. |
 | `/account` | **Required** | Avatar, username, CR (read-only), BN (read-only), GL, Patron on/off + expiry. |
 | `/success` | Session optional | Payment sent. Gold Bars (and Patron if included) update after the webhook. |
 | `/legal` | Public | Terms, privacy, refunds, cookies, virtual items as chapters. |
 | `/legal/:slug` | Public | Redirects to `/legal#slug`. |
 | `/support` | Public | `{{SUPPORT_EMAIL}}`, Discord server invite `{{DISCORD_SUPPORT_INVITE}}`, “purchases need Discord login”. |
 | `/healthz` | Public | `200 { "ok": true, "db": "up"|"down" }` — do not expose secrets. |
-| `POST /api/webhooks/lemonsqueezy` | LS HMAC | Grants. No session. |
+| `POST /api/webhooks/paddle` | Paddle HMAC | Grants. No session. |
 | `POST /api/auth/logout` | Session | If you prefer POST logout. |
 
-**Footer (every page):** Terms · Privacy · Refunds · Cookies · Virtual items · Support. One line: `© {{YEAR}} {{OPERATOR_LEGAL_NAME}}. Game: Disgrowth. Payments: Lemon Squeezy (Merchant of Record).`
+**Footer (every page):** Terms · Privacy · Refunds · Cookies · Virtual items · Support. One line: `© {{YEAR}} {{OPERATOR_LEGAL_NAME}}. Game: Disgrowth. Payments: Paddle (Merchant of Record).`
 
 **Nav:** Store · Account · Login/Logout. No fake “Play” that is not a Discord deep link.
 
@@ -398,7 +355,7 @@ Discord deep link for “Open the bot”: `{{DISCORD_APPLICATION_DIRECTORY_OR_IN
 3. Session but no `players` row → 200 page: “Run `/disgrowth` in Discord, then refresh.” **Do not start checkout.**
 4. Show summary: name, price, grant, virtual-items warning, age 18+, links to Terms + Refunds + Virtual items.
 5. Require checkboxes: (a) I am 18 or the age of majority in my country, (b) I agree to Terms and Virtual Items policy, (c) I understand Gold Bars and the pass have no cash value and cannot be sold for money.
-6. Only then 302 to Lemon Squeezy with custom data.
+6. Only then 302 to Paddle with custom data.
 7. Never accept `discord_id` from query string as identity. Session only.
 
 ### 6.2 Copy constraints (player-facing)
@@ -438,7 +395,7 @@ The website **does not create** the `players` table. The bot already did. Websit
 ```sql
 CREATE TABLE IF NOT EXISTS store_orders (
   id                    BIGSERIAL PRIMARY KEY,
-  provider              TEXT NOT NULL DEFAULT 'lemonsqueezy',
+  provider              TEXT NOT NULL DEFAULT 'paddle',
   provider_event_id     TEXT NOT NULL,
   event_name            TEXT NOT NULL,
   lemon_store_id        INTEGER,
@@ -484,7 +441,7 @@ export const CATALOG = {
     gold: 500,
     usdPlaceholder: 10,
     patronDays: 0,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_10',
+    variantEnv: 'PADDLE_PRICE_GOLD_10',
   },
   'gold-25': {
     sku_key: 'gold-25',
@@ -493,7 +450,7 @@ export const CATALOG = {
     gold: 1300,
     usdPlaceholder: 25,
     patronDays: 30,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_25',
+    variantEnv: 'PADDLE_PRICE_GOLD_25',
   },
   'gold-50': {
     sku_key: 'gold-50',
@@ -502,7 +459,7 @@ export const CATALOG = {
     gold: 2700,
     usdPlaceholder: 50,
     patronDays: 30,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_50',
+    variantEnv: 'PADDLE_PRICE_GOLD_50',
   },
   'gold-100': {
     sku_key: 'gold-100',
@@ -511,7 +468,7 @@ export const CATALOG = {
     gold: 5600,
     usdPlaceholder: 100,
     patronDays: 30,
-    variantEnv: 'LEMONSQUEEZY_VARIANT_GOLD_100',
+    variantEnv: 'PADDLE_PRICE_GOLD_100',
   },
 };
 ```
@@ -538,9 +495,9 @@ SET gold_bars = gold_bars + :delta,
 WHERE id = :player_id;
 ```
 
-`:delta` is 500 or 1600 from catalog, **not** from the webhook payload amount (ignore buyers editing HTML). If LS `variant_id` maps to catalog, trust catalog.
+`:delta` is 500 or 1600 from catalog, **not** from the webhook payload amount (ignore buyers editing HTML). If the Paddle price id maps to catalog, trust catalog.
 
-**Gold refund (`order_refunded` for starter/pack):**
+**Gold refund (approved Paddle adjustment for starter/pack):**
 
 ```sql
 UPDATE players
@@ -575,13 +532,13 @@ For `cancelled` with `ends_at` in the future: keep `subscription_active = TRUE` 
 
 **`order_created` for the pass variant:** `effect = 'ignored'` for gold; wait for `subscription_created` (or apply pass_on if custom data is complete — but **do not double-apply**; unique event ids differ so pass_on twice must be idempotent: setting the same flags is OK).
 
-### 7.6 Subscription statuses (Lemon Squeezy)
+### 7.6 Subscription statuses (Paddle)
 
 Typical `attributes.status`: `on_trial`, `active`, `paused`, `past_due`, `unpaid`, `cancelled`, `expired`.
 
 v1 mapping:
 
-| LS status | `subscription_active` |
+| Pass status | `subscription_active` |
 | --- | --- |
 | `on_trial`, `active`, `past_due` | true (until expiry timestamp) |
 | `paused`, `unpaid`, `expired` | false |
@@ -606,16 +563,14 @@ DISCORD_REDIRECT_URI=https://store.example.com/api/auth/discord/callback
 # Game database (same as bot DATABASE_URL)
 DATABASE_URL=postgres://...
 
-# Lemon Squeezy
-LEMONSQUEEZY_STORE_ID=
-LEMONSQUEEZY_WEBHOOK_SECRET=
-LEMONSQUEEZY_VARIANT_GOLD_10=
-LEMONSQUEEZY_VARIANT_GOLD_25=
-LEMONSQUEEZY_VARIANT_GOLD_50=
-LEMONSQUEEZY_VARIANT_GOLD_100=
-LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS=
-# Used to build hosted checkout URLs:
-LEMONSQUEEZY_CHECKOUT_BASE=https://YOUR-STORE.lemonsqueezy.com/checkout/buy
+# Paddle Billing
+PADDLE_ENV=sandbox
+PADDLE_API_KEY=
+PADDLE_WEBHOOK_SECRET=
+PADDLE_PRICE_GOLD_10=
+PADDLE_PRICE_GOLD_25=
+PADDLE_PRICE_GOLD_50=
+PADDLE_PRICE_GOLD_100=
 
 # Public / legal (also inlined into pages)
 OPERATOR_LEGAL_NAME=
@@ -636,13 +591,13 @@ DISCORD_BOT_PUBLIC_URL=
 Bot repo (later, not this website) should set Link buttons to:
 
 ```
-LEMONSQUEEZY_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
-LEMONSQUEEZY_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
-LEMONSQUEEZY_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
-LEMONSQUEEZY_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
+PADDLE_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
+PADDLE_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
+PADDLE_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
+PADDLE_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
 ```
 
-Those bot env names are historical; values must be **this website**, not raw LS URLs.
+Those bot env names are historical; values must be **this website**, not raw Paddle URLs.
 
 ---
 
@@ -650,16 +605,16 @@ Those bot env names are historical; values must be **this website**, not raw LS 
 
 - HTTPS only in production. `Secure; HttpOnly; SameSite=Lax` session cookie. `__Host-` prefix if possible.
 - OAuth `state` CSRF. Reject `next=` that is not a relative path (`/buy/...`).
-- Webhook: raw body HMAC, store id check, idempotency, no session.
+- Webhook: raw body HMAC (`Paddle-Signature`), idempotency, no session.
 - Do not log full webhook payloads with card last-four in **public** logs; redact `user_email`, `card_last_four`.
 - Rate-limit `/login` and OAuth callback (e.g. 20/min/IP).
 - `/healthz` may check DB; do not return `DATABASE_URL`.
-- Content-Security-Policy: default self; allow Discord CDN for avatars; allow Lemon Squeezy if using overlay (`*.lemonsqueezy.com`).
+- Content-Security-Policy: default self; allow Discord CDN for avatars; allow Paddle checkout (`*.paddle.com`).
 - No user-supplied HTML. Discord usernames escaped.
 - Parameterized SQL only.
 - Do not expose Discord client secret or webhook secret to the browser.
 - Age gate is a checkbox, not proof of age — still required.
-- If you add analytics later, update Cookie + Privacy first. v1: **no** third-party analytics (no Google Analytics, no Meta pixel). Lemon Squeezy’s own checkout page is their processor.
+- If you add analytics later, update Cookie + Privacy first. v1: **no** third-party analytics (no Google Analytics, no Meta pixel). Paddle's own checkout page is their processor.
 
 ---
 
@@ -702,11 +657,9 @@ Do **not** use Liberation fonts as a web license assumption; IBM Plex is SIL-lic
 ### 10.3 Landing structure
 
 1. Header
-2. Hero: “Disgrowth is played in Discord. This is the store.” + Login
-3. Three-wallet diagram (CR cannot buy / BN daily / GL here)
-4. Two product cards (GL packs) + one pass card
-5. “How checkout works” 4 steps: Discord login → confirm 18+ → Lemon Squeezy pays → wallets update in `/shop`
-6. Footer legal
+2. Hero: city line + Join the community / Shop Gold Bars (no giant empty panel)
+3. Start here + In the city + Patron + How buying works (Paddle) + Come play
+4. Footer legal
 
 ### 10.4 Account wallets
 
@@ -730,39 +683,39 @@ Show CR with note “Cannot be purchased”. BN “Daily, granted in Discord”.
 Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 
 - Operator is a small studio selling **virtual items** for a Discord game.
-- Lemon Squeezy, Inc. (or its relevant entity) is **Merchant of Record** for the payment.
+- Paddle (or its relevant entity) is **Merchant of Record** for the payment.
 - Players may be worldwide; Discord’s own age floor is 13+, but **paid** checkout on this store is **18+** (operator policy).
 - No securities, no crypto-asset, no cash-out, no secondary market run by the operator.
 - Gacha is **off**; if it returns, add loot-box odds disclosure before selling pulls.
 
-**If the operator is in Indonesia:** also consider UU ITE, UU Perlindungan Data Pribadi (UU 27/2022), and consumer protection rules for digital goods; counsel must map these drafts to Bahasa Indonesia versions if you market to ID consumers. **If EU/UK users are served:** GDPR/UK GDPR lawful basis + Art. 27 representative if required. **If California:** CCPA/CPRA notice. Lemon Squeezy’s privacy policy covers **their** checkout data; yours covers Discord OAuth + game DB + this site.
+**If the operator is in Indonesia:** also consider UU ITE, UU Perlindungan Data Pribadi (UU 27/2022), and consumer protection rules for digital goods; counsel must map these drafts to Bahasa Indonesia versions if you market to ID consumers. **If EU/UK users are served:** GDPR/UK GDPR lawful basis + Art. 27 representative if required. **If California:** CCPA/CPRA notice. Paddle's privacy policy covers **their** checkout data; yours covers Discord OAuth + game DB + this site.
 
 ### 12.1 Compliance checklist (product)
 
-- [ ] 18+ checkbox before redirect to LS
+- [ ] 18+ checkbox before redirect to Paddle
 - [ ] Terms + Virtual Items accepted before redirect
 - [ ] Footer links on every page
-- [ ] LS checkout terms URL points at `/legal/terms`
+- [ ] Paddle checkout success URL points at `/success`; terms on this site
 - [ ] No CR for sale
 - [ ] No “investment / profit / ROI / interest on Gold Bars” language
 - [ ] Refund policy matches actual webhook behavior (clamp GL, no BN clawback)
-- [ ] Privacy lists Discord id, username, avatar, wallet balances, LS webhook fields you store (`store_orders.payload` — **minimize**: consider storing redacted payload)
-- [ ] No analytics cookies in v1 → Cookie policy says session + LS third-party on checkout
+- [ ] Privacy lists Discord id, username, avatar, wallet balances, Paddle webhook fields you store (`store_orders.payload` — **minimize**: consider storing redacted payload)
+- [ ] No analytics cookies in v1 → Cookie policy says session + Paddle third-party on checkout
 - [ ] Support email monitored
 - [ ] Process to delete account / Discord id association on request (coordinate with bot: you cannot “delete Discord user”; you can delete store session and, with bot ops, wipe or anonymize `players` — **define** in Privacy)
 - [ ] Accessibility: contrast on `#8b949e` over `#0d1117` is OK; buttons have text not color-only
-- [ ] Export control / sanctioned countries: follow Lemon Squeezy’s blocked territories; do not promise service where they cannot pay
+- [ ] Export control / sanctioned countries: follow Paddle's blocked territories; do not promise service where they cannot pay
 
 ### 12.2 Roles of contracts
 
 | Document | Who / what |
 | --- | --- |
-| Lemon Squeezy Buyer Terms | Payment, tax invoice, MoR |
+| Paddle Buyer Terms | Payment, tax invoice, MoR |
 | This site Terms of Service | License to use the store + virtual items in the game |
 | Virtual Items Policy | GL / BN / CR / pass are licenses, no cash-out |
 | Privacy | Operator’s processing (Discord OAuth, DB, logs) |
 | Refunds | When you reverse grants vs when you refuse |
-| Cookies | Session cookie; LS cookies on their domain |
+| Cookies | Session cookie; Paddle cookies on their domain |
 
 ---
 
@@ -772,7 +725,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Operator.** These Terms are between you and **{{OPERATOR_LEGAL_NAME}}** (“Operator”, “we”), {{OPERATOR_REGISTERED_ADDRESS}}. Contact: {{OPERATOR_CONTACT_EMAIL}}.
 >
-> **Game.** “Disgrowth” / “Market Game” is a Discord-based simulation game operated by the Operator. The game client is a Discord bot. This website (the “Store”) sells certain virtual items and a subscription. Payments are processed by Lemon Squeezy as Merchant of Record.
+> **Game.** “Disgrowth” / “Market Game” is a Discord-based simulation game operated by the Operator. The game client is a Discord bot. This website (the “Store”) sells certain virtual items and a subscription. Payments are processed by Paddle as Merchant of Record.
 >
 > **Agreement.** By creating a session (Discord login) or completing a purchase you agree to these Terms, the Virtual Items Policy, the Refund Policy, and the Privacy Policy. If you do not agree, do not log in or pay.
 >
@@ -782,7 +735,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Not Discord.** The Store and the game are not endorsed by Discord Inc. Discord is a trademark of Discord Inc.
 >
-> **Not Lemon Squeezy’s game.** Lemon Squeezy processes payment. Game rules, virtual items, and Discord delivery are the Operator’s.
+> **Not Paddle's game.** Paddle processes payment. Game rules, virtual items, and Discord delivery are the Operator’s.
 >
 > **License, not ownership.** Gold Bars, Bonds, Credits, the Accountant pass, and any other in-game value are **licensed virtual items** as described in the Virtual Items Policy. They have no cash value. You may not sell, swap, or escrow them for real money. We may change, reset, or remove items when we reasonably need to operate or shut down the game.
 >
@@ -792,7 +745,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Service availability.** The Store and the game may be unavailable. Purchases grant virtual items in the game database; they do not guarantee uptime, a particular economic outcome, or competitive rank.
 >
-> **Accountant pass.** The pass provides in-game convenience described on `/store` (extra daily Bonds issued by the game bot, and occasional DM hints). Hints are imperfect, not professional advice, not guaranteed, and may pause if you are inactive in the Discord server. The pass is billed as a subscription via Lemon Squeezy.
+> **Accountant pass.** The pass provides in-game convenience described on `/store` (extra daily Bonds issued by the game bot, and occasional DM hints). Hints are imperfect, not professional advice, not guaranteed, and may pause if you are inactive in the Discord server. The pass is billed as a subscription via Paddle.
 >
 > **Changes.** We may change the Store catalog, prices (for future buys), or these Terms. Continued use after notice (site post and/or Discord) counts as acceptance of the new Terms for later purchases. Material changes to virtual-item licences will not silently convert Credits into a paid product.
 >
@@ -806,7 +759,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Contact.** {{OPERATOR_CONTACT_EMAIL}} / {{SUPPORT_EMAIL}}.
 >
-> **Entire agreement.** These Terms plus the policies linked in the footer are the agreement for the Store. Discord’s terms govern Discord. Lemon Squeezy’s terms govern payment processing.
+> **Entire agreement.** These Terms plus the policies linked in the footer are the agreement for the Store. Discord’s terms govern Discord. Paddle's terms govern payment processing.
 
 ---
 
@@ -816,23 +769,23 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Controller.** {{OPERATOR_LEGAL_NAME}}, {{OPERATOR_REGISTERED_ADDRESS}}. Privacy contact: {{PRIVACY_EMAIL}}.
 >
-> **What this policy covers.** This site (the Store) and how we connect purchases to the Disgrowth / Market Game Discord bot database. It does **not** replace Discord’s Privacy Policy or Lemon Squeezy’s Privacy Policy.
+> **What this policy covers.** This site (the Store) and how we connect purchases to the Disgrowth / Market Game Discord bot database. It does **not** replace Discord’s Privacy Policy or Paddle's Privacy Policy.
 >
 > **Data we collect**
 >
 > 1. **Discord profile (OAuth `identify`).** User id (snowflake), username, display name, avatar hash. We do **not** request email in v1.
 > 2. **Session.** Encrypted cookie so we remember who is logged in.
 > 3. **Game account fields we read.** Credits, Bonds, Gold Bars, Marks (legacy mirror), subscription flags, onboarding step — to show `/account` and to apply purchases.
-> 4. **Payments (via Lemon Squeezy webhooks).** Event type, order/subscription/variant ids, custom `discord_id` / `sku_key`, status, renewal/end timestamps. Lemon Squeezy collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number.
+> 4. **Payments (via Paddle webhooks).** Event type, order/subscription/variant ids, custom `discord_id` / `sku_key`, status, renewal/end timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number.
 > 5. **Logs.** IP address, user agent, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS:90}} days unless needed for fraud.
 >
 > **Why.** Operate the Store, authenticate you, deliver virtual items, prevent fraud, meet accounting/tax cooperation with the MoR, and respond to support.
 >
 > **Legal bases (GDPR-style, if applicable).** Contract (deliver the item you bought), legitimate interests (security, fraud), consent (cookie banner if we ever add non-essential cookies — v1 session is strictly necessary), legal obligation (if a regulator lawfully asks).
 >
-> **Sharing.** Lemon Squeezy (payment). Hosting/database providers processing on our instructions. Discord (you log in there). We do not sell personal information.
+> **Sharing.** Paddle (payment). Hosting/database providers processing on our instructions. Discord (you log in there). We do not sell personal information.
 >
-> **International transfers.** Hosting may be outside your country. {{TRANSFER_MECHANISM: e.g. SCCs / LS as MoR}}.
+> **International transfers.** Hosting may be outside your country. {{TRANSFER_MECHANISM: e.g. SCCs / Paddle as MoR}}.
 >
 > **Retention.** Session: {{SESSION_DAYS:14}} days idle. `store_orders`: duration of the game plus {{ORDER_RETENTION_YEARS:7}} years for accounting. Game `players` row: until you ask for deletion **and** we can process it without breaking legal holds.
 >
@@ -846,7 +799,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Changes.** We will update this page and the “last updated” date.
 
-**Implementation note:** store redacted webhook JSON (strip email, card last four, IP if any) to match this policy. If you persist full LS payloads, you must list those fields here.
+**Implementation note:** store redacted webhook JSON (strip email, card last four, IP if any) to match this policy. If you persist full Paddle payloads, you must list those fields here.
 
 ---
 
@@ -854,11 +807,11 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 
 > Last updated: {{DATE}}
 >
-> Payments are charged by **Lemon Squeezy** as Merchant of Record. Chargebacks go through them; contacting us first is faster.
+> Payments are charged by **Paddle** as Merchant of Record. Chargebacks go through them; contacting us first is faster.
 >
 > **Virtual items.** Gold Bars and the Accountant pass are digital, delivered to the linked Discord id when our webhook succeeds (usually seconds).
 >
-> **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars (and Marks mirror) and approve a refund via Lemon Squeezy. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
+> **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars (and Marks mirror) and approve a refund via Paddle. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
 >
 > **Accountant pass.** Unused time in the current billing period may be refunded at our discretion; access is turned off when the refund is processed. If you used pass perks (hints, extra Bonds already granted), we may refuse.
 >
@@ -866,9 +819,9 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **EU/UK consumer cooling-off.** Many places let you withdraw from digital content **unless** you consented to immediate delivery and acknowledged that you lose the withdrawal right. Our checkout checkboxes include that acknowledgement. Where the law still forces a refund, we will comply and reverse what we can.
 >
-> **How to ask.** Email {{SUPPORT_EMAIL}} from a way we can match your Discord id, with the Lemon Squeezy order email / order id. We aim to answer in {{SLA_DAYS:5}} business days.
+> **How to ask.** Email {{SUPPORT_EMAIL}} from a way we can match your Discord id, with the Paddle order email / order id. We aim to answer in {{SLA_DAYS:5}} business days.
 >
-> **Lemon Squeezy.** Their buyer terms also apply to the payment contract.
+> **Paddle.** Their buyer terms also apply to the payment contract.
 
 ---
 
@@ -880,7 +833,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **OAuth.** Short-lived `state` cookie to prevent CSRF during Discord login.
 >
-> **Lemon Squeezy.** When you leave our site for checkout, Lemon Squeezy may set cookies on **their** domain. See their policy.
+> **Paddle.** When you leave our site for checkout, Paddle may set cookies on **their** domain. See their policy.
 >
 > **v1 analytics.** None.
 >
@@ -910,7 +863,7 @@ If you later add Plausible/GA, you must add a banner and this section **before**
 >
 > **Bugs and exploits.** Items from bugs may be removed.
 >
-> **Taxes.** You are responsible for taxes on your side except where Lemon Squeezy collects as MoR.
+> **Taxes.** You are responsible for taxes on your side except where Paddle collects as MoR.
 
 ---
 
@@ -920,7 +873,7 @@ If you later add Plausible/GA, you must add a banner and this section **before**
 - **Gambling.** v1 sells fixed GL amounts and a convenience sub. No paid randomized loot. If gacha returns **and** is paid, many countries require odds disclosure (NL, UK loot-box treatments, some US states, etc.).
 - **Discord Platform.** Follow Discord Developer Terms: no malware, no abusive data, OAuth scopes minimized (`identify` only).
 - **Trademarks.** Don’t use Discord’s logo as your app icon. “Not affiliated with Discord” on Terms is enough; don’t fake official branding.
-- **Tax/accounting.** MoR invoices help; still book LS payouts. {{OPERATOR_COUNTRY}} corporate tax is on the operator.
+- **Tax/accounting.** MoR invoices help; still book Paddle payouts. {{OPERATOR_COUNTRY}} corporate tax is on the operator.
 - **Age.** Discord 13+ vs paid 18+ means a 16-year-old may play free and must not pay on this Store.
 - **Accessibility / consumer law** may require Bahasa Indonesia (or other) if you actively market there — counsel.
 - **Insurance / crime.** Chargeback fraud: require Discord login + existing player row (already locked).
@@ -930,9 +883,9 @@ If you later add Plausible/GA, you must add a banner and this section **before**
 ## 13. Support and operations
 
 - `/support` lists email + Discord invite.
-- On `error_no_player` after a paid webhook (should be rare if `/buy` checked): alert {{SUPPORT_EMAIL}}, include LS order id + discord_id; operator runs `/disgrowth` with that user or manually inserts using **full** bot create rules then re-sends webhook from LS dashboard.
-- Document a runbook in the website repo `RUNBOOK.md`: rotate webhook secret, pause catalog by setting variants hidden in LS, SQL to inspect `store_orders`.
-- Keep LS and Discord secrets in the host’s secret manager, not git.
+- On `error_no_player` after a paid webhook (should be rare if `/buy` checked): alert {{SUPPORT_EMAIL}}, include Paddle transaction id + discord_id; operator runs `/disgrowth` with that user or manually inserts using **full** bot create rules then re-sends webhook from the Paddle dashboard.
+- Document a runbook in the website repo `RUNBOOK.md`: rotate webhook secret, pause catalog by setting prices unpublished in Paddle, SQL to inspect `store_orders`.
+- Keep Paddle and Discord secrets in the host’s secret manager, not git.
 
 ---
 
@@ -947,12 +900,12 @@ Automated:
 - Refund clamp at 0.
 - Pass status matrix (active / cancelled with future ends_at / expired).
 - OAuth `state` mismatch.
-- `/buy` without session redirects; without player row no LS redirect.
+- `/buy` without session redirects; without player row no Paddle redirect.
 
 Manual:
 
 - Discord login on a real application (dev).
-- LS test-mode purchase of starter → DB GL += 500.
+- Paddle sandbox purchase of starter → DB GL += 500.
 - Test-mode pass subscribe → flags true; cancel → active until end; expire → false.
 - Mobile 390px landing + buy.
 - Screen reader: checkboxes labelled.
@@ -965,9 +918,9 @@ You cannot use the Discord bot’s interaction harness from this repo. Prove gra
 
 After this store is live, the Discord bot should:
 
-1. Set `LEMONSQUEEZY_CHECKOUT_*` to `{{STORE_ORIGIN}}/buy/...` so Link buttons carry the user through login.
+1. Set `PADDLE_CHECKOUT_*` to `{{STORE_ORIGIN}}/buy/...` so Link buttons carry the user through login.
 2. Keep GL display from `gold_bars` (Marks dual-write).
-3. **Not** implement a second Lemon Squeezy webhook if the website already grants (avoid double credit).
+3. **Not** implement a second Paddle webhook if the website already grants (avoid double credit).
 
 If the website cannot share Postgres, add an HMAC grant API on the bot instead — that is a bot-repo leftover, not v1 store.
 
@@ -1009,7 +962,7 @@ For agentic workers in the **new website repo**. Check boxes as you go.
 - [ ] `/success`, `/support`.
 - [ ] Legal routes with draft copy **and** a visible “Not legal advice; placeholders” banner until `OPERATOR.md` is filled, then remove the banner.
 
-### Task 5 — Lemon Squeezy checkout URLs
+### Task 5 — Paddle checkout URLs
 
 - [ ] Build URL from variant id + `checkout[custom][discord_id]` + `sku_key`.
 - [ ] 18+ / Terms checkboxes required.
@@ -1029,9 +982,9 @@ For agentic workers in the **new website repo**. Check boxes as you go.
 ### Task 8 — Launch
 
 - [ ] Fill operator legal fields; lawyer pass.
-- [ ] LS live mode products.
+- [ ] Paddle live prices.
 - [ ] Point bot shop links at `/buy/...`.
-- [ ] Buy starter on live with a tiny real card / LS live test, confirm Discord `/shop` GL.
+- [ ] Buy starter on live with a tiny real card / Paddle live test, confirm Discord `/shop` GL.
 
 ---
 
@@ -1042,7 +995,7 @@ For agentic workers in the **new website repo**. Check boxes as you go.
 3. User who ran `/disgrowth` can pay test-mode starter; SQL shows `gold_bars` and `marks` += 500; Discord `/shop` matches.
 4. Double-delivery of the same webhook does not add 1000.
 5. Pass subscribe → `/account` shows on; Discord shop “Accountant pass **on**”.
-6. Refund starter in LS → GL decreases, not below 0.
+6. Refund starter in Paddle → GL decreases, not below 0.
 7. Footer legal pages render and match grants (no “cash out”).
 8. Mobile + desktop layout readable, gold only on GL CTA.
 
@@ -1078,7 +1031,7 @@ DISCORD_SUPPORT_INVITE=
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
 STORE_ORIGIN=
-LEMONSQUEEZY store slug / id=
+Paddle seller id=
 Lawyer review date=
 Languages (EN only vs EN+ID)=
 ```
@@ -1089,7 +1042,7 @@ Until this is filled, keep a site banner: “Store in preview — legal entity a
 
 ## 20. Catalog numbers recap (placeholders)
 
-| sku_key | GL | USD | Patron | LS type |
+| sku_key | GL | USD | Patron | Paddle type |
 | --- | --- | --- | --- | --- |
 | gold-10 | 500 | 10 | — | one-time |
 | gold-25 | 1300 | 25 | 30 days | one-time |

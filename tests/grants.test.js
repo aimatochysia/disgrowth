@@ -5,33 +5,44 @@ import {
   GOLD_REFUND_SQL,
   PATRON_EXTEND_SQL,
   interpretWebhook,
-  passActiveFromStatus,
   writesCredits,
 } from '../src/grants.js';
 
 const variantMap = {
-  'gold-10': '111',
-  'gold-25': '222',
-  'gold-50': '444',
-  'gold-100': '555',
-  'accountant-pass': '333',
+  'gold-10': 'pri_gold_10',
+  'gold-25': 'pri_gold_25',
+  'gold-50': 'pri_gold_50',
+  'gold-100': 'pri_gold_100',
 };
 
-function body({ event, id = '9', attrs = {}, custom = {} }) {
+function body({
+  event = 'transaction.completed',
+  id = 'txn_9',
+  eventId = 'evt_9',
+  custom = {},
+  priceId = 'pri_gold_10',
+  extra = {},
+} = {}) {
   return {
-    meta: { event_name: event, custom_data: custom },
-    data: { id, attributes: attrs },
+    event_id: eventId,
+    event_type: event,
+    occurred_at: '2026-09-05T00:00:00Z',
+    data: {
+      id,
+      custom_data: custom,
+      items: [{ price: { id: priceId } }],
+      ...extra,
+    },
   };
 }
 
-test('order_created gold-10 grants 500 from catalog, not payload amount', () => {
+test('transaction.completed gold-10 grants 500 from catalog, not payload amount', () => {
   const result = interpretWebhook(
     body({
-      event: 'order_created',
-      attrs: { store_id: 1, first_order_item: { variant_id: 111 } },
       custom: { discord_id: '99', sku_key: 'gold-10' },
+      priceId: 'pri_gold_10',
     }),
-    { storeId: '1', variantMap },
+    { variantMap },
   );
   assert.equal(result.effect, 'gold_grant');
   assert.equal(result.goldDelta, 500);
@@ -39,14 +50,13 @@ test('order_created gold-10 grants 500 from catalog, not payload amount', () => 
   assert.equal(result.apply, true);
 });
 
-test('order_created gold-25 grants Gold Bars and Patron days', () => {
+test('transaction.completed gold-25 grants Gold Bars and Patron days', () => {
   const result = interpretWebhook(
     body({
-      event: 'order_created',
-      attrs: { store_id: 1, first_order_item: { variant_id: 222 } },
       custom: { discord_id: '99', sku_key: 'gold-25' },
+      priceId: 'pri_gold_25',
     }),
-    { storeId: '1', variantMap },
+    { variantMap },
   );
   assert.equal(result.effect, 'gold_grant');
   assert.equal(result.goldDelta, 1300);
@@ -56,11 +66,10 @@ test('order_created gold-25 grants Gold Bars and Patron days', () => {
 test('variant and custom sku disagreement does not grant', () => {
   const result = interpretWebhook(
     body({
-      event: 'order_created',
-      attrs: { store_id: 1, first_order_item: { variant_id: 111 } },
       custom: { discord_id: '99', sku_key: 'gold-25' },
+      priceId: 'pri_gold_10',
     }),
-    { storeId: '1', variantMap },
+    { variantMap },
   );
   assert.equal(result.effect, 'ignored');
   assert.equal(result.reason, 'sku_mismatch');
@@ -68,80 +77,70 @@ test('variant and custom sku disagreement does not grant', () => {
   assert.equal(result.goldDelta, 0);
 });
 
-test('order_created for legacy pass sku is ignored', () => {
+test('transaction.completed for unknown pass sku is ignored', () => {
   const result = interpretWebhook(
     body({
-      event: 'order_created',
-      attrs: { store_id: 1, first_order_item: { variant_id: 333 } },
       custom: { discord_id: '99', sku_key: 'accountant-pass' },
+      priceId: 'pri_pass',
     }),
-    { storeId: '1', variantMap },
+    { variantMap },
   );
   assert.equal(result.effect, 'ignored');
   assert.equal(result.reason, 'unknown_sku');
   assert.equal(result.goldDelta, 0);
 });
 
-test('gold refund delta is negative catalog amount and does not take Patron', () => {
+test('approved gold refund delta is negative catalog amount and does not take Patron', () => {
   const result = interpretWebhook(
     body({
-      event: 'order_refunded',
-      attrs: { store_id: 1, first_order_item: { variant_id: 222 } },
+      event: 'adjustment.updated',
+      extra: { action: 'refund', status: 'approved', transaction_id: 'txn_9' },
       custom: { discord_id: '99', sku_key: 'gold-25' },
+      priceId: 'pri_gold_25',
     }),
-    { storeId: '1', variantMap },
+    { variantMap },
   );
   assert.equal(result.effect, 'gold_refund');
   assert.equal(result.goldDelta, -1300);
   assert.equal(result.patronDays, 0);
 });
 
-test('wrong store_id is rejected', () => {
+test('refund without sku looks up the original transaction', () => {
   const result = interpretWebhook(
     body({
-      event: 'order_created',
-      attrs: { store_id: 2, first_order_item: { variant_id: 111 } },
+      event: 'adjustment.updated',
+      extra: { action: 'refund', status: 'approved', transaction_id: 'txn_9' },
+      custom: {},
+      priceId: '',
+    }),
+    { variantMap },
+  );
+  assert.equal(result.effect, 'gold_refund');
+  assert.equal(result.lookupOrder, true);
+  assert.equal(result.lemonOrderId, 'txn_9');
+});
+
+test('pending adjustment is ignored', () => {
+  const result = interpretWebhook(
+    body({
+      event: 'adjustment.updated',
+      extra: { action: 'refund', status: 'pending_approval', transaction_id: 'txn_9' },
       custom: { discord_id: '99', sku_key: 'gold-10' },
     }),
-    { storeId: '1', variantMap },
+    { variantMap },
   );
-  assert.equal(result.ok, false);
-  assert.equal(result.reason, 'store_id');
+  assert.equal(result.effect, 'ignored');
+  assert.equal(result.reason, 'adjustment_pending');
 });
 
-test('pass status matrix', () => {
-  const now = new Date('2026-06-01T00:00:00.000Z');
-  const future = { ends_at: '2026-07-01T00:00:00.000Z' };
-  const past = { ends_at: '2026-05-01T00:00:00.000Z' };
-  assert.equal(passActiveFromStatus('active', {}, now), true);
-  assert.equal(passActiveFromStatus('on_trial', {}, now), true);
-  assert.equal(passActiveFromStatus('past_due', {}, now), true);
-  assert.equal(passActiveFromStatus('paused', {}, now), false);
-  assert.equal(passActiveFromStatus('unpaid', {}, now), false);
-  assert.equal(passActiveFromStatus('expired', {}, now), false);
-  assert.equal(passActiveFromStatus('cancelled', future, now), true);
-  assert.equal(passActiveFromStatus('cancelled', past, now), false);
-  assert.equal(passActiveFromStatus('cancelled', {}, now), false);
-});
-
-test('cancelled with future ends_at stays on', () => {
-  const now = new Date('2026-06-01T00:00:00.000Z');
+test('unhandled Paddle events are ignored', () => {
   const result = interpretWebhook(
-    body({
-      event: 'subscription_cancelled',
-      attrs: {
-        store_id: 1,
-        variant_id: 333,
-        status: 'cancelled',
-        ends_at: '2026-07-01T00:00:00.000Z',
-      },
-      custom: { discord_id: '99', sku_key: 'accountant-pass' },
-    }),
-    { storeId: '1', variantMap },
-    now,
+    body({ event: 'transaction.updated', custom: { discord_id: '99', sku_key: 'gold-10' } }),
+    { variantMap },
   );
-  assert.equal(result.subscriptionActive, true);
-  assert.equal(result.effect, 'pass_sync');
+  assert.equal(result.effect, 'ignored');
+  assert.equal(result.reason, 'unhandled_event');
+  assert.equal(result.apply, false);
 });
 
 test('grant SQL dual-writes gold_bars and marks and never writes credits', () => {

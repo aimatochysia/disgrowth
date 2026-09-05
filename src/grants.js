@@ -38,97 +38,75 @@ SET subscription_active = TRUE,
 WHERE id = $1
 `.trim();
 
-const ACTIVE_STATUSES = new Set(['on_trial', 'active', 'past_due']);
-const INACTIVE_STATUSES = new Set(['paused', 'unpaid', 'expired']);
-
-export function extractVariantId(body) {
-  const attrs = body?.data?.attributes || {};
-  return attrs.variant_id ?? attrs.first_order_item?.variant_id ?? null;
+export function extractPriceId(data) {
+  return (
+    data?.items?.[0]?.price?.id ||
+    data?.items?.[0]?.price_id ||
+    data?.details?.line_items?.[0]?.price_id ||
+    null
+  );
 }
 
-export function extractDiscordId(body) {
-  const custom = body?.meta?.custom_data || {};
+export function extractDiscordId(data) {
+  const custom = data?.custom_data || {};
   const id = custom.discord_id ?? custom.discordId;
   if (id == null || id === '') return '';
   return String(id);
 }
 
-export function extractStoreId(body) {
-  const attrs = body?.data?.attributes || {};
-  return attrs.store_id ?? null;
-}
-
-export function providerEventId(eventName, data) {
-  return `${eventName}:${data?.id}`;
-}
-
-export function passExpiry(attributes, now = new Date()) {
-  const ends = attributes?.ends_at ? new Date(attributes.ends_at) : null;
-  const renews = attributes?.renews_at ? new Date(attributes.renews_at) : null;
-  if (ends && !Number.isNaN(ends.getTime())) return ends;
-  if (renews && !Number.isNaN(renews.getTime())) return renews;
-  return new Date(now.getTime() + 35 * 24 * 60 * 60 * 1000);
-}
-
-export function passActiveFromStatus(status, attributes, now = new Date()) {
-  const s = String(status || '').toLowerCase();
-  if (ACTIVE_STATUSES.has(s)) return true;
-  if (INACTIVE_STATUSES.has(s)) return false;
-  if (s === 'cancelled') {
-    const ends = attributes?.ends_at ? new Date(attributes.ends_at) : null;
-    if (ends && ends.getTime() > now.getTime()) return true;
-    return false;
-  }
-  return false;
-}
-
-function goldDeltaFor(sku, sign) {
+export function goldDeltaFor(sku, sign) {
   const item = CATALOG[sku];
   if (!item || item.kind !== 'one_time') return 0;
   return sign * item.gold;
 }
 
 /**
- * Pure interpreter: webhook JSON → intended ledger effect.
- * Does not talk to the database.
+ * Pure interpreter: Paddle Billing webhook JSON → intended ledger effect.
  */
-export function interpretWebhook(body, ctx, now = new Date()) {
-  const eventName = body?.meta?.event_name;
+export function interpretWebhook(body, ctx) {
+  const eventName = body?.event_type;
   const data = body?.data || {};
-  const attrs = data.attributes || {};
-  const custom = body?.meta?.custom_data || {};
-  const storeId = extractStoreId(body);
-  const variantId = extractVariantId(body);
-  const discordId = extractDiscordId(body);
+  const eventId = body?.event_id;
+  const priceId = extractPriceId(data);
+  const custom = data.custom_data || {};
+  const discordId = extractDiscordId(data);
 
-  if (!eventName || data.id == null) {
+  if (!eventName || eventId == null) {
     return { ok: false, http: 400, reason: 'malformed' };
-  }
-
-  if (ctx.storeId && storeId != null && String(storeId) !== String(ctx.storeId)) {
-    return { ok: false, http: 400, reason: 'store_id' };
   }
 
   const resolved = resolveSku({
     customSku: custom.sku_key,
-    variantId,
+    variantId: priceId,
     variantMap: ctx.variantMap || {},
   });
 
+  const base = {
+    ok: true,
+    apply: true,
+    providerEventId: String(eventId),
+    eventName,
+    discordId,
+    skuKey: resolved.ok ? resolved.sku : null,
+    variantId: priceId == null ? null : String(priceId),
+    lemonStoreId: null,
+    lemonOrderId: data.id ? String(data.id) : null,
+    lemonSubscriptionId: data.subscription_id ? String(data.subscription_id) : null,
+    goldDelta: 0,
+    patronDays: 0,
+    lookupOrder: false,
+    subscriptionActive: undefined,
+    expiresAt: undefined,
+    reason: null,
+  };
+
   if (!resolved.ok && resolved.reason === 'sku_mismatch') {
     return {
-      ok: true,
+      ...base,
       apply: false,
       effect: 'ignored',
       reason: 'sku_mismatch',
-      providerEventId: providerEventId(eventName, data),
-      eventName,
-      discordId: discordId || 'unknown',
       skuKey: custom.sku_key || null,
-      variantId: variantId == null ? null : String(variantId),
-      lemonStoreId: storeId,
-      lemonOrderId: orderIdOf(eventName, data, attrs),
-      lemonSubscriptionId: subscriptionIdOf(eventName, data, attrs),
       goldDelta: 0,
     };
   }
@@ -136,114 +114,60 @@ export function interpretWebhook(body, ctx, now = new Date()) {
   const skuKey = resolved.ok ? resolved.sku : null;
   const catalogItem = skuKey ? CATALOG[skuKey] : null;
 
-  const base = {
-    ok: true,
-    apply: true,
-    providerEventId: providerEventId(eventName, data),
-    eventName,
-    discordId,
-    skuKey,
-    variantId: variantId == null ? null : String(variantId),
-    lemonStoreId: storeId,
-    lemonOrderId: orderIdOf(eventName, data, attrs),
-    lemonSubscriptionId: subscriptionIdOf(eventName, data, attrs),
-    goldDelta: 0,
-    patronDays: 0,
-    subscriptionActive: undefined,
-    expiresAt: undefined,
-    reason: null,
-  };
-
-  if (!discordId) {
-    return { ...base, apply: false, effect: 'ignored', reason: 'no_discord_id' };
-  }
-
   switch (eventName) {
-    case 'order_created': {
+    case 'transaction.completed': {
+      if (!discordId) {
+        return { ...base, apply: false, effect: 'ignored', reason: 'no_discord_id' };
+      }
       if (!catalogItem) {
         return { ...base, apply: false, effect: 'ignored', reason: 'unknown_sku' };
       }
-      if (catalogItem.kind === 'subscription') {
-        return { ...base, apply: false, effect: 'ignored', reason: 'pass_order_wait_subscription' };
+      if (catalogItem.kind !== 'one_time') {
+        return { ...base, apply: false, effect: 'ignored', reason: 'not_gold_sku' };
       }
       return {
         ...base,
+        skuKey,
         effect: 'gold_grant',
         goldDelta: goldDeltaFor(skuKey, 1),
         patronDays: catalogItem.patronDays || 0,
+        lemonOrderId: String(data.id),
       };
     }
-    case 'order_refunded': {
-      if (!catalogItem) {
-        return { ...base, apply: false, effect: 'ignored', reason: 'unknown_sku' };
+    case 'adjustment.updated': {
+      const action = String(data.action || '').toLowerCase();
+      const status = String(data.status || '').toLowerCase();
+      if (action !== 'refund' && action !== 'chargeback') {
+        return { ...base, apply: false, effect: 'ignored', reason: 'adjustment_not_refund' };
       }
-      if (catalogItem.kind === 'subscription') {
+      if (status !== 'approved') {
+        return { ...base, apply: false, effect: 'ignored', reason: 'adjustment_pending' };
+      }
+      const transactionId = data.transaction_id ? String(data.transaction_id) : null;
+      if (!transactionId) {
+        return { ...base, apply: false, effect: 'ignored', reason: 'no_transaction_id' };
+      }
+      if (catalogItem && discordId) {
         return {
           ...base,
-          effect: 'pass_off',
-          subscriptionActive: false,
-          expiresAt: now,
+          skuKey,
+          effect: 'gold_refund',
+          goldDelta: goldDeltaFor(skuKey, -1),
+          lemonOrderId: transactionId,
         };
       }
-      return { ...base, effect: 'gold_refund', goldDelta: goldDeltaFor(skuKey, -1) };
-    }
-    case 'subscription_created':
-    case 'subscription_resumed':
-    case 'subscription_unpaused':
-    case 'subscription_payment_success':
-    case 'subscription_payment_recovered': {
       return {
         ...base,
-        effect: eventName === 'subscription_created' ? 'pass_on' : 'pass_sync',
-        subscriptionActive: true,
-        expiresAt: passExpiry(attrs, now),
+        apply: true,
+        effect: 'gold_refund',
+        lookupOrder: true,
+        discordId: discordId || 'lookup',
+        lemonOrderId: transactionId,
       };
-    }
-    case 'subscription_updated': {
-      const active = passActiveFromStatus(attrs.status, attrs, now);
-      return {
-        ...base,
-        effect: 'pass_sync',
-        subscriptionActive: active,
-        expiresAt: active ? passExpiry(attrs, now) : (attrs.ends_at ? new Date(attrs.ends_at) : now),
-      };
-    }
-    case 'subscription_cancelled': {
-      const active = passActiveFromStatus('cancelled', attrs, now);
-      return {
-        ...base,
-        effect: active ? 'pass_sync' : 'pass_off',
-        subscriptionActive: active,
-        expiresAt: attrs.ends_at ? new Date(attrs.ends_at) : now,
-      };
-    }
-    case 'subscription_expired':
-    case 'subscription_paused': {
-      return {
-        ...base,
-        effect: 'pass_off',
-        subscriptionActive: false,
-        expiresAt: attrs.ends_at ? new Date(attrs.ends_at) : now,
-      };
-    }
-    case 'subscription_payment_failed': {
-      return { ...base, apply: false, effect: 'ignored', reason: 'payment_failed_wait_expiry' };
     }
     default:
       return { ...base, apply: false, effect: 'ignored', reason: 'unhandled_event' };
   }
-}
-
-function orderIdOf(eventName, data, attrs) {
-  if (eventName.startsWith('order_')) return String(data.id);
-  if (attrs.order_id) return String(attrs.order_id);
-  return null;
-}
-
-function subscriptionIdOf(eventName, data, attrs) {
-  if (eventName.startsWith('subscription')) return String(data.id);
-  if (attrs.subscription_id) return String(attrs.subscription_id);
-  return null;
 }
 
 export async function applyInterpretation(client, interpretation, player) {

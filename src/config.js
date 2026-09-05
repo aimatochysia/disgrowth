@@ -45,14 +45,17 @@ export function loadConfig(env = process.env) {
     DISCORD_REDIRECT_URI:
       trim(env.DISCORD_REDIRECT_URI) || `${STORE_ORIGIN.replace(/\/$/, '')}/api/auth/discord/callback`,
     DATABASE_URL: trim(env.DATABASE_URL),
-    
-    // Paddle Configuration
+    PADDLE_API_KEY: trim(env.PADDLE_API_KEY),
     PADDLE_WEBHOOK_SECRET: trim(env.PADDLE_WEBHOOK_SECRET),
+    PADDLE_ENV: trim(env.PADDLE_ENV) || (production ? 'production' : 'sandbox'),
+    PADDLE_API_BASE:
+      (trim(env.PADDLE_ENV) || (production ? 'production' : 'sandbox')) === 'production'
+        ? 'https://api.paddle.com'
+        : 'https://sandbox-api.paddle.com',
     PADDLE_PRICE_GOLD_10: trim(env.PADDLE_PRICE_GOLD_10) || trim(env.PADDLE_PRICE_GOLD_STARTER),
     PADDLE_PRICE_GOLD_25: trim(env.PADDLE_PRICE_GOLD_25) || trim(env.PADDLE_PRICE_GOLD_PACK),
     PADDLE_PRICE_GOLD_50: trim(env.PADDLE_PRICE_GOLD_50),
     PADDLE_PRICE_GOLD_100: trim(env.PADDLE_PRICE_GOLD_100),
-    PADDLE_PRICE_ACCOUNTANT_PASS: trim(env.PADDLE_PRICE_ACCOUNTANT_PASS),
 
     // Legal & Operator Configuration
     OPERATOR_LEGAL_NAME: OPERATOR_LEGAL_NAME || 'UnifyraLabs',
@@ -75,10 +78,12 @@ export function loadConfig(env = process.env) {
     
     // System Readiness Flags
     checkoutReady: Boolean(
-      (trim(env.PADDLE_PRICE_GOLD_10) || trim(env.PADDLE_PRICE_GOLD_STARTER)) &&
-      (trim(env.PADDLE_PRICE_GOLD_25) || trim(env.PADDLE_PRICE_GOLD_PACK)) &&
-      trim(env.PADDLE_PRICE_GOLD_50) &&
-      trim(env.PADDLE_PRICE_GOLD_100)
+      trim(env.PADDLE_API_KEY) &&
+        trim(env.PADDLE_WEBHOOK_SECRET) &&
+        (trim(env.PADDLE_PRICE_GOLD_10) || trim(env.PADDLE_PRICE_GOLD_STARTER)) &&
+        (trim(env.PADDLE_PRICE_GOLD_25) || trim(env.PADDLE_PRICE_GOLD_PACK)) &&
+        trim(env.PADDLE_PRICE_GOLD_50) &&
+        trim(env.PADDLE_PRICE_GOLD_100),
     ),
     oauthReady: Boolean(trim(env.DISCORD_CLIENT_ID) && trim(env.DISCORD_CLIENT_SECRET)),
     dbReady: Boolean(trim(env.DATABASE_URL)),

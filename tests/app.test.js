@@ -13,18 +13,24 @@ function config(over = {}) {
     DISCORD_CLIENT_ID: 'client',
     DISCORD_CLIENT_SECRET: 'secret',
     DISCORD_REDIRECT_URI: 'http://127.0.0.1/api/auth/discord/callback',
-    LEMONSQUEEZY_STORE_ID: '1',
-    LEMONSQUEEZY_WEBHOOK_SECRET: 'whsec',
-    LEMONSQUEEZY_CHECKOUT_BASE: 'https://store.lemonsqueezy.com/checkout/buy',
-    LEMONSQUEEZY_VARIANT_GOLD_10: '111',
-    LEMONSQUEEZY_VARIANT_GOLD_25: '222',
-    LEMONSQUEEZY_VARIANT_GOLD_50: '444',
-    LEMONSQUEEZY_VARIANT_GOLD_100: '555',
+    PADDLE_API_KEY: 'pdl_apikey_test',
+    PADDLE_WEBHOOK_SECRET: 'whsec',
+    PADDLE_ENV: 'sandbox',
+    PADDLE_PRICE_GOLD_10: 'pri_gold_10',
+    PADDLE_PRICE_GOLD_25: 'pri_gold_25',
+    PADDLE_PRICE_GOLD_50: 'pri_gold_50',
+    PADDLE_PRICE_GOLD_100: 'pri_gold_100',
     ...over,
   });
 }
 
-function mockDb({ player = null, seen = new Set() } = {}) {
+function paddleSignature(raw, secret, now = Date.now()) {
+  const ts = String(Math.floor(now / 1000));
+  const h1 = createHmac('sha256', secret).update(ts).update(':').update(raw).digest('hex');
+  return `ts=${ts};h1=${h1}`;
+}
+
+function mockDb({ player = null, seen = new Set(), grants = [] } = {}) {
   const statements = [];
   return {
     statements,
@@ -50,6 +56,9 @@ function mockDb({ player = null, seen = new Set() } = {}) {
           statements.push({ text, params });
           if (/FOR UPDATE/.test(text)) {
             return { rows: player ? [player] : [] };
+          }
+          if (/effect = 'gold_grant'/.test(text)) {
+            return { rows: grants };
           }
           return { rows: [] };
         },
@@ -100,7 +109,7 @@ test('/buy without session redirects to login', async () => {
   });
 });
 
-test('/buy without player row does not redirect to Lemon Squeezy', async () => {
+test('/buy without player row does not redirect to Paddle', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb({ player: null }), art: {} });
   await withServer(app, async (base) => {
@@ -111,11 +120,11 @@ test('/buy without player row does not redirect to Lemon Squeezy', async () => {
     assert.equal(res.status, 200);
     const html = await res.text();
     assert.match(html, /\/disgrowth/);
-    assert.doesNotMatch(html, /lemonsqueezy.com/);
+    assert.doesNotMatch(html, /paddle\.com/);
   });
 });
 
-test('POST /buy without player does not 302 to Lemon Squeezy', async () => {
+test('POST /buy without player does not 302 to Paddle', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb({ player: null }), art: {} });
   await withServer(app, async (base) => {
@@ -130,6 +139,49 @@ test('POST /buy without player does not 302 to Lemon Squeezy', async () => {
     });
     assert.equal(res.status, 400);
     assert.equal(res.headers.get('location'), null);
+  });
+});
+
+test('POST /buy with player creates a Paddle transaction and redirects', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const calls = [];
+  const app = createApp({
+    config: cfg,
+    db: mockDb({ player }),
+    art: {},
+    fetchImpl: async (url, opts) => {
+      calls.push({ url: String(url), opts });
+      return {
+        ok: true,
+        async json() {
+          return { data: { checkout: { url: 'https://sandbox-buy.paddle.com/checkout/txn_test' } } };
+        },
+        async text() {
+          return '';
+        },
+      };
+    },
+  });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/buy/gold-10`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        cookie: sessionCookie(cfg),
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'age=yes&terms=yes&novalue=yes',
+    });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get('location'), 'https://sandbox-buy.paddle.com/checkout/txn_test');
+    assert.equal(calls.length, 1);
+    assert.match(calls[0].url, /sandbox-api\.paddle\.com\/transactions/);
+    const sent = JSON.parse(calls[0].opts.body);
+    assert.equal(sent.items[0].price_id, 'pri_gold_10');
+    assert.equal(sent.custom_data.discord_id, '42');
+    assert.equal(sent.custom_data.sku_key, 'gold-10');
+    assert.equal(sent.checkout.settings.success_url, 'http://127.0.0.1/success');
   });
 });
 
@@ -170,37 +222,45 @@ test('webhook HMAC reject', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb(), art: {} });
   await withServer(app, async (base) => {
-    const res = await fetch(`${base}/api/webhooks/lemonsqueezy`, {
+    const res = await fetch(`${base}/api/webhooks/paddle`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-signature': '00' },
+      headers: { 'content-type': 'application/json', 'paddle-signature': 'ts=1;h1=00' },
       body: '{}',
     });
     assert.equal(res.status, 401);
   });
 });
 
-test('idempotent double order_created does not grant twice', async () => {
+test('legacy Lemon Squeezy webhook path is gone', async () => {
+  const cfg = config();
+  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/api/webhooks/lemonsqueezy`, { method: 'POST', body: '{}' });
+    assert.equal(res.status, 404);
+  });
+});
+
+test('idempotent double transaction.completed does not grant twice', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player });
   const app = createApp({ config: cfg, db, art: {} });
   const raw = JSON.stringify({
-    meta: {
-      event_name: 'order_created',
-      custom_data: { discord_id: '42', sku_key: 'gold-10' },
-    },
+    event_id: 'evt_5001',
+    event_type: 'transaction.completed',
     data: {
-      id: '5001',
-      attributes: { store_id: 1, first_order_item: { variant_id: 111 } },
+      id: 'txn_5001',
+      custom_data: { discord_id: '42', sku_key: 'gold-10' },
+      items: [{ price: { id: 'pri_gold_10' } }],
     },
   });
-  const sig = createHmac('sha256', cfg.LEMONSQUEEZY_WEBHOOK_SECRET).update(raw).digest('hex');
+  const sig = paddleSignature(raw, cfg.PADDLE_WEBHOOK_SECRET);
 
   await withServer(app, async (base) => {
     const post = () =>
-      fetch(`${base}/api/webhooks/lemonsqueezy`, {
+      fetch(`${base}/api/webhooks/paddle`, {
         method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-signature': sig },
+        headers: { 'content-type': 'application/json', 'paddle-signature': sig },
         body: raw,
       });
     const a = await post();
@@ -215,27 +275,26 @@ test('idempotent double order_created does not grant twice', async () => {
   });
 });
 
-test('gold-25 order_created extends Patron', async () => {
+test('gold-25 transaction.completed extends Patron', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player });
   const app = createApp({ config: cfg, db, art: {} });
   const raw = JSON.stringify({
-    meta: {
-      event_name: 'order_created',
-      custom_data: { discord_id: '42', sku_key: 'gold-25' },
-    },
+    event_id: 'evt_5002',
+    event_type: 'transaction.completed',
     data: {
-      id: '5002',
-      attributes: { store_id: 1, first_order_item: { variant_id: 222 } },
+      id: 'txn_5002',
+      custom_data: { discord_id: '42', sku_key: 'gold-25' },
+      items: [{ price: { id: 'pri_gold_25' } }],
     },
   });
-  const sig = createHmac('sha256', cfg.LEMONSQUEEZY_WEBHOOK_SECRET).update(raw).digest('hex');
+  const sig = paddleSignature(raw, cfg.PADDLE_WEBHOOK_SECRET);
 
   await withServer(app, async (base) => {
-    const res = await fetch(`${base}/api/webhooks/lemonsqueezy`, {
+    const res = await fetch(`${base}/api/webhooks/paddle`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json', 'x-signature': sig },
+      headers: { 'content-type': 'application/json', 'paddle-signature': sig },
       body: raw,
     });
     assert.equal(res.status, 200);
@@ -263,6 +322,11 @@ test('landing and legal pages render', async () => {
     assert.match(html, />Shop</);
     assert.match(html, />Terms</);
     assert.match(html, /btn-discord/);
+    assert.match(html, /In the city/);
+    assert.match(html, /Start here/);
+    assert.match(html, /Paddle/);
+    assert.match(html, /data-to-top/);
+    assert.doesNotMatch(html, /Lemon Squeezy/);
     assert.doesNotMatch(html, /Three wallets/);
     assert.doesNotMatch(html, /On the shelf/);
     assert.doesNotMatch(html, /this site is only the real-money store/);
@@ -277,6 +341,8 @@ test('landing and legal pages render', async () => {
     assert.match(legalHtml, /Refund Policy/);
     assert.match(legalHtml, /two \(2\) hours/);
     assert.match(legalHtml, /Patron time included with a Gold Bar pack is/);
+    assert.match(legalHtml, /Paddle/);
+    assert.doesNotMatch(legalHtml, /Lemon Squeezy/);
     const store = await fetch(`${base}/store`);
     const storeHtml = await store.text();
     assert.match(storeHtml, /Gold Bars — 500/);
