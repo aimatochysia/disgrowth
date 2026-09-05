@@ -32,7 +32,7 @@ const DOCS = {
 
 **Who we are.** These Terms are between you and **{{OPERATOR_LEGAL_NAME}}** (“Operator”, “we”), {{OPERATOR_REGISTERED_ADDRESS}}. The game is offered as **Disgrowth**. Contact: {{OPERATOR_CONTACT_EMAIL}}.
 
-**What this site is.** This website (the “Store”) sells Gold Bars for Disgrowth. Play happens in Discord. Card payments are processed by Lemon Squeezy as Merchant of Record.
+**What this site is.** This website (the “Store”) sells Gold Bars for Disgrowth. Play happens in Discord. Card payments are processed by Paddle as Merchant of Record.
 
 **Agreement.** By logging in with Discord or completing a purchase you agree to these Terms, the Virtual Items Policy, the Refund Policy, the Cookie Policy, and the Privacy Policy. If you do not agree, do not log in or pay.
 
@@ -42,7 +42,7 @@ const DOCS = {
 
 **Not Discord.** The Store and the game are not endorsed by Discord Inc. Discord is a trademark of Discord Inc.
 
-**Not Lemon Squeezy’s game.** Lemon Squeezy processes payment. Game rules, virtual items, and delivery in Discord are the Operator’s.
+**Not Paddle’s game.** Paddle processes payment. Game rules, virtual items, and delivery in Discord are the Operator’s.
 
 **Licence, not ownership.** Gold Bars, Bonds, Credits, Patron, and any other in-game value are **licensed virtual items** as described in the Virtual Items Policy. They have no cash value. You may not sell, swap, or escrow them for real money. We may change, reset, or remove items when we reasonably need to operate or shut down the game.
 
@@ -62,11 +62,11 @@ const DOCS = {
 
 **Indemnity.** If you break these Terms or the law and that causes claims against us, you will cover reasonable resulting costs, to the extent permitted.
 
-**Governing law.** {{GOVERNING_LAW}}, excluding conflict-of-law rules. Courts of {{VENUE}} have exclusive jurisdiction, except that consumers may have non-waivable rights to sue where they live.
+**Governing law.** {{GOVERNING_LAW}}
 
 **Contact.** {{OPERATOR_CONTACT_EMAIL}} / {{SUPPORT_EMAIL}}.
 
-**Entire agreement.** These Terms plus the policies on this legal page are the agreement for the Store. Discord’s terms govern Discord. Lemon Squeezy’s terms govern payment processing.`,
+**Entire agreement.** These Terms plus the policies on this legal page are the agreement for the Store. Discord’s terms govern Discord. Paddle’s terms govern payment processing.`,
   },
   privacy: {
     slug: 'privacy',
@@ -76,21 +76,21 @@ const DOCS = {
 
 **Controller.** {{OPERATOR_LEGAL_NAME}}, {{OPERATOR_REGISTERED_ADDRESS}}. Privacy contact: {{PRIVACY_EMAIL}}.
 
-**What this policy covers.** This Store and how we connect purchases to your Disgrowth character. It does **not** replace Discord’s Privacy Policy or Lemon Squeezy’s Privacy Policy.
+**What this policy covers.** This Store and how we connect purchases to your Disgrowth character. It does **not** replace Discord’s Privacy Policy or Paddle’s Privacy Policy.
 
 **Data we collect**
 
 1. **Discord profile (OAuth identify).** User id, username, display name, avatar hash. We do **not** request your Discord email in this version of the Store.
 2. **Session.** An encrypted cookie so we remember who is logged in.
 3. **Game account fields we read.** Credits, Bonds, Gold Bars, an internal mirror field, Patron flags, and tutorial progress — to show your account page and to apply purchases.
-4. **Payments (via Lemon Squeezy webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Lemon Squeezy collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
+4. **Payments (via Paddle webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
 5. **Logs.** IP address, browser, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS}} days unless needed for fraud.
 
 **Why.** Operate the Store, authenticate you, deliver virtual items, prevent fraud, meet accounting and tax cooperation with the Merchant of Record, and answer support.
 
 **Legal bases (where GDPR-style rules apply).** Contract (deliver the item you bought), legitimate interests (security, fraud), consent (only if we ever add non-essential cookies — the session cookie is strictly necessary), legal obligation (if a regulator lawfully asks).
 
-**Sharing.** Lemon Squeezy (payment). Hosting and database providers processing on our instructions. Discord (you log in there). We do not sell personal information.
+**Sharing.** Paddle (payment). Hosting and database providers processing on our instructions. Discord (you log in there). We do not sell personal information.
 
 **International transfers.** Hosting may be outside your country. {{TRANSFER_MECHANISM}}.
 
@@ -112,7 +112,7 @@ const DOCS = {
     kicker: 'After payment',
     body: `Last updated: {{DATE}}
 
-Payments are charged by **Lemon Squeezy** as Merchant of Record. Chargebacks go through them; contacting us first is faster.
+Payments are charged by **Paddle** as Merchant of Record. Chargebacks go through them; contacting us first is faster.
 
 **Gold Bars — two-hour unused window.** You may request a refund of a Gold Bar pack if **both** of the following are true:
 
@@ -127,9 +127,9 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **EU/UK consumer cooling-off.** Many places let you withdraw from digital content **unless** you consented to immediate delivery and acknowledged that you lose the withdrawal right. Our checkout checkboxes include that acknowledgement. Where the law still forces a refund, we will comply and reverse what we can under this policy.
 
-**How to ask.** Email {{SUPPORT_EMAIL}} in a way we can match to your Discord account, with the Lemon Squeezy order email or order id. We aim to answer in {{SLA_DAYS}} business days.
+**How to ask.** Email {{SUPPORT_EMAIL}} in a way we can match to your Discord account, with the Paddle order email or order id. We aim to answer in {{SLA_DAYS}} business days.
 
-**Lemon Squeezy.** Their buyer terms also apply to the payment contract.`,
+**Paddle.** Their buyer terms also apply to the payment contract.`,
   },
   cookies: {
     slug: 'cookies',
@@ -143,7 +143,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Day and night.** Your browser may remember the day/night preference in local storage. That is not a cookie and is not used to identify you.
 
-**Lemon Squeezy.** When you leave our site for checkout, Lemon Squeezy may set cookies on **their** domain. See their policy.
+**Paddle.** When you leave our site for checkout, Paddle may set cookies on **their** domain. See their policy.
 
 **Analytics.** None in this version of the Store.
 
@@ -171,7 +171,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Bugs and exploits.** Items from bugs may be removed.
 
-**Taxes.** You are responsible for taxes on your side except where Lemon Squeezy collects as Merchant of Record.`,
+**Taxes.** You are responsible for taxes on your side except where Paddle collects as Merchant of Record.`,
   },
 };
 

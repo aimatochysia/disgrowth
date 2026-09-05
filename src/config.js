@@ -38,51 +38,51 @@ export function loadConfig(env = process.env) {
     production,
     port: Number(env.PORT) || 3000,
     STORE_ORIGIN: STORE_ORIGIN.replace(/\/$/, ''),
-    SESSION_SECRET: SESSION_SECRET || 'dev-only-insecure-session-secret-32ch',
+    SESSION_SECRET: SESSION_SECRET || 'dev-only-1insecure-session-secret-32ch',
     SESSION_DAYS,
     DISCORD_CLIENT_ID: trim(env.DISCORD_CLIENT_ID),
     DISCORD_CLIENT_SECRET: trim(env.DISCORD_CLIENT_SECRET),
     DISCORD_REDIRECT_URI:
       trim(env.DISCORD_REDIRECT_URI) || `${STORE_ORIGIN.replace(/\/$/, '')}/api/auth/discord/callback`,
     DATABASE_URL: trim(env.DATABASE_URL),
-    LEMONSQUEEZY_STORE_ID: trim(env.LEMONSQUEEZY_STORE_ID),
-    LEMONSQUEEZY_WEBHOOK_SECRET: trim(env.LEMONSQUEEZY_WEBHOOK_SECRET),
-    LEMONSQUEEZY_VARIANT_GOLD_10:
-      trim(env.LEMONSQUEEZY_VARIANT_GOLD_10) || trim(env.LEMONSQUEEZY_VARIANT_GOLD_STARTER),
-    LEMONSQUEEZY_VARIANT_GOLD_25:
-      trim(env.LEMONSQUEEZY_VARIANT_GOLD_25) || trim(env.LEMONSQUEEZY_VARIANT_GOLD_PACK),
-    LEMONSQUEEZY_VARIANT_GOLD_50: trim(env.LEMONSQUEEZY_VARIANT_GOLD_50),
-    LEMONSQUEEZY_VARIANT_GOLD_100: trim(env.LEMONSQUEEZY_VARIANT_GOLD_100),
-    LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS: trim(env.LEMONSQUEEZY_VARIANT_ACCOUNTANT_PASS),
-    LEMONSQUEEZY_CHECKOUT_BASE: trim(env.LEMONSQUEEZY_CHECKOUT_BASE).replace(/\/$/, ''),
-    OPERATOR_LEGAL_NAME: OPERATOR_LEGAL_NAME || 'the Operator (preview)',
-    OPERATOR_TRADING_NAME: trim(env.OPERATOR_TRADING_NAME) || 'Market Game',
+    
+    // Paddle Configuration
+    PADDLE_WEBHOOK_SECRET: trim(env.PADDLE_WEBHOOK_SECRET),
+    PADDLE_PRICE_GOLD_10: trim(env.PADDLE_PRICE_GOLD_10) || trim(env.PADDLE_PRICE_GOLD_STARTER),
+    PADDLE_PRICE_GOLD_25: trim(env.PADDLE_PRICE_GOLD_25) || trim(env.PADDLE_PRICE_GOLD_PACK),
+    PADDLE_PRICE_GOLD_50: trim(env.PADDLE_PRICE_GOLD_50),
+    PADDLE_PRICE_GOLD_100: trim(env.PADDLE_PRICE_GOLD_100),
+    PADDLE_PRICE_ACCOUNTANT_PASS: trim(env.PADDLE_PRICE_ACCOUNTANT_PASS),
+
+    // Legal & Operator Configuration
+    OPERATOR_LEGAL_NAME: OPERATOR_LEGAL_NAME || 'UnifyraLabs',
+    OPERATOR_TRADING_NAME: trim(env.OPERATOR_TRADING_NAME) || 'Disgrowth',
     OPERATOR_REGISTERED_ADDRESS: trim(env.OPERATOR_REGISTERED_ADDRESS) || '[address not yet published]',
     OPERATOR_COUNTRY: trim(env.OPERATOR_COUNTRY) || '[country not yet published]',
-    GOVERNING_LAW: trim(env.GOVERNING_LAW) || '[governing law not yet published]',
+    GOVERNING_LAW: trim(env.GOVERNING_LAW) || 'The laws of the State of Delaware, USA, excluding conflict-of-law rules, govern these Terms. Any dispute, claim, or controversy arising out of or relating to these Terms, the Store, or the game will be resolved by binding, confidential arbitration conducted online, rather than in court. The arbitration will be conducted in the English language. However, if you are a consumer, you may have non-waivable statutory rights to bring a claim in your local courts where you reside.',
     VENUE: trim(env.VENUE) || '[venue not yet published]',
-    OPERATOR_CONTACT_EMAIL: trim(env.OPERATOR_CONTACT_EMAIL) || 'contact@example.invalid',
-    SUPPORT_EMAIL: trim(env.SUPPORT_EMAIL) || 'support@example.invalid',
-    PRIVACY_EMAIL: trim(env.PRIVACY_EMAIL) || 'privacy@example.invalid',
+    OPERATOR_CONTACT_EMAIL: trim(env.OPERATOR_CONTACT_EMAIL) || 'unifyralabs@gmail.com',
+    SUPPORT_EMAIL: trim(env.SUPPORT_EMAIL) || 'unifyralabs@gmail.com',
+    PRIVACY_EMAIL: trim(env.PRIVACY_EMAIL) || 'unifyralabs@gmail.com',
     DISCORD_SUPPORT_INVITE: trim(env.DISCORD_SUPPORT_INVITE),
-    DISCORD_COMMUNITY_INVITE:
-      trim(env.DISCORD_COMMUNITY_INVITE) || 'https://discord.gg/XMadQ9tAd',
+    DISCORD_COMMUNITY_INVITE: trim(env.DISCORD_COMMUNITY_INVITE) || 'https://discord.gg/XMadQ9tAd',
     DISCORD_BOT_PUBLIC_URL: trim(env.DISCORD_BOT_PUBLIC_URL),
     LOG_RETENTION_DAYS: Number(env.LOG_RETENTION_DAYS) || 90,
     SLA_DAYS: Number(env.SLA_DAYS) || 5,
     TRANSFER_MECHANISM: trim(env.TRANSFER_MECHANISM) || 'hosting may process data outside your country',
     LEGAL_DATE: trim(env.LEGAL_DATE) || '2026-09-04',
     previewLegal,
+    
+    // System Readiness Flags
     checkoutReady: Boolean(
-      trim(env.LEMONSQUEEZY_CHECKOUT_BASE) &&
-        (trim(env.LEMONSQUEEZY_VARIANT_GOLD_10) || trim(env.LEMONSQUEEZY_VARIANT_GOLD_STARTER)) &&
-        (trim(env.LEMONSQUEEZY_VARIANT_GOLD_25) || trim(env.LEMONSQUEEZY_VARIANT_GOLD_PACK)) &&
-        trim(env.LEMONSQUEEZY_VARIANT_GOLD_50) &&
-        trim(env.LEMONSQUEEZY_VARIANT_GOLD_100),
+      (trim(env.PADDLE_PRICE_GOLD_10) || trim(env.PADDLE_PRICE_GOLD_STARTER)) &&
+      (trim(env.PADDLE_PRICE_GOLD_25) || trim(env.PADDLE_PRICE_GOLD_PACK)) &&
+      trim(env.PADDLE_PRICE_GOLD_50) &&
+      trim(env.PADDLE_PRICE_GOLD_100)
     ),
     oauthReady: Boolean(trim(env.DISCORD_CLIENT_ID) && trim(env.DISCORD_CLIENT_SECRET)),
     dbReady: Boolean(trim(env.DATABASE_URL)),
-    webhookReady: Boolean(trim(env.LEMONSQUEEZY_WEBHOOK_SECRET) && trim(env.LEMONSQUEEZY_STORE_ID)),
+    webhookReady: Boolean(trim(env.PADDLE_WEBHOOK_SECRET)),
     bootErrors: production ? errors : [],
   };
 

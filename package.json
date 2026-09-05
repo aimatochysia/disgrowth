@@ -14,9 +14,9 @@
     "migrate": "node src/migrate.js"
   },
   "dependencies": {
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.4.2",
     "express": "^5.1.0",
-    "express-rate-limit": "^7.5.0",
+    "express-rate-limit": "^8.7.0",
     "helmet": "^8.1.0",
     "pg": "^8.14.1"
   }
