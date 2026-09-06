@@ -18,7 +18,6 @@ PADDLE_PRICE_GOLD_25=pri_01m1vqmv2z51ehpf7f1bcd01jf
 PADDLE_PRICE_GOLD_50=pri_01m1vqmv7e7v51nja2mdcr7bgt
 PADDLE_PRICE_GOLD_100=pri_01m1vqmvby50aw445v47wn7k16
 OPERATOR_LEGAL_NAME=Kaelis Quinn
-OPERATOR_REGISTERED_ADDRESS=
 OPERATOR_CONTACT_EMAIL=kaelisquinn@gmail.com
 SUPPORT_EMAIL=kaelisquinn@gmail.com
 PRIVACY_EMAIL=kaelisquinn@gmail.com
@@ -52,9 +51,9 @@ You still have to do these outside this repo. The site will not grant Gold Bars 
 1. **Vercel env (Production + Preview).** Real values only — never `-`.
    - Required to boot: `SESSION_SECRET` (32+ chars), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL` (game Postgres).
    - Required to sell: `STORE_ORIGIN=https://<your-domain>`, `PADDLE_ENV=production`, live `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, the four `PADDLE_PRICE_GOLD_*` ids above.
-   - Optional: `OPERATOR_LEGAL_NAME` (preview banner until set), `OPERATOR_REGISTERED_ADDRESS`, `DATABASE_SSL=1` if the host needs SSL and the URL has no `sslmode=require`.
+   - Optional: `OPERATOR_LEGAL_NAME` (preview banner until set), `DATABASE_SSL=1` if the host needs SSL and the URL has no `sslmode=require`.
    - Framework preset: **Express** (`vercel.json` sets this). Redeploy after saving env.
-2. **Legal entity.** Set `OPERATOR_LEGAL_NAME` (banner stays until you do) and `OPERATOR_REGISTERED_ADDRESS`. Emails default to `kaelisquinn@gmail.com`. Have counsel review the Delaware / online-arbitration default if you need a different governing-law clause.
+2. **Legal entity.** Set `OPERATOR_LEGAL_NAME` (banner stays until you do). Emails default to `kaelisquinn@gmail.com`. The public site does not show a street address or operator country; contact is email. Paddle still gets whatever seller details they require in their dashboard (private).
 3. **Discord OAuth.** Same application as the bot. Redirect URI: `https://{{STORE_ORIGIN}}/api/auth/discord/callback`. Scope `identify` only.
 4. **Database.** `DATABASE_URL` is the game Postgres. Run `npm run migrate` against that database (Vercel will not run it for you). Do not create stub `players` rows from the store.
 5. **Paddle Billing (live catalog is done).** You still must:

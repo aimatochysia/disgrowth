@@ -486,7 +486,10 @@ test('landing and legal pages render', async () => {
     assert.match(legalHtml, /Patron time included with a Gold Bar pack is/);
     assert.match(legalHtml, /First Gold Bar purchase/);
     assert.match(legalHtml, /Paddle/);
+    assert.match(legalHtml, /do not publish a street address/);
     assert.doesNotMatch(legalHtml, /Lemon Squeezy/);
+    assert.doesNotMatch(legalHtml, /address not yet published/);
+    assert.doesNotMatch(legalHtml, /Delaware/);
     const store = await fetch(`${base}/store`);
     const storeHtml = await store.text();
     assert.match(storeHtml, /Gold Bars — 500/);

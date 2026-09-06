@@ -8,7 +8,6 @@ export function legalVars(config) {
   return {
     DATE: config.LEGAL_DATE,
     OPERATOR_LEGAL_NAME: config.OPERATOR_LEGAL_NAME,
-    OPERATOR_REGISTERED_ADDRESS: config.OPERATOR_REGISTERED_ADDRESS,
     OPERATOR_CONTACT_EMAIL: config.OPERATOR_CONTACT_EMAIL,
     SUPPORT_EMAIL: config.SUPPORT_EMAIL,
     PRIVACY_EMAIL: config.PRIVACY_EMAIL,
@@ -28,7 +27,7 @@ const DOCS = {
     kicker: 'Store agreement',
     body: `Last updated: {{DATE}}
 
-**Who we are.** These Terms are between you and **{{OPERATOR_LEGAL_NAME}}** (“Operator”, “we”), {{OPERATOR_REGISTERED_ADDRESS}}. The game is offered as **Disgrowth**. Contact: {{OPERATOR_CONTACT_EMAIL}}.
+**Who we are.** These Terms are between you and **{{OPERATOR_LEGAL_NAME}}** (“Operator”, “we”). The game is offered as **Disgrowth**. Contact: {{OPERATOR_CONTACT_EMAIL}}. We do not publish a street address or country on this site.
 
 **What this site is.** This website (the “Store”) sells Gold Bars for Disgrowth. Play happens in Discord. Card payments are processed by Paddle as Merchant of Record.
 
@@ -74,7 +73,7 @@ const DOCS = {
     kicker: 'What we hold',
     body: `Last updated: {{DATE}}
 
-**Controller.** {{OPERATOR_LEGAL_NAME}}, {{OPERATOR_REGISTERED_ADDRESS}}. Privacy contact: {{PRIVACY_EMAIL}}.
+**Controller.** {{OPERATOR_LEGAL_NAME}}. Privacy contact: {{PRIVACY_EMAIL}}. We do not publish a street address or country on this site.
 
 **What this policy covers.** This Store and how we connect purchases to your Disgrowth character. It does **not** replace Discord’s Privacy Policy or Paddle’s Privacy Policy.
 

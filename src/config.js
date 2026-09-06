@@ -87,8 +87,7 @@ export function loadConfig(env = process.env) {
     PADDLE_PRICE_GOLD_100,
 
     OPERATOR_LEGAL_NAME: OPERATOR_LEGAL_NAME || 'Kaelis Quinn',
-    OPERATOR_REGISTERED_ADDRESS: real(env.OPERATOR_REGISTERED_ADDRESS) || '[address not yet published]',
-    GOVERNING_LAW: real(env.GOVERNING_LAW) || 'The laws of the State of Delaware, USA, excluding conflict-of-law rules, govern these Terms. Any dispute, claim, or controversy arising out of or relating to these Terms, the Store, or the game will be resolved by binding, confidential arbitration conducted online, rather than in court. The arbitration will be conducted in the English language. However, if you are a consumer, you may have non-waivable statutory rights to bring a claim in your local courts where you reside.',
+    GOVERNING_LAW: real(env.GOVERNING_LAW) || 'Disputes arising out of these Terms, the Store, or the game will be resolved by binding, confidential arbitration conducted online in the English language, rather than in court. Conflict-of-law rules do not apply to the extent they would produce a different result. If you are a consumer, you may have non-waivable statutory rights to bring a claim in your local courts where you reside.',
     OPERATOR_CONTACT_EMAIL: real(env.OPERATOR_CONTACT_EMAIL) || 'kaelisquinn@gmail.com',
     SUPPORT_EMAIL: real(env.SUPPORT_EMAIL) || 'kaelisquinn@gmail.com',
     PRIVACY_EMAIL: real(env.PRIVACY_EMAIL) || 'kaelisquinn@gmail.com',
