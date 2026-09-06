@@ -76,7 +76,7 @@ export function homePage({ config }) {
       <ol class="steps">
         <li><strong>Log in with Discord</strong> so the purchase lands on your character.</li>
         <li><strong>Confirm you are 18+</strong> and accept the store terms.</li>
-        <li><strong>Pay on checkout.</strong> Paddle handles the card. We never see the number.</li>
+        <li><strong>Pay on checkout.</strong> Paddle handles the card. We never see the number. First Gold Bar purchase doubles the bars.</li>
         <li><strong>Open <code>/shop</code> in Discord.</strong> Wallets usually update within a few seconds.</li>
       </ol>
     </section>

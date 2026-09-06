@@ -50,6 +50,8 @@ const DOCS = {
 
 **Gold Bars and Patron.** The Store sells Gold Bars in set packs. Larger packs include a period of **Patron**: extra daily Bonds and occasional hints in Discord, for the time described on the shop page. Patron is not sold as a standalone product on this Store. Repeat purchases extend remaining Patron time. Hints are imperfect, not professional advice, not guaranteed, and may pause if you have been away from the Discord server. Logging into this website does not count as server activity.
 
+**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account delivers **double** the Gold Bars listed for that pack. Patron days are not doubled. Later purchases on the same Discord account are the listed amount. If that first grant is refunded, doubling can apply again. We can also reset this by hand if you ask support.
+
 **Acceptable use.** Do not attack the Store, scrape with abusive rates, exploit webhooks, falsify Discord identity, launder payments, or use the game or Store for anything illegal. We may suspend Store access and ask that the linked character be suspended in Discord.
 
 **Availability.** The Store and the game may be unavailable. A purchase grants virtual items in the game; it does not guarantee uptime, a particular economic outcome, or rank.
@@ -119,7 +121,9 @@ Payments are charged by **Paddle** as Merchant of Record. Chargebacks go through
 1. You ask within **two (2) hours** of the purchase; and
 2. The Gold Bars from that purchase are still in your Gold Bars wallet — they have not been converted to Bonds or otherwise used.
 
-If more than two hours have passed, we cannot refund. If the Gold Bars have already been converted or spent, we cannot refund. We treat a pack as used if your Gold Bars balance is below the amount of that purchase. Wallet floors at zero — a reversal will not put the account into negative Gold Bars.
+If more than two hours have passed, we cannot refund. If the Gold Bars have already been converted or spent, we cannot refund. We treat a pack as used if your Gold Bars balance is below the amount actually granted for that purchase (including a first-purchase double). Wallet floors at zero — a reversal will not put the account into negative Gold Bars.
+
+**First-purchase double.** If we refund the grant that used your first-purchase double, that Discord account can receive the double again on a later purchase. Refunding a later (non-doubled) purchase does not restore the double.
 
 **Patron — no refunds.** Patron time included with a Gold Bar pack is **not refundable**. If we approve a Gold Bars refund because the bars themselves are still unused and you asked within two hours, Patron time from that pack still stays on the character. We do not sell a standalone Patron subscription on this Store; any older subscription product is also **not refundable**.
 
@@ -163,7 +167,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Gold Bars.** The premium wallet sold on this Store. Dual-recorded internally with a legacy mirror field. Buying Gold Bars does not buy Credits.
 
-**Patron.** A time-limited perk included with Gold Bar packs at $25 and above (30 days per qualifying pack, stacked if you buy again while time remains). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a cash product and is not refundable.
+**Patron.** A time-limited perk included with Gold Bar packs at $25 and above (30 days per qualifying pack, stacked if you buy again while time remains). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a cash product and is not refundable. First-purchase doubling applies to Gold Bars only, not Patron.
 
 **No secondary market.** You may not sell accounts, Gold Bars, or Patron for real money. We may reclaim items obtained that way.
 

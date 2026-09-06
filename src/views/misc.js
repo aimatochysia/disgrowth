@@ -22,7 +22,7 @@ export function successPage() {
     <section class="page-hero">
       <h1 class="display display-page">Payment sent</h1>
       <p class="lede narrow">
-        Gold Bars — and Patron, if the pack includes it — usually show up in Discord within a few seconds. Open <code>/shop</code>, or check your account here. If nothing appears, wait a moment and refresh.
+        Gold Bars — and Patron, if the pack includes it — usually show up in Discord within a few seconds. Open <code>/shop</code>, or check your account here. If this was your first Gold Bar purchase, the bars are doubled. If nothing appears, wait a moment and refresh.
       </p>
       <div class="cta-row">
         <a class="btn btn-accent" href="/account">Open account</a>

@@ -2,7 +2,7 @@
 
 ## Secrets
 
-Keep Discord client secret, session secret, database URL, Paddle API key, and Paddle webhook secret in the host secret manager. Never commit `.env`.
+Keep Discord client secret, session secret, database URL, Paddle API key, and Paddle webhook secret in the host secret manager. Never commit `.env`. On Vercel, never use `-` as a placeholder — the app treats it as unset.
 
 Rotate `PADDLE_WEBHOOK_SECRET` in the Paddle dashboard (notification destination), then update the host env, then redeploy. Old signatures fail until both sides match.
 
@@ -12,13 +12,30 @@ Rotate `SESSION_SECRET` logs everyone out.
 
 Archive or unpublish the four Paddle prices. Existing `/buy/:sku` still renders; checkout fails closed if the API key or price ids are cleared.
 
+Live price ids:
+
+- `PADDLE_PRICE_GOLD_10=pri_01m1vqmtydg3hrzxhsecae8d9v`
+- `PADDLE_PRICE_GOLD_25=pri_01m1vqmv2z51ehpf7f1bcd01jf`
+- `PADDLE_PRICE_GOLD_50=pri_01m1vqmv7e7v51nja2mdcr7bgt`
+- `PADDLE_PRICE_GOLD_100=pri_01m1vqmvby50aw445v47wn7k16`
+
 ## Schema
 
 ```bash
 npm run migrate
 ```
 
-Applies `sql/001_store_orders.sql` on `DATABASE_URL` (the game Postgres). Does not create `players`. Order rows use `provider = 'paddle'`. Columns named `lemon_*` store Paddle transaction / price ids for compatibility with the existing table.
+Applies every `sql/*.sql` file in order on `DATABASE_URL` (the game Postgres). Does not create `players`. Order rows use `provider = 'paddle'`. Columns named `lemon_*` store Paddle transaction / price ids for compatibility with the existing table.
+
+## First-purchase double
+
+`store_first_purchase` records one Discord id after the first successful Gold Bar grant. That grant writes **double** catalog Gold Bars (Patron days unchanged). Later grants are catalog amounts. Refunding that original grant deletes the row so the bonus can apply again.
+
+Reset by hand:
+
+```sql
+DELETE FROM store_first_purchase WHERE discord_id = :snowflake;
+```
 
 ## Inspect grants
 
@@ -27,6 +44,10 @@ SELECT processed_at, event_name, sku_key, discord_id, effect, gold_delta, lemon_
 FROM store_orders
 ORDER BY id DESC
 LIMIT 50;
+
+SELECT discord_id, provider_event_id, used_at
+FROM store_first_purchase
+WHERE discord_id = :snowflake;
 
 SELECT discord_id, credits, bonds, gold_bars, marks, subscription_active, subscription_expires_at
 FROM players
@@ -37,7 +58,7 @@ WHERE discord_id = :snowflake;
 
 ## Health
 
-`GET /healthz` → `{ "ok": true, "db": "up" | "down" }`. No secrets.
+`GET /healthz` → `{ "ok": true, "db": "up" | "down", "oauth": bool, "checkout": bool, "missing": [] }`. No secrets. After a Vercel deploy, if `missing` lists env names or `checkout` is false, fix env and redeploy — do not set values to `-`.
 
 ## Discord bot (other repo)
 
@@ -52,8 +73,9 @@ PADDLE_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
 
 ## Paddle dashboard
 
-1. Create four one-time catalog prices ($10 / $25 / $50 / $100) and put the `pri_…` ids in env.
-2. Add a notification destination: `https://{{STORE_ORIGIN}}/api/webhooks/paddle`
-3. Subscribe at least to `transaction.completed` and `adjustment.updated`.
-4. Set the default payment-link success URL to `https://{{STORE_ORIGIN}}/success`.
-5. Use sandbox (`PADDLE_ENV=sandbox`) until go-live, then `PADDLE_ENV=production` and live API key + live price ids.
+Catalog products already exist in the live account. You still need:
+
+1. Notification destination: `https://{{STORE_ORIGIN}}/api/webhooks/paddle`
+2. Subscribe **only** to `transaction.completed` and `adjustment.updated`.
+3. Set the default payment-link success URL to `https://{{STORE_ORIGIN}}/success`.
+4. `PADDLE_ENV=production` plus live API key + live price ids on the host.

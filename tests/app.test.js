@@ -32,6 +32,8 @@ function paddleSignature(raw, secret, now = Date.now()) {
 
 function mockDb({ player = null, seen = new Set(), grants = [] } = {}) {
   const statements = [];
+  const firstPurchase = new Map();
+  const orders = [];
   return {
     statements,
     async health() {
@@ -41,9 +43,12 @@ function mockDb({ player = null, seen = new Set(), grants = [] } = {}) {
       if (player && String(player.discord_id) === String(id)) return player;
       return null;
     },
+    async hasUsedFirstPurchase(id) {
+      return firstPurchase.has(String(id));
+    },
     async withTransaction(fn) {
       const client = {
-        async query(text, params) {
+        async query(text, params = []) {
           if (/INSERT INTO store_orders/.test(text)) {
             const eventId = params[0];
             if (seen.has(eventId)) {
@@ -52,15 +57,56 @@ function mockDb({ player = null, seen = new Set(), grants = [] } = {}) {
               throw err;
             }
             seen.add(eventId);
+            orders.push({
+              provider_event_id: params[0],
+              lemon_order_id: params[3],
+              sku_key: params[6],
+              discord_id: params[7],
+              effect: params[8],
+              gold_delta: params[9],
+            });
           }
           statements.push({ text, params });
+          if (/INSERT INTO store_first_purchase/.test(text)) {
+            const discordId = String(params[0]);
+            if (firstPurchase.has(discordId)) {
+              return { rowCount: 0, rows: [] };
+            }
+            firstPurchase.set(discordId, params[1]);
+            return { rowCount: 1, rows: [{ discord_id: discordId }] };
+          }
+          if (/DELETE FROM store_first_purchase/.test(text)) {
+            const discordId = String(params[0]);
+            if (firstPurchase.get(discordId) === params[1]) {
+              firstPurchase.delete(discordId);
+              return { rowCount: 1, rows: [] };
+            }
+            return { rowCount: 0, rows: [] };
+          }
+          if (/SET gold_delta = \$1/.test(text) && /provider_event_id = \$2/.test(text)) {
+            const order = orders.find((row) => row.provider_event_id === params[1]);
+            if (order) order.gold_delta = params[0];
+          }
+          if (/SET sku_key = \$1, discord_id = \$2, gold_delta = \$3/.test(text)) {
+            const order = orders.find((row) => row.provider_event_id === params[3]);
+            if (order) {
+              order.sku_key = params[0];
+              order.discord_id = params[1];
+              order.gold_delta = params[2];
+            }
+          }
           if (/FOR UPDATE/.test(text)) {
             return { rows: player ? [player] : [] };
           }
           if (/effect = 'gold_grant'/.test(text)) {
-            return { rows: grants };
+            if (grants.length) return { rows: grants };
+            const lemonOrderId = params[0];
+            const row = [...orders].reverse().find(
+              (item) => String(item.lemon_order_id) === String(lemonOrderId) && item.effect === 'gold_grant',
+            );
+            return { rows: row ? [row] : [] };
           }
-          return { rows: [] };
+          return { rows: [], rowCount: 0 };
         },
       };
       return fn(client);
@@ -185,6 +231,21 @@ test('POST /buy with player creates a Paddle transaction and redirects', async (
   });
 });
 
+test('/buy with player shows first-purchase double copy', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const app = createApp({ config: cfg, db: mockDb({ player }), art: {} });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/buy/gold-10`, {
+      headers: { cookie: sessionCookie(cfg) },
+    });
+    assert.equal(res.status, 200);
+    const html = await res.text();
+    assert.match(html, /1,000 Gold Bars/);
+    assert.match(html, /double the listed Gold Bars/);
+  });
+});
+
 test('unknown sku is 404', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb(), art: {} });
@@ -271,7 +332,41 @@ test('idempotent double transaction.completed does not grant twice', async () =>
     assert.equal(ba.duplicate, true);
     const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
     assert.equal(grants.length, 1);
-    assert.equal(grants[0].params[0], 500);
+    assert.equal(grants[0].params[0], 1000);
+  });
+});
+
+test('second gold-10 purchase is catalog amount, not doubled', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const db = mockDb({ player });
+  const app = createApp({ config: cfg, db, art: {} });
+
+  await withServer(app, async (base) => {
+    for (const [eventId, txnId] of [
+      ['evt_first', 'txn_first'],
+      ['evt_second', 'txn_second'],
+    ]) {
+      const raw = JSON.stringify({
+        event_id: eventId,
+        event_type: 'transaction.completed',
+        data: {
+          id: txnId,
+          custom_data: { discord_id: '42', sku_key: 'gold-10' },
+          items: [{ price: { id: 'pri_gold_10' } }],
+        },
+      });
+      const res = await fetch(`${base}/api/webhooks/paddle`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'paddle-signature': paddleSignature(raw, cfg.PADDLE_WEBHOOK_SECRET) },
+        body: raw,
+      });
+      assert.equal(res.status, 200);
+    }
+    const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
+    assert.equal(grants.length, 2);
+    assert.equal(grants[0].params[0], 1000);
+    assert.equal(grants[1].params[0], 500);
   });
 });
 
@@ -300,10 +395,58 @@ test('gold-25 transaction.completed extends Patron', async () => {
     assert.equal(res.status, 200);
     const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
     assert.equal(grants.length, 1);
-    assert.equal(grants[0].params[0], 1300);
+    assert.equal(grants[0].params[0], 2600);
     const patron = db.statements.filter((s) => /INTERVAL '1 day'/.test(s.text));
     assert.equal(patron.length, 1);
     assert.equal(patron[0].params[1], 30);
+  });
+});
+
+test('refund of a doubled first purchase reverses stored gold_delta', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const db = mockDb({ player });
+  const app = createApp({ config: cfg, db, art: {} });
+  const paid = JSON.stringify({
+    event_id: 'evt_bonus',
+    event_type: 'transaction.completed',
+    data: {
+      id: 'txn_bonus',
+      custom_data: { discord_id: '42', sku_key: 'gold-10' },
+      items: [{ price: { id: 'pri_gold_10' } }],
+    },
+  });
+  const refund = JSON.stringify({
+    event_id: 'evt_refund',
+    event_type: 'adjustment.updated',
+    data: {
+      id: 'adj_bonus',
+      action: 'refund',
+      status: 'approved',
+      transaction_id: 'txn_bonus',
+      custom_data: {},
+      items: [],
+    },
+  });
+
+  await withServer(app, async (base) => {
+    const a = await fetch(`${base}/api/webhooks/paddle`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'paddle-signature': paddleSignature(paid, cfg.PADDLE_WEBHOOK_SECRET) },
+      body: paid,
+    });
+    assert.equal(a.status, 200);
+    const b = await fetch(`${base}/api/webhooks/paddle`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'paddle-signature': paddleSignature(refund, cfg.PADDLE_WEBHOOK_SECRET) },
+      body: refund,
+    });
+    assert.equal(b.status, 200);
+    const refunds = db.statements.filter((s) => /gold_bars = GREATEST/.test(s.text));
+    assert.equal(refunds.length, 1);
+    assert.equal(refunds[0].params[0], 1000);
+    const resets = db.statements.filter((s) => /DELETE FROM store_first_purchase/.test(s.text));
+    assert.equal(resets.length, 1);
   });
 });
 
@@ -341,12 +484,14 @@ test('landing and legal pages render', async () => {
     assert.match(legalHtml, /Refund Policy/);
     assert.match(legalHtml, /two \(2\) hours/);
     assert.match(legalHtml, /Patron time included with a Gold Bar pack is/);
+    assert.match(legalHtml, /First Gold Bar purchase/);
     assert.match(legalHtml, /Paddle/);
     assert.doesNotMatch(legalHtml, /Lemon Squeezy/);
     const store = await fetch(`${base}/store`);
     const storeHtml = await store.text();
     assert.match(storeHtml, /Gold Bars — 500/);
     assert.match(storeHtml, /Gold Bars — 5,600/);
+    assert.match(storeHtml, /first Gold Bar purchase doubles/);
     assert.doesNotMatch(storeHtml, /Accountant pass/);
     assert.doesNotMatch(storeHtml, /Get the pass/);
   });

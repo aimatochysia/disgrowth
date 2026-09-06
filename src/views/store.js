@@ -8,6 +8,7 @@ export function storePage() {
       <h1 class="display display-page">Shop</h1>
       <p class="lede narrow">
         Gold Bars for the city. Larger packs include Patron — extra daily Bonds and occasional hints in Discord.
+        Your first Gold Bar purchase doubles the bars (once per Discord account). Patron days are not doubled.
       </p>
     </section>
 

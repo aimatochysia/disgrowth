@@ -1,11 +1,12 @@
 import { html } from '../lib/html.js';
 import { formatQty, formatUsd } from '../catalog.js';
 
-export function buyPage({ sku, user, player, error, checkoutReady }) {
+export function buyPage({ sku, user, player, error, checkoutReady, firstPurchaseAvailable = false }) {
   const price = formatUsd(sku.usdPlaceholder);
+  const grantGold = firstPurchaseAvailable ? sku.gold * 2 : sku.gold;
   const grant = sku.patronDays
-    ? `${formatQty(sku.gold)} Gold Bars + ${sku.patronDays} days of Patron`
-    : `${formatQty(sku.gold)} Gold Bars`;
+    ? `${formatQty(grantGold)} Gold Bars + ${sku.patronDays} days of Patron`
+    : `${formatQty(grantGold)} Gold Bars`;
 
   if (!player) {
     return html`
@@ -32,6 +33,9 @@ export function buyPage({ sku, user, player, error, checkoutReady }) {
           <div><dt>Character</dt><dd>${user.globalName || user.username}</dd></div>
         </dl>
         <p>${sku.blurb}</p>
+        ${firstPurchaseAvailable
+          ? html`<p class="hint">First Gold Bar purchase on this Discord account: you get double the listed Gold Bars this time. Patron days are not doubled. Later purchases are the listed amount.</p>`
+          : ''}
         <p class="hint">
           These are virtual items with no cash value.
           <a href="/legal#virtual-items">Virtual items</a> ·

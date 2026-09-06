@@ -119,7 +119,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.get('/healthz', async (_req, res) => {
     const dbStatus = db ? await db.health() : 'down';
-    res.status(200).json({ ok: true, db: dbStatus });
+    res.status(200).json({
+      ok: true,
+      db: dbStatus,
+      oauth: Boolean(config.oauthReady),
+      checkout: Boolean(config.checkoutReady),
+      missing: config.bootErrors || [],
+    });
   });
 
   app.get('/', (req, res) => {
@@ -220,9 +226,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       return;
     }
     let player = null;
+    let firstPurchaseAvailable = true;
     if (db) {
       try {
         player = await db.findPlayerByDiscordId(req.user.discordId);
+        if (player && typeof db.hasUsedFirstPurchase === 'function') {
+          firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(req.user.discordId));
+        }
       } catch (err) {
         console.error('[store] buy query', err.message);
       }
@@ -235,6 +245,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         user: req.user,
         player,
         checkoutReady: checkoutConfigured(config, req.params.sku),
+        firstPurchaseAvailable,
         error: '',
       }),
     });
@@ -247,9 +258,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }
     const sku = CATALOG[req.params.sku];
     let player = null;
+    let firstPurchaseAvailable = true;
     if (db) {
       try {
         player = await db.findPlayerByDiscordId(req.user.discordId);
+        if (player && typeof db.hasUsedFirstPurchase === 'function') {
+          firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(req.user.discordId));
+        }
       } catch (err) {
         console.error('[store] buy query', err.message);
       }
@@ -264,6 +279,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
           user: req.user,
           player,
           checkoutReady: checkoutConfigured(config, sku.sku_key),
+          firstPurchaseAvailable,
           error,
         }),
       });

@@ -5,14 +5,24 @@ import pg from 'pg';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
-export function createDb(databaseUrl) {
-  if (!databaseUrl) return null;
-
-  const pool = new pg.Pool({
+export function poolOptions(databaseUrl, env = process.env) {
+  const opts = {
     connectionString: databaseUrl,
     max: 10,
     idleTimeoutMillis: 30_000,
-  });
+  };
+  const sslFlag = String(env.DATABASE_SSL || env.PGSSLMODE || '').toLowerCase();
+  const urlWantsSsl = /sslmode=(require|verify-ca|verify-full)/i.test(databaseUrl);
+  if (urlWantsSsl || sslFlag === '1' || sslFlag === 'true' || sslFlag === 'require') {
+    opts.ssl = { rejectUnauthorized: false };
+  }
+  return opts;
+}
+
+export function createDb(databaseUrl) {
+  if (!databaseUrl) return null;
+
+  const pool = new pg.Pool(poolOptions(databaseUrl));
 
   return {
     pool,
@@ -51,6 +61,14 @@ export function createDb(databaseUrl) {
       return rows[0] || null;
     },
 
+    async hasUsedFirstPurchase(discordId) {
+      const { rows } = await pool.query(
+        `SELECT 1 FROM store_first_purchase WHERE discord_id = $1 LIMIT 1`,
+        [String(discordId)],
+      );
+      return Boolean(rows[0]);
+    },
+
     async health() {
       try {
         await pool.query('SELECT 1');
@@ -69,9 +87,15 @@ export function createDb(databaseUrl) {
 export async function migrate(databaseUrl) {
   const db = createDb(databaseUrl);
   if (!db) throw new Error('DATABASE_URL is not set');
-  const sqlPath = path.join(__dirname, '..', 'sql', '001_store_orders.sql');
-  const sql = fs.readFileSync(sqlPath, 'utf8');
-  await db.query(sql);
+  const sqlDir = path.join(__dirname, '..', 'sql');
+  const files = fs
+    .readdirSync(sqlDir)
+    .filter((name) => name.endsWith('.sql'))
+    .sort();
+  for (const name of files) {
+    const sql = fs.readFileSync(path.join(sqlDir, name), 'utf8');
+    await db.query(sql);
+  }
   await db.close();
 }
 

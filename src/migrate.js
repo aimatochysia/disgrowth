@@ -8,7 +8,7 @@ if (!config.DATABASE_URL) {
 
 try {
   await migrate(config.DATABASE_URL);
-  console.log('store_orders migration applied');
+  console.log('Applied sql/*.sql in order');
 } catch (err) {
   console.error(err);
   process.exit(1);
