@@ -45,8 +45,8 @@ export function loadConfig(env = process.env) {
   const DATABASE_URL = real(env.DATABASE_URL);
   const PADDLE_API_KEY = real(env.PADDLE_API_KEY);
   const PADDLE_WEBHOOK_SECRET = real(env.PADDLE_WEBHOOK_SECRET);
-  const PADDLE_PRICE_GOLD_10 = real(env.PADDLE_PRICE_GOLD_10) || real(env.PADDLE_PRICE_GOLD_STARTER);
-  const PADDLE_PRICE_GOLD_25 = real(env.PADDLE_PRICE_GOLD_25) || real(env.PADDLE_PRICE_GOLD_PACK);
+  const PADDLE_PRICE_GOLD_10 = real(env.PADDLE_PRICE_GOLD_10);
+  const PADDLE_PRICE_GOLD_25 = real(env.PADDLE_PRICE_GOLD_25);
   const PADDLE_PRICE_GOLD_50 = real(env.PADDLE_PRICE_GOLD_50);
   const PADDLE_PRICE_GOLD_100 = real(env.PADDLE_PRICE_GOLD_100);
   const PADDLE_ENV = real(env.PADDLE_ENV) || (production ? 'production' : 'sandbox');
@@ -87,17 +87,13 @@ export function loadConfig(env = process.env) {
     PADDLE_PRICE_GOLD_100,
 
     OPERATOR_LEGAL_NAME: OPERATOR_LEGAL_NAME || 'Kaelis Quinn',
-    OPERATOR_TRADING_NAME: real(env.OPERATOR_TRADING_NAME) || 'Disgrowth',
     OPERATOR_REGISTERED_ADDRESS: real(env.OPERATOR_REGISTERED_ADDRESS) || '[address not yet published]',
-    OPERATOR_COUNTRY: real(env.OPERATOR_COUNTRY) || 'USA',
     GOVERNING_LAW: real(env.GOVERNING_LAW) || 'The laws of the State of Delaware, USA, excluding conflict-of-law rules, govern these Terms. Any dispute, claim, or controversy arising out of or relating to these Terms, the Store, or the game will be resolved by binding, confidential arbitration conducted online, rather than in court. The arbitration will be conducted in the English language. However, if you are a consumer, you may have non-waivable statutory rights to bring a claim in your local courts where you reside.',
-    VENUE: real(env.VENUE) || '[venue not yet published]',
     OPERATOR_CONTACT_EMAIL: real(env.OPERATOR_CONTACT_EMAIL) || 'kaelisquinn@gmail.com',
     SUPPORT_EMAIL: real(env.SUPPORT_EMAIL) || 'kaelisquinn@gmail.com',
     PRIVACY_EMAIL: real(env.PRIVACY_EMAIL) || 'kaelisquinn@gmail.com',
     DISCORD_SUPPORT_INVITE: real(env.DISCORD_SUPPORT_INVITE),
     DISCORD_COMMUNITY_INVITE: real(env.DISCORD_COMMUNITY_INVITE) || 'https://discord.gg/XMadQ9tAd',
-    DISCORD_BOT_PUBLIC_URL: real(env.DISCORD_BOT_PUBLIC_URL),
     LOG_RETENTION_DAYS: Number(env.LOG_RETENTION_DAYS) || 90,
     SLA_DAYS: Number(env.SLA_DAYS) || 5,
     TRANSFER_MECHANISM: real(env.TRANSFER_MECHANISM) || 'hosting may process data outside your country',

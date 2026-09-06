@@ -2,29 +2,26 @@
 
 Complete before launch. Until `OPERATOR_LEGAL_NAME` is set in the environment, the site shows a preview banner: legal copy is draft.
 
+See `.env.example`. That file is the fill list. Keys not listed there already have code defaults (Discord invite, governing law, session length, and similar).
+
 ```
-OPERATOR_LEGAL_NAME=
-OPERATOR_TRADING_NAME=Disgrowth
-OPERATOR_REGISTERED_ADDRESS=
-OPERATOR_COUNTRY=
-GOVERNING_LAW=
-VENUE=
-OPERATOR_CONTACT_EMAIL=
-SUPPORT_EMAIL=
-PRIVACY_EMAIL=
-DISCORD_SUPPORT_INVITE=
+SESSION_SECRET=
 DISCORD_CLIENT_ID=
 DISCORD_CLIENT_SECRET=
-STORE_ORIGIN=
+DATABASE_URL=
+STORE_ORIGIN=https://YOUR-PROJECT.vercel.app
+PADDLE_ENV=production
 PADDLE_API_KEY=
 PADDLE_WEBHOOK_SECRET=
 PADDLE_PRICE_GOLD_10=pri_01m1vqmtydg3hrzxhsecae8d9v
 PADDLE_PRICE_GOLD_25=pri_01m1vqmv2z51ehpf7f1bcd01jf
 PADDLE_PRICE_GOLD_50=pri_01m1vqmv7e7v51nja2mdcr7bgt
 PADDLE_PRICE_GOLD_100=pri_01m1vqmvby50aw445v47wn7k16
-PADDLE_ENV=production
-Lawyer review date=
-Languages (EN only vs EN+ID)=
+OPERATOR_LEGAL_NAME=Kaelis Quinn
+OPERATOR_REGISTERED_ADDRESS=
+OPERATOR_CONTACT_EMAIL=kaelisquinn@gmail.com
+SUPPORT_EMAIL=kaelisquinn@gmail.com
+PRIVACY_EMAIL=kaelisquinn@gmail.com
 ```
 
 Never commit API keys. Never set a Vercel env value to `-` (treated as empty). `SESSION_SECRET` must be 32+ characters.
@@ -55,9 +52,9 @@ You still have to do these outside this repo. The site will not grant Gold Bars 
 1. **Vercel env (Production + Preview).** Real values only — never `-`.
    - Required to boot: `SESSION_SECRET` (32+ chars), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL` (game Postgres).
    - Required to sell: `STORE_ORIGIN=https://<your-domain>`, `PADDLE_ENV=production`, live `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, the four `PADDLE_PRICE_GOLD_*` ids above.
-   - Optional: `OPERATOR_LEGAL_NAME` (preview banner until set), address, venue, `DATABASE_SSL=1` if the host needs SSL and the URL has no `sslmode=require`.
+   - Optional: `OPERATOR_LEGAL_NAME` (preview banner until set), `OPERATOR_REGISTERED_ADDRESS`, `DATABASE_SSL=1` if the host needs SSL and the URL has no `sslmode=require`.
    - Framework preset: **Express** (`vercel.json` sets this). Redeploy after saving env.
-2. **Legal entity.** Set `OPERATOR_LEGAL_NAME`. Fill address, country, venue. Have counsel review the Delaware / online-arbitration default in `GOVERNING_LAW`. Default emails are Gmail (`kaelisquinn@gmail.com`); switch to a domain mailbox if you have one.
+2. **Legal entity.** Set `OPERATOR_LEGAL_NAME` (banner stays until you do) and `OPERATOR_REGISTERED_ADDRESS`. Emails default to `kaelisquinn@gmail.com`. Have counsel review the Delaware / online-arbitration default if you need a different governing-law clause.
 3. **Discord OAuth.** Same application as the bot. Redirect URI: `https://{{STORE_ORIGIN}}/api/auth/discord/callback`. Scope `identify` only.
 4. **Database.** `DATABASE_URL` is the game Postgres. Run `npm run migrate` against that database (Vercel will not run it for you). Do not create stub `players` rows from the store.
 5. **Paddle Billing (live catalog is done).** You still must:

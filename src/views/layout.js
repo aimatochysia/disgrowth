@@ -142,13 +142,6 @@ function tickerUnit() {
 
 export { discordSvg, discordAvatarUrl };
 
-export function playCta(config) {
-  if (config.DISCORD_BOT_PUBLIC_URL) {
-    return html`<a class="btn btn-ghost" href="${config.DISCORD_BOT_PUBLIC_URL}" rel="noopener">Open Discord</a>`;
-  }
-  return html`<p class="hint">In Discord, run <code>/disgrowth</code> to play.</p>`;
-}
-
 export function loginHref(next = '/store') {
   return `/login?next=${encodeURIComponent(next)}`;
 }
