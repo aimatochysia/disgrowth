@@ -3,12 +3,14 @@ import { fileURLToPath } from 'node:url';
 import express from 'express';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
-import { CATALOG, isSku } from './catalog.js';
+import { CATALOG, catalogItemsFromConfig, isSku } from './catalog.js';
 import { artCss, artHtmlClass, detectArt } from './art.js';
 import { checkoutConfigured, createPaddleCheckoutUrl, priceIdForSku } from './checkout.js';
 import { authorizeUrl, exchangeCode, fetchIdentify, newOAuthState, sessionFromDiscordUser } from './oauth.js';
 import { render } from './lib/html.js';
 import { safeNextPath } from './lib/security.js';
+import { countryFromRequest } from './country.js';
+import { createCustomerPortalUrl, createPaddleSdk } from './paddle.js';
 import {
   clearOAuthCookie,
   clearSessionCookie,
@@ -23,7 +25,7 @@ import { homePage } from './views/home.js';
 import { storePage } from './views/store.js';
 import { buyPage } from './views/buy.js';
 import { accountPage } from './views/account.js';
-import { legalHubPage, loginPage, notFoundPage, successPage, supportPage } from './views/misc.js';
+import { legalHubPage, loginPage, notFoundPage, supportPage, welcomePage } from './views/misc.js';
 import { getLegalDoc } from './legal.js';
 import { config } from './config.js';
 import { createDb } from './db.js';
@@ -44,11 +46,18 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         useDefaults: true,
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+          scriptSrc: ["'self'", 'https://cdn.paddle.com', 'https://sandbox-cdn.paddle.com'],
+          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.paddle.com'],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
-          imgSrc: ["'self'", 'https://cdn.discordapp.com', 'data:'],
-          connectSrc: ["'self'"],
+          imgSrc: ["'self'", 'https://cdn.discordapp.com', 'https://checkout-service.paddle.com', 'data:'],
+          connectSrc: [
+            "'self'",
+            'https://api.paddle.com',
+            'https://sandbox-api.paddle.com',
+            'https://checkout-service.paddle.com',
+            'https://sandbox-checkout-service.paddle.com',
+            'https://*.paddle.com',
+          ],
           frameSrc: ['https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
           formAction: ["'self'", 'https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
           objectSrc: ["'none'"],
@@ -92,7 +101,23 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     validate: { xForwardedForHeader: false },
   });
 
-  function page(req, res, { title, page: pageName, description, body, status = 200 }) {
+  function buildPaddleBoot(req, user) {
+    if (!config.PADDLE_CLIENT_TOKEN) return null;
+    if (config.PADDLE_ENV !== 'production' && config.PADDLE_ENV !== 'sandbox') return null;
+    const country = countryFromRequest(req);
+    const boot = {
+      env: config.PADDLE_ENV,
+      clientToken: config.PADDLE_CLIENT_TOKEN,
+      successUrl: `${config.STORE_ORIGIN}/welcome`,
+      catalog: catalogItemsFromConfig(config),
+    };
+    if (country) boot.country = country;
+    if (user?.email) boot.customerEmail = user.email;
+    if (user?.discordId) boot.discordId = user.discordId;
+    return boot;
+  }
+
+  function page(req, res, { title, page: pageName, description, body, status = 200, paddle = false }) {
     try {
       const user = readSession(req, config);
       res.status(status).type('html').send(
@@ -106,6 +131,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
             description,
             body,
             artClass,
+            paddleBoot: paddle ? buildPaddleBoot(req, user) : null,
           }),
         ),
       );
@@ -150,7 +176,8 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     page(req, res, {
       title: 'Shop',
       page: 'store',
-      body: storePage(),
+      paddle: true,
+      body: storePage({ items: catalogItemsFromConfig(config) }),
     });
   });
 
@@ -216,9 +243,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.get('/account', requireSession, async (req, res) => {
     let player = null;
+    let paddleCustomer = null;
     if (db) {
       try {
         player = await db.findPlayerByDiscordId(req.user.discordId);
+        if (typeof db.findCustomerByDiscordId === 'function') {
+          paddleCustomer = await db.findCustomerByDiscordId(req.user.discordId);
+        }
       } catch (err) {
         console.error('[store] account query', err.message);
       }
@@ -226,9 +257,39 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     page(req, res, {
       title: 'Account',
       page: 'account',
-      body: accountPage({ user: req.user, player, dbReady: Boolean(db) }),
+      body: accountPage({
+        user: req.user,
+        player,
+        dbReady: Boolean(db),
+        paddleCustomer,
+        portalError: req.query.portal === 'missing' ? 'No Paddle invoices on this Discord account yet.' : req.query.portal === 'error' ? 'Could not open the invoice portal. Try again in a moment.' : '',
+      }),
     });
   });
+
+  app.post('/account/portal', requireSession, async (req, res) => {
+    try {
+      if (!db || typeof db.findCustomerByDiscordId !== 'function') {
+        res.redirect(302, '/account?portal=missing');
+        return;
+      }
+      const customer = await db.findCustomerByDiscordId(req.user.discordId);
+      if (!customer?.customer_id) {
+        res.redirect(302, '/account?portal=missing');
+        return;
+      }
+      const paddle = createPaddleSdk(config);
+      const url = await createCustomerPortalUrl(paddle, customer.customer_id);
+      res.redirect(302, url);
+    } catch (err) {
+      console.error('[store] portal', err.message);
+      res.redirect(302, '/account?portal=error');
+    }
+  });
+
+  function skuWithPrice(skuKey) {
+    return { ...CATALOG[skuKey], priceId: priceIdForSku(skuKey, config) };
+  }
 
   app.get('/buy/:sku', requireSession, async (req, res) => {
     if (!isSku(req.params.sku)) {
@@ -247,14 +308,17 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         console.error('[store] buy query', err.message);
       }
     }
+    const sku = skuWithPrice(req.params.sku);
     page(req, res, {
-      title: CATALOG[req.params.sku].label,
+      title: sku.label,
       page: 'buy',
+      paddle: Boolean(player),
       body: buyPage({
-        sku: CATALOG[req.params.sku],
+        sku,
         user: req.user,
         player,
         checkoutReady: checkoutConfigured(config, req.params.sku),
+        overlayReady: Boolean(config.PADDLE_CLIENT_TOKEN),
         firstPurchaseAvailable,
         error: '',
       }),
@@ -266,7 +330,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
       return;
     }
-    const sku = CATALOG[req.params.sku];
+    const sku = skuWithPrice(req.params.sku);
     let player = null;
     let firstPurchaseAvailable = true;
     if (db) {
@@ -283,12 +347,14 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       page(req, res, {
         title: sku.label,
         page: 'buy',
+        paddle: true,
         status: 400,
         body: buyPage({
           sku,
           user: req.user,
           player,
           checkoutReady: checkoutConfigured(config, sku.sku_key),
+          overlayReady: Boolean(config.PADDLE_CLIENT_TOKEN),
           firstPurchaseAvailable,
           error,
         }),
@@ -306,6 +372,10 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       show('Checkout is not configured.');
       return;
     }
+    if (!config.PADDLE_API_KEY) {
+      show('Turn on JavaScript to open checkout.');
+      return;
+    }
     try {
       const url = await createPaddleCheckoutUrl({
         apiKey: config.PADDLE_API_KEY,
@@ -313,7 +383,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         priceId: priceIdForSku(sku.sku_key, config),
         discordId: req.user.discordId,
         skuKey: sku.sku_key,
-        successUrl: `${config.STORE_ORIGIN}/success`,
+        successUrl: `${config.STORE_ORIGIN}/welcome`,
         fetchImpl,
       });
       res.redirect(302, url);
@@ -323,8 +393,12 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }
   });
 
-  app.get('/success', (req, res) => {
-    page(req, res, { title: 'Payment sent', page: 'success', body: successPage() });
+  app.get('/welcome', (req, res) => {
+    page(req, res, { title: 'Welcome', page: 'success', body: welcomePage() });
+  });
+
+  app.get('/success', (_req, res) => {
+    res.redirect(302, '/welcome');
   });
 
   app.get('/support', (req, res) => {

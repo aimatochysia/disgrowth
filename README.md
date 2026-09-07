@@ -55,7 +55,7 @@ The game itself is a **Discord bot**. Players run shops, a city market, companie
 
 ### 1.1 One-paragraph product (paste on the landing page)
 
-> Disgrowth is a Discord economy game. You rent a room, open a shop, and grow a company on a shared city market — in Discord, not in a browser. Credits (CR) are earned in play and cannot be bought. Bonds (BN) are a daily spend wallet. Gold Bars (GL) are the premium wallet you can buy here. Convert Gold Bars into Bonds in Discord with `/shop` (1 GL = 1 BN, never the other way, never into Credits). The Accountant pass is a real-money subscription: extra daily Bonds and DM hints. Login with Discord before you pay so the purchase lands on your character.
+> Disgrowth is a Discord economy game. You rent a room, open a shop, and grow a company on a shared city market — in Discord, not in a browser. Credits (CR) are earned in play and cannot be bought. Bonds (BN) are a daily spend wallet. Gold Bars (GL) are the premium wallet you can buy here. Convert Gold Bars into Bonds in Discord with `/shop` (1 GL = 1 BN, never the other way, never into Credits). Patron is unlocked from lifetime Gold Bars bought, not billed as a Paddle subscription. Login with Discord before you pay so the purchase lands on your character.
 
 ### 1.2 What the Discord game actually is (context the website team will not have)
 
@@ -103,7 +103,7 @@ WHERE discord_id = :discord_id;
 
 **Conversion (Discord only, document on the store):** GL → BN at **1:1**. Never BN → GL. Never either into CR.
 
-**Daily Bonds (bot, not website):** 5 BN per in-game day if `subscription_active` is false; **12 BN** if the Accountant pass is on. Grant runs on the bot clock (`last_bonds_daily_at`), only for players whose `onboarding_step` is `complete` or `raise_stats`.
+**Daily Bonds (bot, not website):** 5 BN per in-game day if `subscription_active` is false; **8 BN** if Patron tier 1 is on (lifetime Gold Bars bought ≥ 2,600). Grant runs on the bot clock (`last_bonds_daily_at`), only for players whose `onboarding_step` is `complete` or `raise_stats`.
 
 ### 2.2 Discord `/shop` BN sinks (not sold on the website; list them so copy stays honest)
 
@@ -122,13 +122,13 @@ Prices are Bonds. Tuned ~20× so they are not casual snacks. Website copy may sa
 | `sku_key` | Player label | Type | Grant | USD |
 | --- | --- | --- | --- | --- |
 | `gold-10` | Gold Bars — 500 | One-time | **500 GL** | **$10** |
-| `gold-25` | Gold Bars — 1,300 | One-time | **1,300 GL** + 30 days Patron | **$25** |
-| `gold-50` | Gold Bars — 2,700 | One-time | **2,700 GL** + 30 days Patron | **$50** |
-| `gold-100` | Gold Bars — 5,600 | One-time | **5,600 GL** + 30 days Patron | **$100** |
+| `gold-25` | Gold Bars — 1,275 | One-time | **1,275 GL** (~2% bulk) | **$25** |
+| `gold-50` | Gold Bars — 2,600 | One-time | **2,600 GL** (~4% bulk; unlocks Patron tier 1) | **$50** |
+| `gold-100` | Gold Bars — 5,250 | One-time | **5,250 GL** (5% bulk; unlocks Patron tier 1) | **$100** |
 
-These USD amounts and GL counts are **placeholders for launch**. Label them `placeholder` in code comments. Do not bikeshed during implementation. Operator may retune in Paddle and env before going live.
+First Gold Bar purchase on a Discord account **doubles** the listed GL. Patron is **not** a Paddle subscription and is **not** stacked as 30 days per pack. Lifetime Gold Bars granted (net of refunds) ≥ **2,600** sets `subscription_active`.
 
-**Why these numbers:** Gold Bars per dollar rises slightly with pack size (50 → 52 → 54 → 56 GL/$). Packs from $25 include 30 days of Patron (the same `subscription_active` / `subscription_expires_at` flags the bot already uses). Patron is **not** sold as a standalone Paddle subscription on this store.
+**Why these numbers:** Base rate is 50 GL per dollar. Bulk bonus tops out at **5%** on the $100 pack (50 → 51 → 52 → 52.5 GL/$). A doubled $25 first buy (2,550 GL) stays under the Patron line; a $50 pack reaches it.
 
 **Never sell:** CR packs, extra companies, extra branches, tax cuts, offline cap, equity, board seats, “win the sector” buffs.
 

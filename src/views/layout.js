@@ -1,7 +1,15 @@
-import { html } from '../lib/html.js';
+import { html, raw } from '../lib/html.js';
 import { sceneMarkup } from './scene.js';
 import { discordAvatarUrl } from '../session.js';
 import { ageGate } from './age-gate.js';
+
+function paddleBootMarkup(boot) {
+  if (!boot || !boot.clientToken || !boot.env) return '';
+  const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
+  return raw(`<script type="application/json" id="paddle-boot">${json}</script>
+<script src="https://cdn.paddle.com/paddle/v2/paddle.js"></script>
+<script src="/js/paddle-store.js" defer></script>`);
+}
 
 export function markSvg(className = 'mark') {
   return html`
@@ -30,6 +38,7 @@ export function layout(data) {
     page = 'default',
     description = 'Disgrowth store. Gold Bars for the Discord city market.',
     body,
+    paddleBoot = null,
   } = data;
 
   const year = new Date().getUTCFullYear();
@@ -124,6 +133,7 @@ export function layout(data) {
     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.5 5.8 11.7l1.4 1.4L11 8.3V19h2V8.3l3.8 4.8 1.4-1.4z"/></svg>
   </a>
   ${page === 'store' || page === 'buy' ? ageGate() : ''}
+  ${paddleBootMarkup(paddleBoot)}
   <script src="/js/app.js" defer></script>
 </body>
 </html>`;

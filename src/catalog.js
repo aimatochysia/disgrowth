@@ -1,53 +1,91 @@
-/** Pack sizes for launch. Operator retunes in Paddle + env. */
+/**
+ * Pack sizes for launch. Operator retunes Gold amounts here and product names in Paddle.
+ * Dollar prices stay on the Paddle price ids ($10 / $25 / $50 / $100).
+ *
+ * @typedef {object} CatalogItem
+ * @property {string} name
+ * @property {string} description
+ * @property {string[]} features
+ * @property {string} priceId
+ */
+
+/** Lifetime net Gold Bars granted (store_orders gold_grant minus refunds) to unlock Patron tier 1. */
+export const PATRON_TIER1_LIFETIME_GOLD = 2600;
 
 export const CATALOG = {
   'gold-10': {
     sku_key: 'gold-10',
+    name: 'Gold Bars — 500',
     label: 'Gold Bars — 500',
     kind: 'one_time',
     gold: 500,
     usdPlaceholder: 10,
-    patronDays: 0,
     variantEnv: 'PADDLE_PRICE_GOLD_10',
     ledger: 'GL-10',
+    description: '500 Gold Bars for the premium wallet.',
     summary: '500 Gold Bars for the premium wallet.',
     blurb: 'A first stack for when the daily Bonds are not enough. Convert them in Discord with /shop.',
+    features: [
+      '500 Gold Bars (GL)',
+      'Convert 1:1 to Bonds in Discord',
+      'First purchase on this Discord account doubles the bars',
+    ],
   },
   'gold-25': {
     sku_key: 'gold-25',
-    label: 'Gold Bars — 1,300',
+    name: 'Gold Bars — 1,275',
+    label: 'Gold Bars — 1,275',
     kind: 'one_time',
-    gold: 1300,
+    gold: 1275,
     usdPlaceholder: 25,
-    patronDays: 30,
     variantEnv: 'PADDLE_PRICE_GOLD_25',
     ledger: 'GL-25',
-    summary: '1,300 Gold Bars, plus 30 days of Patron.',
-    blurb: 'A larger stack and 30 days of Patron: extra daily Bonds and occasional hints in Discord.',
+    description: '1,275 Gold Bars. About 2% more bars per dollar than the $10 pack.',
+    summary: '1,275 Gold Bars. Slight bulk vs the $10 pack.',
+    blurb: 'A larger stack. About 2% more Gold Bars per dollar than the $10 pack. Convert them in Discord with /shop.',
+    features: [
+      '1,275 Gold Bars (GL)',
+      '~2% bulk vs the $10 pack',
+      'First purchase on this Discord account doubles the bars',
+    ],
   },
   'gold-50': {
     sku_key: 'gold-50',
-    label: 'Gold Bars — 2,700',
+    name: 'Gold Bars — 2,600',
+    label: 'Gold Bars — 2,600',
     kind: 'one_time',
-    gold: 2700,
+    gold: 2600,
     usdPlaceholder: 50,
-    patronDays: 30,
     variantEnv: 'PADDLE_PRICE_GOLD_50',
     ledger: 'GL-50',
-    summary: '2,700 Gold Bars, plus 30 days of Patron.',
-    blurb: 'A serious reserve and 30 days of Patron. Slightly more Gold Bars per dollar than the smaller packs.',
+    description: '2,600 Gold Bars. About 4% more bars per dollar than the $10 pack. Unlocks Patron tier 1.',
+    summary: '2,600 Gold Bars. Unlocks Patron tier 1.',
+    blurb: 'A serious reserve. About 4% more Gold Bars per dollar than the $10 pack. This amount of lifetime Gold Bars bought unlocks Patron tier 1.',
+    features: [
+      '2,600 Gold Bars (GL)',
+      '~4% bulk vs the $10 pack',
+      'Unlocks Patron tier 1 from lifetime Gold Bars bought',
+      'First purchase on this Discord account doubles the bars',
+    ],
   },
   'gold-100': {
     sku_key: 'gold-100',
-    label: 'Gold Bars — 5,600',
+    name: 'Gold Bars — 5,250',
+    label: 'Gold Bars — 5,250',
     kind: 'one_time',
-    gold: 5600,
+    gold: 5250,
     usdPlaceholder: 100,
-    patronDays: 30,
     variantEnv: 'PADDLE_PRICE_GOLD_100',
     ledger: 'GL-100',
-    summary: '5,600 Gold Bars, plus 30 days of Patron.',
-    blurb: 'The largest stack we sell, with 30 days of Patron included. Best Gold Bars per dollar on the shelf.',
+    description: '5,250 Gold Bars. 5% more bars per dollar than the $10 pack. Unlocks Patron tier 1.',
+    summary: '5,250 Gold Bars. 5% bulk. Unlocks Patron tier 1.',
+    blurb: 'The largest stack we sell. 5% more Gold Bars per dollar than the $10 pack. Unlocks Patron tier 1 from lifetime Gold Bars bought.',
+    features: [
+      '5,250 Gold Bars (GL)',
+      '5% bulk vs the $10 pack',
+      'Unlocks Patron tier 1 from lifetime Gold Bars bought',
+      'First purchase on this Discord account doubles the bars',
+    ],
   },
 };
 
@@ -55,16 +93,6 @@ export const SKU_KEYS = Object.freeze(Object.keys(CATALOG));
 
 export function isSku(value) {
   return Object.prototype.hasOwnProperty.call(CATALOG, value);
-}
-
-export function formatUsd(n) {
-  const whole = Number.isInteger(n);
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: whole ? 0 : 2,
-    maximumFractionDigits: 2,
-  }).format(n);
 }
 
 export function formatQty(n) {
@@ -103,4 +131,22 @@ export function resolveSku({ customSku, variantId, variantMap }) {
   const sku = fromCustom || fromVariant;
   if (!sku) return { ok: false, reason: 'unknown_sku', sku: null, fromCustom, fromVariant };
   return { ok: true, reason: null, sku, fromCustom, fromVariant };
+}
+
+/**
+ * Catalog items with live Paddle price ids filled from env.
+ * @returns {CatalogItem[]}
+ */
+export function catalogItemsFromConfig(config) {
+  return SKU_KEYS.map((sku) => {
+    const item = CATALOG[sku];
+    return {
+      name: item.name,
+      description: item.description,
+      features: item.features,
+      priceId: config[item.variantEnv] || '',
+      sku: item.sku_key,
+      gold: item.gold,
+    };
+  });
 }

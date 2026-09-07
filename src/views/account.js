@@ -5,19 +5,7 @@ function n(value) {
   return new Intl.NumberFormat('en-US').format(value ?? 0);
 }
 
-function fmtUtc(value) {
-  if (!value) return 'No end date on file';
-  const d = value instanceof Date ? value : new Date(value);
-  if (Number.isNaN(d.getTime())) return 'No end date on file';
-  const text = d.toLocaleString('en-GB', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-    timeZone: 'UTC',
-  });
-  return `${text} UTC`;
-}
-
-export function accountPage({ user, player, dbReady }) {
+export function accountPage({ user, player, dbReady, paddleCustomer = null, portalError = '' }) {
   if (!dbReady) {
     return html`
       <section class="page-hero">
@@ -36,9 +24,7 @@ export function accountPage({ user, player, dbReady }) {
     `;
   }
 
-  const passOn = Boolean(player.subscription_active) && (
-    !player.subscription_expires_at || new Date(player.subscription_expires_at) > new Date()
-  );
+  const passOn = Boolean(player.subscription_active);
   const onboarding = player.onboarding_step;
   const needsTutorial = onboarding && onboarding !== 'complete' && onboarding !== 'raise_stats';
 
@@ -54,6 +40,8 @@ export function accountPage({ user, player, dbReady }) {
     ${needsTutorial
       ? html`<p class="flash">Finish the tutorial in Discord. Daily Bonds wait until that’s done.</p>`
       : ''}
+
+    ${portalError ? html`<p class="flash" role="alert">${portalError}</p>` : ''}
 
     <section class="band tight">
       <div class="wallet-grid">
@@ -80,11 +68,19 @@ export function accountPage({ user, player, dbReady }) {
       <article class="panel pass-status">
         <div>
           <p class="kicker">Patron</p>
-          <p class="pass-flag ${passOn ? 'on' : 'off'}">${passOn ? 'On' : 'Off'}</p>
+          <p class="pass-flag ${passOn ? 'on' : 'off'}">${passOn ? 'Tier 1' : 'Off'}</p>
         </div>
-        <p>${passOn ? `Active until ${fmtUtc(player.subscription_expires_at)}` : 'Not active'}</p>
-        <p class="hint">Included with Gold Bar packs from $25. Extra daily Bonds and occasional hints in Discord. Hints may pause if you haven’t been in the server. Logging into this website doesn’t count.</p>
+        <p>${passOn ? 'Unlocked by lifetime Gold Bars bought (2,600+). Extra daily Bonds and occasional hints in Discord.' : 'Not active. Buy 2,600+ Gold Bars (lifetime, net of refunds) to unlock tier 1.'}</p>
+        <p class="hint">Hints may pause if you haven’t been in the server. Logging into this website doesn’t count. Patron is not a Paddle subscription.</p>
         <a class="btn ${passOn ? 'btn-ghost' : 'btn-gold'}" href="/store">${passOn ? 'Back to shop' : 'Shop Gold Bars'}</a>
+      </article>
+
+      <article class="panel">
+        <p class="kicker">Receipts</p>
+        <p>Invoices and receipts live in the Paddle customer portal.</p>
+        ${paddleCustomer
+          ? html`<form method="post" action="/account/portal"><button class="btn btn-ghost" type="submit">View invoices</button></form>`
+          : html`<p class="hint">After your first purchase, this button appears so you can open past invoices.</p>`}
       </article>
     </section>
   `;

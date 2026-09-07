@@ -5,7 +5,7 @@ export function authorizeUrl({ clientId, redirectUri, state }) {
   url.searchParams.set('client_id', clientId);
   url.searchParams.set('redirect_uri', redirectUri);
   url.searchParams.set('response_type', 'code');
-  url.searchParams.set('scope', 'identify');
+  url.searchParams.set('scope', 'identify email');
   url.searchParams.set('state', state);
   url.searchParams.set('prompt', 'consent');
   return url.toString();
@@ -51,11 +51,13 @@ export function newOAuthState(next) {
 }
 
 export function sessionFromDiscordUser(user) {
+  const email = user.email && String(user.email).includes('@') ? String(user.email) : '';
   return {
     discordId: String(user.id),
     username: user.username || '',
     globalName: user.global_name || user.username || '',
     avatar: user.avatar || null,
+    email,
     createdAt: Date.now(),
   };
 }

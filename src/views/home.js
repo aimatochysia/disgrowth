@@ -1,5 +1,5 @@
 import { html } from '../lib/html.js';
-import { formatQty, formatUsd } from '../catalog.js';
+import { formatQty } from '../catalog.js';
 
 export function homePage({ config }) {
   return html`
@@ -56,7 +56,7 @@ export function homePage({ config }) {
         <article class="panel beat">
           <p class="kicker">Purse</p>
           <h3>Gold Bars when you need them</h3>
-          <p>Buy a stack here, convert in Discord with <code>/shop</code>. Larger packs include Patron for the month.</p>
+          <p>Buy a stack here, convert in Discord with <code>/shop</code>. Patron unlocks when lifetime Gold Bars bought reach the tier 1 line.</p>
         </article>
       </div>
     </section>
@@ -67,7 +67,7 @@ export function homePage({ config }) {
         <a class="text-link" href="/store">See packs →</a>
       </div>
       <article class="panel patron-note">
-        <p>Packs from $25 include thirty days of Patron: extra daily Bonds and occasional hints in Discord. Hints are imperfect, and may pause if you have been away from the server. Patron is not sold on its own.</p>
+        <p>Patron is not a paid Paddle subscription. If lifetime Gold Bars bought on this Discord account reach 2,600 (the $50 pack, or enough smaller packs), Patron tier 1 turns on: extra daily Bonds in Discord and occasional hints. Hints are imperfect, and may pause if you have been away from the server. Logging into this website doesn’t count. Refunds that drop you below the line turn Patron off.</p>
       </article>
     </section>
 
@@ -76,7 +76,7 @@ export function homePage({ config }) {
       <ol class="steps">
         <li><strong>Log in with Discord</strong> so the purchase lands on your character.</li>
         <li><strong>Confirm you are 18+</strong> and accept the store terms.</li>
-        <li><strong>Pay on checkout.</strong> Paddle handles the card. We never see the number. First Gold Bar purchase doubles the bars.</li>
+        <li><strong>Pay on checkout.</strong> Paddle opens as a one-page overlay. We never see the card number. First Gold Bar purchase doubles the bars.</li>
         <li><strong>Open <code>/shop</code> in Discord.</strong> Wallets usually update within a few seconds.</li>
       </ol>
     </section>
@@ -93,24 +93,22 @@ export function homePage({ config }) {
 }
 
 export function skuCard(item, { compact = false } = {}) {
-  const price = formatUsd(item.usdPlaceholder);
   const grant = `${formatQty(item.gold)} Gold Bars`;
-  const perk = item.patronDays
-    ? `Includes ${item.patronDays} days of Patron`
-    : 'One-time';
+  const priceId = item.priceId || '';
+  const perk = item.gold >= 2600 ? 'Unlocks Patron tier 1' : 'One-time';
 
   return html`
     <article class="panel sku sku-gold">
       <div class="sku-meta">
         <span class="kind">${perk}</span>
       </div>
-      <h3>${item.label}</h3>
+      <h3>${item.name || item.label}</h3>
       <p class="sku-grant">${grant}</p>
-      <p class="sku-blurb">${compact ? item.summary : item.blurb}</p>
+      <p class="sku-blurb">${compact ? item.summary || item.description : item.blurb || item.description}</p>
       <p class="hint">Delivered to your Discord character.</p>
       <div class="sku-foot">
-        <span class="price">${price}</span>
-        <a class="btn btn-gold" href="/buy/${item.sku_key}">Buy Gold Bars</a>
+        <span class="price" data-paddle-price-id="${priceId}">…</span>
+        <a class="btn btn-gold" href="/buy/${item.sku || item.sku_key}">Buy Gold Bars</a>
       </div>
     </article>
   `;

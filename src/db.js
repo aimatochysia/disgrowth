@@ -73,6 +73,18 @@ export function createDb(databaseUrl) {
       return Boolean(rows[0]);
     },
 
+    async findCustomerByDiscordId(discordId) {
+      const { rows } = await pool.query(
+        `SELECT customer_id, email, discord_id
+         FROM customers
+         WHERE discord_id = $1
+         ORDER BY updated_at DESC
+         LIMIT 1`,
+        [String(discordId)],
+      );
+      return rows[0] || null;
+    },
+
     async health() {
       try {
         await pool.query('SELECT 1');

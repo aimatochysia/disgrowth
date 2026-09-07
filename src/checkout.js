@@ -11,11 +11,9 @@ export function priceIdForSku(sku, config) {
 }
 
 export function checkoutConfigured(config, sku) {
-  return Boolean(
-    config.PADDLE_API_KEY &&
-      config.PADDLE_WEBHOOK_SECRET &&
-      priceIdForSku(sku, config),
-  );
+  const envOk = config.PADDLE_ENV === 'production' || config.PADDLE_ENV === 'sandbox';
+  const canCharge = Boolean(config.PADDLE_CLIENT_TOKEN || config.PADDLE_API_KEY);
+  return Boolean(envOk && canCharge && priceIdForSku(sku, config));
 }
 
 export async function createPaddleCheckoutUrl({

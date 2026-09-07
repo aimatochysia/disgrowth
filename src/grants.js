@@ -1,4 +1,4 @@
-import { CATALOG, resolveSku } from './catalog.js';
+import { CATALOG, PATRON_TIER1_LIFETIME_GOLD, resolveSku } from './catalog.js';
 
 export const GOLD_GRANT_SQL = `
 UPDATE players
@@ -28,15 +28,25 @@ SET subscription_active = FALSE,
 WHERE id = $2
 `.trim();
 
-export const PATRON_EXTEND_SQL = `
+/** Patron follows lifetime Gold Bars bought, not stacked calendar days. */
+export const PATRON_SYNC_SQL = `
 UPDATE players
-SET subscription_active = TRUE,
-    subscription_expires_at = GREATEST(
-      COALESCE(subscription_expires_at, NOW()),
-      NOW()
-    ) + ($2::int * INTERVAL '1 day')
-WHERE id = $1
+SET subscription_active = $1,
+    subscription_expires_at = NULL
+WHERE id = $2
 `.trim();
+
+export const LIFETIME_GOLD_SQL = `
+SELECT COALESCE(SUM(gold_delta), 0)::bigint AS lifetime
+FROM store_orders
+WHERE discord_id = $1
+  AND provider = 'paddle'
+  AND effect IN ('gold_grant', 'gold_refund')
+`.trim();
+
+export function patronActiveFromLifetime(lifetimeGold) {
+  return Number(lifetimeGold) >= PATRON_TIER1_LIFETIME_GOLD;
+}
 
 export function extractPriceId(data) {
   return (
@@ -52,6 +62,38 @@ export function extractDiscordId(data) {
   const id = custom.discord_id ?? custom.discordId;
   if (id == null || id === '') return '';
   return String(id);
+}
+
+export function extractCustomerId(data) {
+  const id = data?.customer_id || data?.customer?.id;
+  if (id != null && id !== '') return String(id);
+  if (String(data?.id || '').startsWith('ctm_')) return String(data.id);
+  return '';
+}
+
+export function extractEmail(data) {
+  const email = data?.email || data?.customer?.email;
+  if (email == null || email === '') return '';
+  return String(email);
+}
+
+export function extractProductId(data) {
+  return String(
+    data?.items?.[0]?.price?.product_id ||
+      data?.items?.[0]?.product_id ||
+      data?.details?.line_items?.[0]?.product?.id ||
+      data?.details?.line_items?.[0]?.price?.product_id ||
+      '',
+  );
+}
+
+export function extractAmount(data) {
+  const value = data?.details?.totals?.grand_total ?? data?.details?.totals?.total ?? '';
+  return value == null ? '' : String(value);
+}
+
+export function extractCurrency(data) {
+  return String(data?.currency_code || data?.details?.totals?.currency_code || '');
 }
 
 export function goldDeltaFor(sku, sign) {
@@ -98,7 +140,29 @@ export function interpretWebhook(body, ctx) {
     subscriptionActive: undefined,
     expiresAt: undefined,
     reason: null,
+    customerId: extractCustomerId(data),
+    email: extractEmail(data),
+    productId: extractProductId(data),
+    amount: extractAmount(data),
+    currency: extractCurrency(data),
   };
+
+  if (eventName === 'customer.created' || eventName === 'customer.updated') {
+    if (!base.customerId) {
+      return { ...base, apply: false, effect: 'ignored', reason: 'no_customer_id' };
+    }
+    return {
+      ...base,
+      apply: true,
+      effect: 'customer_upsert',
+      lemonOrderId: base.customerId,
+      discordId: extractDiscordId(data) || (data.custom_data?.discord_id ? String(data.custom_data.discord_id) : ''),
+    };
+  }
+
+  if (String(eventName).startsWith('subscription.')) {
+    return { ...base, apply: false, effect: 'ignored', reason: 'unhandled_event' };
+  }
 
   if (!resolved.ok && resolved.reason === 'sku_mismatch') {
     return {
@@ -130,7 +194,6 @@ export function interpretWebhook(body, ctx) {
         skuKey,
         effect: 'gold_grant',
         goldDelta: goldDeltaFor(skuKey, 1),
-        patronDays: catalogItem.patronDays || 0,
         lemonOrderId: String(data.id),
       };
     }
@@ -170,13 +233,18 @@ export function interpretWebhook(body, ctx) {
   }
 }
 
+export async function syncPatronFromLifetime(client, { playerId, discordId }) {
+  const { rows } = await client.query(LIFETIME_GOLD_SQL, [String(discordId)]);
+  const lifetime = Number(rows[0]?.lifetime || 0);
+  const active = patronActiveFromLifetime(lifetime);
+  await client.query(PATRON_SYNC_SQL, [active, playerId]);
+  return { lifetime, active };
+}
+
 export async function applyInterpretation(client, interpretation, player) {
   const goldAbs = Math.abs(interpretation.goldDelta || 0);
   if (interpretation.effect === 'gold_grant' && goldAbs) {
     await client.query(GOLD_GRANT_SQL, [goldAbs, player.id]);
-  }
-  if (interpretation.effect === 'gold_grant' && Number(interpretation.patronDays) > 0) {
-    await client.query(PATRON_EXTEND_SQL, [player.id, interpretation.patronDays]);
   }
   if (interpretation.effect === 'gold_refund' && goldAbs) {
     await client.query(GOLD_REFUND_SQL, [goldAbs, player.id]);
@@ -189,6 +257,12 @@ export async function applyInterpretation(client, interpretation, player) {
   }
   if (interpretation.subscriptionActive === false) {
     await client.query(PASS_OFF_SQL, [interpretation.expiresAt || null, player.id]);
+  }
+  if (interpretation.effect === 'gold_grant' || interpretation.effect === 'gold_refund') {
+    await syncPatronFromLifetime(client, {
+      playerId: player.id,
+      discordId: interpretation.discordId,
+    });
   }
 }
 

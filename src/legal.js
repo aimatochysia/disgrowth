@@ -45,9 +45,9 @@ const DOCS = {
 
 **Credits.** Credits cannot be purchased on the Store and never will be under these Terms as of the last updated date.
 
-**Gold Bars and Patron.** The Store sells Gold Bars in set packs. Larger packs include a period of **Patron**: extra daily Bonds and occasional hints in Discord, for the time described on the shop page. Patron is not sold as a standalone product on this Store. Repeat purchases extend remaining Patron time. Hints are imperfect, not professional advice, not guaranteed, and may pause if you have been away from the Discord server. Logging into this website does not count as server activity.
+**Gold Bars and Patron.** The Store sells Gold Bars in set packs ($10, $25, $50, $100). Patron is **not** a paid Paddle subscription. If lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600**, Patron **tier 1** turns on: extra daily Bonds and occasional hints in Discord. Hints are imperfect, not professional advice, not guaranteed, and may pause if you have been away from the Discord server. Logging into this website does not count as server activity. A refund that drops lifetime Gold Bars below 2,600 turns Patron off.
 
-**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account delivers **double** the Gold Bars listed for that pack. Patron days are not doubled. Later purchases on the same Discord account are the listed amount. If that first grant is refunded, doubling can apply again. We can also reset this by hand if you ask support.
+**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account delivers **double** the Gold Bars listed for that pack. Later purchases on the same Discord account are the listed amount. If that first grant is refunded, doubling can apply again. We can also reset this by hand if you ask support.
 
 **Acceptable use.** Do not attack the Store, scrape with abusive rates, exploit webhooks, falsify Discord identity, launder payments, or use the game or Store for anything illegal. We may suspend Store access and ask that the linked character be suspended in Discord.
 
@@ -79,7 +79,7 @@ const DOCS = {
 
 **Data we collect**
 
-1. **Discord profile (OAuth identify).** User id, username, display name, avatar hash. We do **not** request your Discord email in this version of the Store.
+1. **Discord profile (OAuth identify + email).** User id, username, display name, avatar hash, and email when Discord provides it (used to prefill Paddle Checkout).
 2. **Session.** An encrypted cookie so we remember who is logged in.
 3. **Game account fields we read.** Credits, Bonds, Gold Bars, an internal mirror field, Patron flags, and tutorial progress — to show your account page and to apply purchases.
 4. **Payments (via Paddle webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
@@ -122,7 +122,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **First-purchase double.** If we refund the grant that used your first-purchase double, that Discord account can receive the double again on a later purchase. Refunding a later (non-doubled) purchase does not restore the double.
 
-**Patron — no refunds.** Patron time included with a Gold Bar pack is **not refundable**. If we approve a Gold Bars refund because the bars themselves are still unused and you asked within two hours, Patron time from that pack still stays on the character. We do not sell a standalone Patron subscription on this Store; any older subscription product is also **not refundable**.
+**Patron.** Patron follows lifetime Gold Bars bought (net of refunds). If a refund drops you below the unlock line, Patron turns off. We do not sell a standalone Patron subscription on this Store.
 
 **Chargebacks.** If you chargeback after receiving items, we may disable Store access and game perks and dispute with the Merchant of Record.
 
@@ -144,7 +144,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Day and night.** Your browser may remember the day/night preference in local storage. That is not a cookie and is not used to identify you.
 
-**Paddle.** When you leave our site for checkout, Paddle may set cookies on **their** domain. See their policy.
+**Paddle.** Checkout may load Paddle scripts and open an overlay on this site. Paddle may set cookies on **their** domain. See their policy.
 
 **Analytics.** None in this version of the Store.
 
@@ -164,7 +164,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Gold Bars.** The premium wallet sold on this Store. Dual-recorded internally with a legacy mirror field. Buying Gold Bars does not buy Credits.
 
-**Patron.** A time-limited perk included with Gold Bar packs at $25 and above (30 days per qualifying pack, stacked if you buy again while time remains). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a cash product and is not refundable. First-purchase doubling applies to Gold Bars only, not Patron.
+**Patron.** A perk unlocked when lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600** (Patron tier 1). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a Paddle subscription, not a cash product, and is not sold on its own. First-purchase doubling applies to Gold Bars only.
 
 **No secondary market.** You may not sell accounts, Gold Bars, or Patron for real money. We may reclaim items obtained that way.
 

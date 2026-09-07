@@ -49,6 +49,12 @@ export function isLoopbackHost(host) {
   return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host === '0.0.0.0';
 }
 
+function paddleApiBase(paddleEnv) {
+  if (paddleEnv === 'production') return 'https://api.paddle.com';
+  if (paddleEnv === 'sandbox') return 'https://sandbox-api.paddle.com';
+  return '';
+}
+
 export function loadConfig(env = process.env) {
   const NODE_ENV = real(env.NODE_ENV) || 'development';
   const production = NODE_ENV === 'production';
@@ -67,20 +73,33 @@ export function loadConfig(env = process.env) {
   const DATABASE_URL = loopbackDb && (production || onVercel) ? '' : rawDatabaseUrl;
   const PADDLE_API_KEY = real(env.PADDLE_API_KEY);
   const PADDLE_WEBHOOK_SECRET = real(env.PADDLE_WEBHOOK_SECRET);
+  const PADDLE_CLIENT_TOKEN = real(env.PADDLE_CLIENT_TOKEN);
   const PADDLE_PRICE_GOLD_10 = real(env.PADDLE_PRICE_GOLD_10);
   const PADDLE_PRICE_GOLD_25 = real(env.PADDLE_PRICE_GOLD_25);
   const PADDLE_PRICE_GOLD_50 = real(env.PADDLE_PRICE_GOLD_50);
   const PADDLE_PRICE_GOLD_100 = real(env.PADDLE_PRICE_GOLD_100);
-  const PADDLE_ENV = real(env.PADDLE_ENV) || (production ? 'production' : 'sandbox');
+  const PADDLE_ENV = real(env.PADDLE_ENV);
 
   if (production) {
     requiredInProd('SESSION_SECRET', SESSION_SECRET, errors);
     requiredInProd('DISCORD_CLIENT_ID', DISCORD_CLIENT_ID, errors);
     requiredInProd('DISCORD_CLIENT_SECRET', DISCORD_CLIENT_SECRET, errors);
     requiredInProd('DATABASE_URL', DATABASE_URL, errors);
+    requiredInProd('PADDLE_ENV', PADDLE_ENV, errors);
     if (loopbackDb) {
       errors.push('DATABASE_URL (cannot be localhost/127.0.0.1 on Vercel)');
     }
+  }
+
+  if (PADDLE_ENV && PADDLE_ENV !== 'sandbox' && PADDLE_ENV !== 'production') {
+    errors.push('PADDLE_ENV (must be sandbox or production)');
+  }
+
+  if (PADDLE_CLIENT_TOKEN.startsWith('live_') && PADDLE_ENV && PADDLE_ENV !== 'production') {
+    errors.push('PADDLE_CLIENT_TOKEN (live_ token requires PADDLE_ENV=production)');
+  }
+  if (PADDLE_CLIENT_TOKEN.startsWith('test_') && PADDLE_ENV && PADDLE_ENV !== 'sandbox') {
+    errors.push('PADDLE_CLIENT_TOKEN (test_ token requires PADDLE_ENV=sandbox)');
   }
 
   if (SESSION_SECRET && SESSION_SECRET.length < 32 && production) {
@@ -89,6 +108,11 @@ export function loadConfig(env = process.env) {
 
   const OPERATOR_LEGAL_NAME = real(env.OPERATOR_LEGAL_NAME);
   const previewLegal = !OPERATOR_LEGAL_NAME;
+
+  const envOk = PADDLE_ENV === 'production' || PADDLE_ENV === 'sandbox';
+  const pricesReady = Boolean(
+    PADDLE_PRICE_GOLD_10 && PADDLE_PRICE_GOLD_25 && PADDLE_PRICE_GOLD_50 && PADDLE_PRICE_GOLD_100,
+  );
 
   const config = {
     NODE_ENV,
@@ -104,8 +128,9 @@ export function loadConfig(env = process.env) {
     DATABASE_URL,
     PADDLE_API_KEY,
     PADDLE_WEBHOOK_SECRET,
+    PADDLE_CLIENT_TOKEN,
     PADDLE_ENV,
-    PADDLE_API_BASE: PADDLE_ENV === 'production' ? 'https://api.paddle.com' : 'https://sandbox-api.paddle.com',
+    PADDLE_API_BASE: paddleApiBase(PADDLE_ENV),
     PADDLE_PRICE_GOLD_10,
     PADDLE_PRICE_GOLD_25,
     PADDLE_PRICE_GOLD_50,
@@ -121,21 +146,21 @@ export function loadConfig(env = process.env) {
     LOG_RETENTION_DAYS: Number(env.LOG_RETENTION_DAYS) || 90,
     SLA_DAYS: Number(env.SLA_DAYS) || 5,
     TRANSFER_MECHANISM: real(env.TRANSFER_MECHANISM) || 'hosting may process data outside your country',
-    LEGAL_DATE: real(env.LEGAL_DATE) || '2026-09-04',
+    LEGAL_DATE: real(env.LEGAL_DATE) || '2026-09-07',
     previewLegal,
 
     checkoutReady: Boolean(
-      PADDLE_API_KEY &&
+      envOk &&
+        PADDLE_CLIENT_TOKEN &&
         PADDLE_WEBHOOK_SECRET &&
-        PADDLE_PRICE_GOLD_10 &&
-        PADDLE_PRICE_GOLD_25 &&
-        PADDLE_PRICE_GOLD_50 &&
-        PADDLE_PRICE_GOLD_100,
+        pricesReady,
     ),
     oauthReady: Boolean(DISCORD_CLIENT_ID && DISCORD_CLIENT_SECRET),
     dbReady: Boolean(DATABASE_URL),
     webhookReady: Boolean(PADDLE_WEBHOOK_SECRET),
-    bootErrors: production ? errors : [],
+    bootErrors: production
+      ? errors
+      : errors.filter((item) => item.startsWith('PADDLE_ENV (must') || item.startsWith('PADDLE_CLIENT_TOKEN (')),
   };
 
   return config;

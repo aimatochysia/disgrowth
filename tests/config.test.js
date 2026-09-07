@@ -60,6 +60,29 @@ test('production localhost DATABASE_URL is ignored so Vercel can still render', 
   assert.ok(cfg.bootErrors.some((item) => /localhost/.test(item)));
 });
 
+test('PADDLE_ENV is not silently defaulted from NODE_ENV', () => {
+  const cfg = loadConfig({
+    NODE_ENV: 'development',
+    SESSION_SECRET: 'test-session-secret-32-characters-min',
+  });
+  assert.equal(cfg.PADDLE_ENV, '');
+  assert.equal(cfg.PADDLE_API_BASE, '');
+  assert.equal(cfg.checkoutReady, false);
+});
+
+test('live client token with sandbox env is a boot error', () => {
+  const cfg = loadConfig({
+    NODE_ENV: 'production',
+    SESSION_SECRET: 'test-session-secret-32-characters-min',
+    DISCORD_CLIENT_ID: 'client',
+    DISCORD_CLIENT_SECRET: 'secret',
+    DATABASE_URL: 'postgres://db.example/game',
+    PADDLE_ENV: 'sandbox',
+    PADDLE_CLIENT_TOKEN: 'live_should_not_run_sandbox',
+  });
+  assert.ok(cfg.bootErrors.some((item) => /PADDLE_CLIENT_TOKEN/.test(item)));
+});
+
 test('blank paddle keys are treated as empty', () => {
   const cfg = loadConfig({
     NODE_ENV: 'production',
@@ -67,6 +90,7 @@ test('blank paddle keys are treated as empty', () => {
     DISCORD_CLIENT_ID: 'client',
     DISCORD_CLIENT_SECRET: 'secret',
     DATABASE_URL: 'postgres://db.example/game',
+    PADDLE_ENV: 'production',
     PADDLE_API_KEY: 'blank',
     PADDLE_WEBHOOK_SECRET: 'blank',
     PADDLE_PRICE_GOLD_10: 'pri_gold_10',

@@ -1,20 +1,19 @@
 import { html } from '../lib/html.js';
-import { CATALOG } from '../catalog.js';
 import { skuCard } from './home.js';
 
-export function storePage() {
+export function storePage({ items = [] } = {}) {
   return html`
     <section class="page-hero">
       <h1 class="display display-page">Shop</h1>
       <p class="lede narrow">
-        Gold Bars for the city. Larger packs include Patron — extra daily Bonds and occasional hints in Discord.
-        Your first Gold Bar purchase doubles the bars (once per Discord account). Patron days are not doubled.
+        Gold Bars for the city. Prices are shown as Paddle totals for your country — the catalog is still $10, $25, $50, and $100.
+        Your first Gold Bar purchase doubles the bars (once per Discord account). Patron is unlocked from lifetime Gold Bars bought, not sold as a subscription.
       </p>
     </section>
 
     <section class="band tight">
       <div class="sku-grid sku-grid-store">
-        ${Object.values(CATALOG).map((item) => skuCard(item, { compact: false }))}
+        ${items.map((item) => skuCard(item, { compact: false }))}
       </div>
     </section>
   `;

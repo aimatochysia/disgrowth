@@ -10,10 +10,12 @@
   "scripts": {
     "start": "node src/server.js",
     "dev": "node --watch src/server.js",
-    "test": "node --test tests/hmac.test.js tests/grants.test.js tests/security.test.js tests/app.test.js tests/config.test.js",
+    "test": "node --test tests/*.test.js",
     "migrate": "node src/migrate.js"
   },
   "dependencies": {
+    "@paddle/paddle-js": "^1.6.5",
+    "@paddle/paddle-node-sdk": "^3.10.0",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
     "express-rate-limit": "^8.7.0",
