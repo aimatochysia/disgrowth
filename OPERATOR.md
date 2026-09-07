@@ -23,7 +23,7 @@ SUPPORT_EMAIL=kaelisquinn@gmail.com
 PRIVACY_EMAIL=kaelisquinn@gmail.com
 ```
 
-Never commit API keys. Never set a Vercel env value to `-` (treated as empty). `SESSION_SECRET` must be 32+ characters.
+Never commit API keys. Never set a Vercel env value to `-`, `blank`, or other placeholders (treated as empty). `SESSION_SECRET` must be 32+ random characters. `DATABASE_URL` on Vercel must be a host the function can reach — not Docker/`127.0.0.1`.
 
 After fill-in: remove nothing from git — the banner disappears automatically when `OPERATOR_LEGAL_NAME` is present.
 
@@ -49,7 +49,7 @@ DELETE FROM store_first_purchase WHERE discord_id = :snowflake;
 You still have to do these outside this repo. The site will not grant Gold Bars until Paddle, Discord, and Postgres are live.
 
 1. **Vercel env (Production + Preview).** Real values only — never `-`.
-   - Required to boot: `SESSION_SECRET` (32+ chars), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL` (game Postgres).
+   - Required to boot: `SESSION_SECRET` (32+ chars), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL` (the **public** game Postgres the bot uses — not `127.0.0.1`).
    - Required to sell: `STORE_ORIGIN=https://<your-domain>`, `PADDLE_ENV=production`, live `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, the four `PADDLE_PRICE_GOLD_*` ids above.
    - Optional: `OPERATOR_LEGAL_NAME` (preview banner until set), `DATABASE_SSL=1` if the host needs SSL and the URL has no `sslmode=require`.
    - Framework preset: **Express** (`vercel.json` sets this). Redeploy after saving env.

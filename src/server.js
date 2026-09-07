@@ -6,12 +6,16 @@ const onVercel = Boolean(process.env.VERCEL);
 
 if (config.bootErrors.length) {
   console.error('Missing required production config:', config.bootErrors.join(', '));
-  // Vercel runs NODE_ENV=production. Placeholder env values like "-" used to
-  // crash the function after a successful build. Stay up and fail closed instead.
   if (!onVercel) process.exit(1);
 }
 
-const db = createDb(config.DATABASE_URL);
+let db = null;
+try {
+  db = createDb(config.DATABASE_URL);
+} catch (err) {
+  console.error('[store] database pool failed', err.message);
+}
+
 const app = createApp({ config, db });
 
 let server = null;
@@ -23,16 +27,18 @@ if (!onVercel) {
 
 function shutdown() {
   if (!server) {
-    db?.close?.().finally(() => process.exit(0));
+    db?.close?.().catch(() => {}).finally(() => process.exit(0));
     return;
   }
   server.close(() => {
-    db?.close?.().finally(() => process.exit(0));
+    db?.close?.().catch(() => {}).finally(() => process.exit(0));
   });
   setTimeout(() => process.exit(1), 10_000).unref();
 }
 
-process.on('SIGTERM', shutdown);
-process.on('SIGINT', shutdown);
+if (!onVercel) {
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
+}
 
 export default app;

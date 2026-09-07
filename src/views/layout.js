@@ -1,6 +1,7 @@
 import { html } from '../lib/html.js';
 import { sceneMarkup } from './scene.js';
 import { discordAvatarUrl } from '../session.js';
+import { ageGate } from './age-gate.js';
 
 export function markSvg(className = 'mark') {
   return html`
@@ -122,6 +123,7 @@ export function layout(data) {
   <a class="to-top" href="#top" data-to-top aria-label="Back to top" tabindex="-1" aria-hidden="true">
     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.5 5.8 11.7l1.4 1.4L11 8.3V19h2V8.3l3.8 4.8 1.4-1.4z"/></svg>
   </a>
+  ${page === 'store' || page === 'buy' ? ageGate() : ''}
   <script src="/js/app.js" defer></script>
 </body>
 </html>`;

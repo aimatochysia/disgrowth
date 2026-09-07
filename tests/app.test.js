@@ -133,6 +133,41 @@ function sessionCookie(cfg, discordId = '42') {
   return `mg_session=${token}`;
 }
 
+test('homepage still renders when Vercel DATABASE_URL is localhost', async () => {
+  const cfg = loadConfig({
+    NODE_ENV: 'production',
+    VERCEL: '1',
+    SESSION_SECRET: 'test-session-secret-32-characters-min',
+    STORE_ORIGIN: 'https://disgrowth.vercel.app',
+    DISCORD_CLIENT_ID: 'client',
+    DISCORD_CLIENT_SECRET: 'secret',
+    DATABASE_URL: 'postgresql://market_game:market_game@127.0.0.1:5432/market_game',
+    PADDLE_API_KEY: 'blank',
+    PADDLE_WEBHOOK_SECRET: 'blank',
+    PADDLE_ENV: 'production',
+    PADDLE_PRICE_GOLD_10: 'pri_gold_10',
+    PADDLE_PRICE_GOLD_25: 'pri_gold_25',
+    PADDLE_PRICE_GOLD_50: 'pri_gold_50',
+    PADDLE_PRICE_GOLD_100: 'pri_gold_100',
+  });
+  const app = createApp({ config: cfg, db: null, art: {} });
+  await withServer(app, async (base) => {
+    const home = await fetch(`${base}/`);
+    assert.equal(home.status, 200);
+    const html = await home.text();
+    assert.match(html, /Disgrowth/);
+    const store = await fetch(`${base}/store`);
+    assert.equal(store.status, 200);
+    const health = await fetch(`${base}/healthz`);
+    assert.equal(health.status, 200);
+    const json = await health.json();
+    assert.equal(json.ok, true);
+    assert.equal(json.db, 'down');
+    assert.equal(json.checkout, false);
+    assert.ok(json.missing.some((item) => /localhost/.test(item)));
+  });
+});
+
 test('GET /healthz', async () => {
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb(), art: {} });
@@ -243,6 +278,9 @@ test('/buy with player shows first-purchase double copy', async () => {
     const html = await res.text();
     assert.match(html, /1,000 Gold Bars/);
     assert.match(html, /double the listed Gold Bars/);
+    assert.match(html, /Are you 18 or older/);
+    assert.match(html, /data-age-yes/);
+    assert.match(html, /data-age-no/);
   });
 });
 
@@ -469,6 +507,7 @@ test('landing and legal pages render', async () => {
     assert.match(html, /Start here/);
     assert.match(html, /Paddle/);
     assert.match(html, /data-to-top/);
+    assert.doesNotMatch(html, /Are you 18 or older/);
     assert.doesNotMatch(html, /Lemon Squeezy/);
     assert.doesNotMatch(html, /Three wallets/);
     assert.doesNotMatch(html, /On the shelf/);
@@ -495,6 +534,9 @@ test('landing and legal pages render', async () => {
     assert.match(storeHtml, /Gold Bars — 500/);
     assert.match(storeHtml, /Gold Bars — 5,600/);
     assert.match(storeHtml, /first Gold Bar purchase doubles/);
+    assert.match(storeHtml, /Are you 18 or older/);
+    assert.match(storeHtml, /data-age-yes/);
+    assert.match(storeHtml, /data-age-no/);
     assert.doesNotMatch(storeHtml, /Accountant pass/);
     assert.doesNotMatch(storeHtml, /Get the pass/);
   });

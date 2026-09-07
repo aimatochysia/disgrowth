@@ -1712,3 +1712,53 @@ html.theme-animated .legal-card {
     transform: none !important;
   }
 }
+
+.age-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 1.25rem;
+  background: color-mix(in srgb, var(--bg) 72%, transparent);
+  backdrop-filter: blur(10px);
+}
+
+html[data-age-ok="yes"] .age-gate {
+  display: none;
+}
+
+.age-gate-card {
+  width: min(32rem, 100%);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 1.35rem 1.35rem 1.2rem;
+  box-shadow: var(--shadow);
+}
+
+.age-gate-card .display {
+  font-size: clamp(1.7rem, 5vw, 2.35rem);
+  margin: 0.2rem 0 0.55rem;
+}
+
+.age-gate-actions {
+  margin-top: 1rem;
+}
+
+.age-gate-deny {
+  display: none;
+}
+
+html[data-age-ok="no"] .age-gate-ask {
+  display: none;
+}
+
+html[data-age-ok="no"] .age-gate-deny {
+  display: block;
+}
+
+html[data-page="store"]:not([data-age-ok="yes"]),
+html[data-page="buy"]:not([data-age-ok="yes"]) {
+  overflow: hidden;
+}

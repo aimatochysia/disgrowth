@@ -46,6 +46,37 @@ test('production session secret shorter than 32 characters is a boot error', () 
   assert.ok(cfg.bootErrors.some((item) => /SESSION_SECRET/.test(item)));
 });
 
+test('production localhost DATABASE_URL is ignored so Vercel can still render', () => {
+  const cfg = loadConfig({
+    NODE_ENV: 'production',
+    VERCEL: '1',
+    SESSION_SECRET: 'test-session-secret-32-characters-min',
+    DISCORD_CLIENT_ID: 'client',
+    DISCORD_CLIENT_SECRET: 'secret',
+    DATABASE_URL: 'postgresql://market_game:market_game@127.0.0.1:5432/market_game',
+  });
+  assert.equal(cfg.DATABASE_URL, '');
+  assert.equal(cfg.dbReady, false);
+  assert.ok(cfg.bootErrors.some((item) => /localhost/.test(item)));
+});
+
+test('blank paddle keys are treated as empty', () => {
+  const cfg = loadConfig({
+    NODE_ENV: 'production',
+    SESSION_SECRET: 'test-session-secret-32-characters-min',
+    DISCORD_CLIENT_ID: 'client',
+    DISCORD_CLIENT_SECRET: 'secret',
+    DATABASE_URL: 'postgres://db.example/game',
+    PADDLE_API_KEY: 'blank',
+    PADDLE_WEBHOOK_SECRET: 'blank',
+    PADDLE_PRICE_GOLD_10: 'pri_gold_10',
+    PADDLE_PRICE_GOLD_25: 'pri_gold_25',
+    PADDLE_PRICE_GOLD_50: 'pri_gold_50',
+    PADDLE_PRICE_GOLD_100: 'pri_gold_100',
+  });
+  assert.equal(cfg.checkoutReady, false);
+});
+
 test('pool enables SSL when the URL asks for it', () => {
   const withSsl = poolOptions('postgres://u:p@host/db?sslmode=require', {});
   assert.deepEqual(withSsl.ssl, { rejectUnauthorized: false });

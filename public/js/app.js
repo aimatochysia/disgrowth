@@ -163,4 +163,30 @@
       sync();
     }
   }
+
+  const gate = document.querySelector('[data-age-gate]');
+  if (gate) {
+    const cookie = (value) => {
+      const secure = window.location.protocol === 'https:' ? '; Secure' : '';
+      document.cookie = `mg_age=${value}; Path=/; Max-Age=31536000; SameSite=Lax${secure}`;
+    };
+    gate.querySelector('[data-age-yes]')?.addEventListener('click', () => {
+      try {
+        localStorage.setItem('mg-age', 'yes');
+      } catch {
+        /* ignore */
+      }
+      cookie('yes');
+      document.documentElement.dataset.ageOk = 'yes';
+    });
+    gate.querySelector('[data-age-no]')?.addEventListener('click', () => {
+      try {
+        localStorage.setItem('mg-age', 'no');
+      } catch {
+        /* ignore */
+      }
+      cookie('no');
+      document.documentElement.dataset.ageOk = 'no';
+    });
+  }
 })();

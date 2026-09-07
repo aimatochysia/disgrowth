@@ -32,7 +32,7 @@ const rootDir = path.join(__dirname, '..');
 export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir) } = {}) {
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  app.set('trust proxy', config.production || process.env.VERCEL ? true : 1);
 
   const artClass = artHtmlClass(art);
 
@@ -50,7 +50,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
           frameSrc: ['https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
           formAction: ["'self'", 'https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
           objectSrc: ["'none'"],
-          upgradeInsecureRequests: config.production ? [] : null,
+          ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
       },
       crossOriginEmbedderPolicy: false,
@@ -87,24 +87,32 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip: () => config.NODE_ENV === 'test',
+    validate: { xForwardedForHeader: false },
   });
 
   function page(req, res, { title, page: pageName, description, body, status = 200 }) {
-    const user = readSession(req, config);
-    res.status(status).type('html').send(
-      render(
-        layout({
-          title,
-          path: req.path,
-          user,
-          config,
-          page: pageName,
-          description,
-          body,
-          artClass,
-        }),
-      ),
-    );
+    try {
+      const user = readSession(req, config);
+      res.status(status).type('html').send(
+        render(
+          layout({
+            title,
+            path: req.path,
+            user,
+            config,
+            page: pageName,
+            description,
+            body,
+            artClass,
+          }),
+        ),
+      );
+    } catch (err) {
+      console.error('[store] render failed', err);
+      if (!res.headersSent) {
+        res.status(500).type('html').send('Store is temporarily unavailable.');
+      }
+    }
   }
 
   function requireSession(req, res, next) {
@@ -336,6 +344,15 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.use((req, res) => {
     page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
+  });
+
+  app.use((err, req, res, next) => {
+    console.error('[store] request failed', err);
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    res.status(500).type('html').send('Store is temporarily unavailable.');
   });
 
   return app;

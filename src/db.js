@@ -10,6 +10,7 @@ export function poolOptions(databaseUrl, env = process.env) {
     connectionString: databaseUrl,
     max: 10,
     idleTimeoutMillis: 30_000,
+    connectionTimeoutMillis: 4_000,
   };
   const sslFlag = String(env.DATABASE_SSL || env.PGSSLMODE || '').toLowerCase();
   const urlWantsSsl = /sslmode=(require|verify-ca|verify-full)/i.test(databaseUrl);
@@ -23,6 +24,9 @@ export function createDb(databaseUrl) {
   if (!databaseUrl) return null;
 
   const pool = new pg.Pool(poolOptions(databaseUrl));
+  pool.on('error', (err) => {
+    console.error('[store] postgres pool error', err.message);
+  });
 
   return {
     pool,

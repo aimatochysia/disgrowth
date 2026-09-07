@@ -13,6 +13,9 @@ const PLACEHOLDERS = new Set([
   'change-me',
   'your-secret-here',
   'replace-me',
+  'blank',
+  'none',
+  'n/a',
 ]);
 
 export function trim(value) {
@@ -31,9 +34,25 @@ function requiredInProd(name, value, errors) {
   if (!value) errors.push(name);
 }
 
+/** Loopback hosts are fine on a laptop and unreachable from Vercel. */
+export function databaseHost(databaseUrl) {
+  const value = real(databaseUrl);
+  if (!value) return '';
+  try {
+    return new URL(value.replace(/^postgres(ql)?:/i, 'http:')).hostname.toLowerCase();
+  } catch {
+    return '';
+  }
+}
+
+export function isLoopbackHost(host) {
+  return host === '127.0.0.1' || host === 'localhost' || host === '::1' || host === '0.0.0.0';
+}
+
 export function loadConfig(env = process.env) {
   const NODE_ENV = real(env.NODE_ENV) || 'development';
   const production = NODE_ENV === 'production';
+  const onVercel = Boolean(env.VERCEL);
   const errors = [];
 
   const STORE_ORIGIN = real(env.STORE_ORIGIN) || 'http://localhost:3000';
@@ -42,7 +61,10 @@ export function loadConfig(env = process.env) {
 
   const DISCORD_CLIENT_ID = real(env.DISCORD_CLIENT_ID);
   const DISCORD_CLIENT_SECRET = real(env.DISCORD_CLIENT_SECRET);
-  const DATABASE_URL = real(env.DATABASE_URL);
+  const rawDatabaseUrl = real(env.DATABASE_URL);
+  const dbHost = databaseHost(rawDatabaseUrl);
+  const loopbackDb = Boolean(rawDatabaseUrl && isLoopbackHost(dbHost));
+  const DATABASE_URL = loopbackDb && (production || onVercel) ? '' : rawDatabaseUrl;
   const PADDLE_API_KEY = real(env.PADDLE_API_KEY);
   const PADDLE_WEBHOOK_SECRET = real(env.PADDLE_WEBHOOK_SECRET);
   const PADDLE_PRICE_GOLD_10 = real(env.PADDLE_PRICE_GOLD_10);
@@ -56,6 +78,9 @@ export function loadConfig(env = process.env) {
     requiredInProd('DISCORD_CLIENT_ID', DISCORD_CLIENT_ID, errors);
     requiredInProd('DISCORD_CLIENT_SECRET', DISCORD_CLIENT_SECRET, errors);
     requiredInProd('DATABASE_URL', DATABASE_URL, errors);
+    if (loopbackDb) {
+      errors.push('DATABASE_URL (cannot be localhost/127.0.0.1 on Vercel)');
+    }
   }
 
   if (SESSION_SECRET && SESSION_SECRET.length < 32 && production) {
