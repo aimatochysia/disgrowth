@@ -34,6 +34,12 @@ export function verifyPaddleSignature(rawBody, header, secret, now = Date.now())
   });
 }
 
+export function firstQueryValue(value) {
+  if (Array.isArray(value)) value = value[0];
+  if (value == null) return '';
+  return String(value);
+}
+
 export function safeNextPath(next, fallback = '/account') {
   if (next == null) return fallback;
   if (Array.isArray(next)) next = next[0];
@@ -44,6 +50,15 @@ export function safeNextPath(next, fallback = '/account') {
   if (value.includes('\\')) return fallback;
   if (value.includes('\n') || value.includes('\r')) return fallback;
   if (value.includes('@')) return fallback;
+  return value;
+}
+
+/** Return path after Discord login. Never send the player back to /login. */
+export function safeReturnPath(next, fallback = '/store') {
+  const value = safeNextPath(next, fallback);
+  const pathOnly = value.split('?')[0];
+  if (pathOnly === '/login' || pathOnly === '/logout') return fallback;
+  if (pathOnly === '/auth/discord' || pathOnly.startsWith('/api/auth/')) return fallback;
   return value;
 }
 

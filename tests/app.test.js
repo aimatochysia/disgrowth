@@ -386,6 +386,87 @@ test('oauth next= cannot leave this origin', async () => {
     const loc = res.headers.get('location');
     assert.match(loc, /discord.com\/oauth2\/authorize/);
     assert.doesNotMatch(loc, /evil/);
+    assert.doesNotMatch(loc, /prompt=consent/);
+  });
+});
+
+test('logged-in /login redirects to shop instead of asking again', async () => {
+  const cfg = config();
+  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  await withServer(app, async (base) => {
+    const shop = await fetch(`${base}/login`, {
+      redirect: 'manual',
+      headers: { cookie: sessionCookie(cfg) },
+    });
+    assert.equal(shop.status, 302);
+    assert.equal(shop.headers.get('location'), '/store');
+
+    const buy = await fetch(`${base}/login?next=${encodeURIComponent('/buy/gold-10')}`, {
+      redirect: 'manual',
+      headers: { cookie: sessionCookie(cfg) },
+    });
+    assert.equal(buy.status, 302);
+    assert.equal(buy.headers.get('location'), '/buy/gold-10');
+
+    const loop = await fetch(`${base}/login?next=${encodeURIComponent('/login')}`, {
+      redirect: 'manual',
+      headers: { cookie: sessionCookie(cfg) },
+    });
+    assert.equal(loop.status, 302);
+    assert.equal(loop.headers.get('location'), '/store');
+  });
+});
+
+test('oauth callback signs in from Discord state and returns to next', async () => {
+  const cfg = config();
+  const app = createApp({
+    config: cfg,
+    db: mockDb(),
+    art: {},
+    fetchImpl: async (url) => {
+      const href = String(url);
+      if (href.includes('/oauth2/token')) {
+        return {
+          ok: true,
+          async json() {
+            return { access_token: 'tok' };
+          },
+          async text() {
+            return '';
+          },
+        };
+      }
+      if (href.includes('/users/@me')) {
+        return {
+          ok: true,
+          async json() {
+            return { id: '99', username: 'ash', global_name: 'Ash', avatar: null, email: 'a@b.c' };
+          },
+          async text() {
+            return '';
+          },
+        };
+      }
+      throw new Error(`unexpected fetch ${href}`);
+    },
+  });
+  await withServer(app, async (base) => {
+    const start = await fetch(`${base}/auth/discord?next=${encodeURIComponent('/buy/gold-10')}`, {
+      redirect: 'manual',
+    });
+    assert.equal(start.status, 302);
+    const loc = new URL(start.headers.get('location'));
+    const state = loc.searchParams.get('state');
+    assert.ok(state);
+    const cb = await fetch(
+      `${base}/api/auth/discord/callback?code=ok&state=${encodeURIComponent(state)}`,
+      { redirect: 'manual' },
+    );
+    assert.equal(cb.status, 200);
+    assert.match(cb.headers.get('set-cookie') || '', /mg_session=/);
+    const html = await cb.text();
+    assert.match(html, /\/buy\/gold-10/);
+    assert.doesNotMatch(html, /\/login/);
   });
 });
 

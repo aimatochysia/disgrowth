@@ -45,7 +45,7 @@ export function layout(data) {
   const artClass = data.artClass || '';
   const pageTitle = title ? `${title} — Disgrowth` : 'Store — Disgrowth';
   const ownerLine = config.previewLegal ? 'Disgrowth' : config.OPERATOR_LEGAL_NAME;
-  const loginNext = path && path !== '/' ? path : '/store';
+  const loginNext = !path || path === '/' || path === '/login' ? '/store' : path;
 
   return html`<!DOCTYPE html>
 <html lang="en" data-theme="day" data-page="${page}" class="${artClass}">

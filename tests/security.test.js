@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { redactPayload, safeNextPath } from '../src/lib/security.js';
+import { redactPayload, safeNextPath, safeReturnPath } from '../src/lib/security.js';
 
 test('next= open redirects are rejected', () => {
   assert.equal(safeNextPath('/buy/gold-10'), '/buy/gold-10');
@@ -11,6 +11,18 @@ test('next= open redirects are rejected', () => {
   assert.equal(safeNextPath('https://example.com/buy/gold-10'), '/account');
   assert.equal(safeNextPath('login'), '/account');
   assert.equal(safeNextPath(['/store', 'https://evil.example']), '/store');
+});
+
+test('login return path never sends the player back to /login', () => {
+  assert.equal(safeReturnPath('/buy/gold-10'), '/buy/gold-10');
+  assert.equal(safeReturnPath('/store'), '/store');
+  assert.equal(safeReturnPath(undefined), '/store');
+  assert.equal(safeReturnPath('/login'), '/store');
+  assert.equal(safeReturnPath('/login?error=oauth'), '/store');
+  assert.equal(safeReturnPath('/logout'), '/store');
+  assert.equal(safeReturnPath('/auth/discord'), '/store');
+  assert.equal(safeReturnPath('/api/auth/discord/callback'), '/store');
+  assert.equal(safeReturnPath('https://evil.example'), '/store');
 });
 
 test('webhook payload redacts email and card fields', () => {

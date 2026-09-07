@@ -17,6 +17,27 @@ export function loginPage({ next, oauthReady, error }) {
   `;
 }
 
+export function oauthContinuePage(next) {
+  const href = String(next || '/store');
+  const safeAttr = href
+    .replaceAll('&', '&amp;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;')
+    .replaceAll('<', '&lt;');
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta http-equiv="refresh" content="0;url=${safeAttr}" />
+  <title>Signing in…</title>
+</head>
+<body>
+  <p>Signed in. <a href="${safeAttr}">Continue</a></p>
+  <script>location.replace(${JSON.stringify(href)})</script>
+</body>
+</html>`;
+}
+
 export function successPage() {
   return welcomePage();
 }
