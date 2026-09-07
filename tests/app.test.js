@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict';
+import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
 import { test } from 'node:test';
+import { fileURLToPath } from 'node:url';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { seal } from '../src/session.js';
+
+const rootDir = fileURLToPath(new URL('..', import.meta.url));
 
 function config(over = {}) {
   return loadConfig({
@@ -166,6 +170,56 @@ test('homepage still renders when Vercel DATABASE_URL is localhost', async () =>
     assert.equal(json.checkout, false);
     assert.ok(json.missing.some((item) => /localhost/.test(item)));
   });
+});
+
+test('src/server.js listens on Vercel with a localhost DATABASE_URL', async () => {
+  const port = 18765;
+  const child = spawn(process.execPath, ['src/server.js'], {
+    cwd: rootDir,
+    env: {
+      PATH: process.env.PATH,
+      NODE_ENV: 'production',
+      VERCEL: '1',
+      PORT: String(port),
+      SESSION_SECRET: 'test-session-secret-32-characters-min',
+      DISCORD_CLIENT_ID: 'client',
+      DISCORD_CLIENT_SECRET: 'secret',
+      DATABASE_URL: 'postgresql://market_game:market_game@127.0.0.1:5432/market_game',
+      STORE_ORIGIN: 'https://disgrowth.vercel.app',
+      PADDLE_API_KEY: 'blank',
+      PADDLE_WEBHOOK_SECRET: 'blank',
+      PADDLE_ENV: 'production',
+      PADDLE_PRICE_GOLD_10: 'pri_gold_10',
+      PADDLE_PRICE_GOLD_25: 'pri_gold_25',
+      PADDLE_PRICE_GOLD_50: 'pri_gold_50',
+      PADDLE_PRICE_GOLD_100: 'pri_gold_100',
+    },
+    stdio: ['ignore', 'pipe', 'pipe'],
+  });
+  const output = [];
+  child.stdout.on('data', (buf) => output.push(String(buf)));
+  child.stderr.on('data', (buf) => output.push(String(buf)));
+  try {
+    await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => reject(new Error(`server did not start: ${output.join('')}`)), 5000);
+      child.stdout.on('data', (buf) => {
+        if (String(buf).includes('MARKET GAME')) {
+          clearTimeout(timer);
+          resolve();
+        }
+      });
+      child.on('exit', (code) => {
+        clearTimeout(timer);
+        reject(new Error(`server exited ${code}: ${output.join('')}`));
+      });
+    });
+    const res = await fetch(`http://127.0.0.1:${port}/`);
+    assert.equal(res.status, 200);
+    assert.match(await res.text(), /Disgrowth/);
+  } finally {
+    child.kill('SIGKILL');
+    await new Promise((resolve) => child.once('exit', resolve));
+  }
 });
 
 test('GET /healthz', async () => {
