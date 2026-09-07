@@ -137,6 +137,13 @@ function sessionCookie(cfg, discordId = '42') {
   return `mg_session=${token}`;
 }
 
+test('src/app.js default export is an Express app', async () => {
+  const { default: vercelEntry } = await import('../src/app.js');
+  assert.equal(typeof vercelEntry, 'function');
+  assert.equal(typeof vercelEntry.listen, 'function');
+  assert.equal(typeof vercelEntry.handle, 'function');
+});
+
 test('homepage still renders when Vercel DATABASE_URL is localhost', async () => {
   const cfg = loadConfig({
     NODE_ENV: 'production',

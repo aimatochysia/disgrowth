@@ -1,5 +1,4 @@
-// Named create-app.js on purpose. Vercel's Express preset treats src/app.js as
-// the HTTP entry and would invoke createApp(req, res) on every request.
+// Express routes. Not src/app.js — Vercel would treat that factory as the HTTP entry.
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
