@@ -65,17 +65,19 @@ WHERE discord_id = :snowflake;
 Point shop Link buttons at this origin, not raw Paddle URLs:
 
 ```
-PADDLE_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
-PADDLE_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
-PADDLE_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
-PADDLE_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
+STORE_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
+STORE_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
+STORE_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
+STORE_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
 ```
 
 ## Paddle dashboard
 
-Catalog products already exist in the live account. You still need:
+Catalog products already exist in the live account. Do **not** delete them, the checkout domain, the client-side token, or the webhook destination.
 
-1. Notification destination: `https://{{STORE_ORIGIN}}/api/webhooks/paddle`
-2. Subscribe **only** to `transaction.completed` and `adjustment.updated`.
-3. Set the default payment-link success URL to `https://{{STORE_ORIGIN}}/success`.
-4. `PADDLE_ENV=production` plus live API key + live price ids on the host.
+You still need:
+
+1. **Update the existing** notification destination URL to `https://{{STORE_ORIGIN}}/api/webhooks/paddle` (do not create a second destination).
+2. Subscribe to `transaction.completed`, `customer.created`, `customer.updated`, and `adjustment.updated`. Do **not** subscribe to `transaction.updated`.
+3. In Checkout > Checkout settings, set the **default payment link** to the live store origin (an approved domain, not localhost). Overlay success URL is `/welcome`.
+4. `PADDLE_ENV=production` plus live API key, live client token (`live_…`), webhook signing secret, and live price ids on the host.

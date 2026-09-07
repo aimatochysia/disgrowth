@@ -14,7 +14,10 @@
   if (!token || (env !== 'production' && env !== 'sandbox')) return;
 
   const Paddle = window.Paddle;
-  Paddle.Environment.set(env);
+  // Live defaults to production. Only set sandbox — go-live checklist says omit this call on live.
+  if (env === 'sandbox') {
+    Paddle.Environment.set('sandbox');
+  }
   Paddle.Initialize({ token });
 
   const catalog = Array.isArray(boot.catalog) ? boot.catalog : [];

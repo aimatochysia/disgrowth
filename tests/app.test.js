@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
 import { createHmac } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../src/app.js';
@@ -648,8 +649,13 @@ test('landing and legal pages render', async () => {
     const store = await fetch(`${base}/store`);
     const storeHtml = await store.text();
     assert.match(storeHtml, /Gold Bars — 500/);
+    assert.match(storeHtml, /Gold Bars — 1,275/);
+    assert.match(storeHtml, /Gold Bars — 2,600/);
     assert.match(storeHtml, /Gold Bars — 5,250/);
     assert.match(storeHtml, /first Gold Bar purchase doubles/);
+    assert.doesNotMatch(storeHtml, /Gold Bars — 1,300/);
+    assert.doesNotMatch(storeHtml, /Gold Bars — 5,600/);
+    assert.doesNotMatch(storeHtml, /30 days of Patron/);
     assert.match(storeHtml, /id="paddle-boot"/);
     assert.match(storeHtml, /cdn\.paddle\.com\/paddle\/v2\/paddle\.js/);
     assert.match(storeHtml, /Are you 18 or older/);
@@ -665,4 +671,13 @@ test('landing and legal pages render', async () => {
     assert.equal(legacySuccess.status, 302);
     assert.equal(legacySuccess.headers.get('location'), '/welcome');
   });
+});
+
+test('live overlay omits Environment.set so Paddle.js defaults to production', () => {
+  const src = readFileSync(new URL('../public/js/paddle-store.js', import.meta.url), 'utf8');
+  assert.match(src, /Environment\.set\('sandbox'\)/);
+  assert.doesNotMatch(src, /Environment\.set\(env\)/);
+  assert.match(src, /displayMode: 'overlay'/);
+  assert.match(src, /variant: 'one-page'/);
+  assert.match(src, /formattedTotals/);
 });

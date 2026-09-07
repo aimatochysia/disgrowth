@@ -132,21 +132,23 @@ First Gold Bar purchase on a Discord account **doubles** the listed GL. Patron i
 
 **Never sell:** CR packs, extra companies, extra branches, tax cuts, offline cap, equity, board seats, “win the sector” buffs.
 
-### 2.4 Accountant pass (what the bot already does with the flags you will set)
+### 2.4 Patron (gold-based, not a Paddle subscription)
 
 The website does **not** implement hints. It only maintains:
 
 - `players.subscription_active` (boolean)
-- `players.subscription_expires_at` (timestamptz, nullable)
+- `players.subscription_expires_at` (timestamptz, nullable — keep **null** while Patron is on)
+
+Patron **tier 1** turns on when lifetime Gold Bars **granted** (sum of `store_orders.gold_delta` for `gold_grant` / `gold_refund`) ≥ **2,600**. Converting GL→BN does not strip Patron. Refunds that drop lifetime below 2,600 turn it off. There is **no** stacked +30 days per pack and **no** Paddle subscription product.
 
 Bot behavior the store’s marketing must not overclaim:
 
 - DM-only hints, ~95% accuracy, trend-based, not every trigger, minimum ~20 real hours between hint batches.
 - Pauses if the player has no **guild** (server) interaction for **3 real days** (`last_seen_guild_at`). Logging into this website does **not** count as guild activity.
-- Pass daily Bonds: 12 vs free 5 (bot grant).
+- Pass daily Bonds: **8** vs free **5** (bot grant; nerfed from 12).
 - Full TXT financial-statement pack in Discord is a **separate** gated feature (`entity.financialStatementEnabled`, currently **false**). Do not advertise “full accountant reports” on the store.
 
-Bot treats pass as active when `subscription_active` is true **and** (`subscription_expires_at` is null **or** `subscription_expires_at > now`). Prefer always setting an expiry from Paddle `renews_at` / `ends_at` so a stuck `true` cannot last forever.
+Bot treats pass as active when `subscription_active` is true **and** (`subscription_expires_at` is null **or** `subscription_expires_at > now`). Gold-based Patron should keep expiry **null**.
 
 ### 2.5 Feature flags in the live game (do not contradict on the site)
 
@@ -184,17 +186,17 @@ Not sacred; swap if you have a strong reason. Defaults chosen so the Paddle webh
 ### 3.1 Sequence (happy path)
 
 ```
-Player clicks /shop "Gold Bars — 500" in Discord
+Player clicks /shop "$10 Gold" in Discord
   → https://{{STORE_ORIGIN}}/buy/gold-10
-  → if no session: Discord OAuth (identify), return to /buy/gold-10
+  → if no session: Discord OAuth (identify email), return to /buy/gold-10
   → load players WHERE discord_id = session
   → if no row: "Run /disgrowth in Discord first"
   → age + ToS checkboxes
-  → POST /transactions (custom_data.discord_id + sku_key)
+  → Paddle.Checkout.open overlay (one-page) with customData.discord_id + sku_key
   → player pays on Paddle
   → Paddle POST {{STORE_ORIGIN}}/api/webhooks/paddle
-  → verify HMAC, idempotent insert store_orders, UPDATE players gold_bars+marks
-  → player returns to /success
+  → verify signature, idempotent insert store_orders + purchases, UPDATE players gold_bars+marks, recompute Patron from lifetime GL
+  → player returns to /welcome
   → Discord /shop and /dashboard show new GL
 ```
 
@@ -256,22 +258,22 @@ Use **Paddle Billing** (API version 1), not Paddle Classic.
 2. Confirm the operator can be a seller from their country (payouts, identity, tax forms). If Paddle cannot onboard the entity, **stop** and change MoR — do not fake it.
 3. Catalog / checkout name: `Disgrowth`.
 4. Support email: `{{SUPPORT_EMAIL}}`.
-5. Default payment-link success URL: `https://{{STORE_ORIGIN}}/success`.
+5. Default payment-link success URL: `https://{{STORE_ORIGIN}}/welcome` (must be an approved live domain, not localhost).
 
 ### 5.2 Prices
 
-Create **four** one-time catalog prices (not a subscription):
+Create **four** one-time catalog prices (not a subscription). Live catalog already exists — do **not** recreate or delete these products/prices:
 
 | Product | Type | Env var for price id |
 | --- | --- | --- |
 | Gold Bars — 500 | One-time $10 | `PADDLE_PRICE_GOLD_10` |
-| Gold Bars — 1,300 | One-time $25 | `PADDLE_PRICE_GOLD_25` |
-| Gold Bars — 2,700 | One-time $50 | `PADDLE_PRICE_GOLD_50` |
-| Gold Bars — 5,600 | One-time $100 | `PADDLE_PRICE_GOLD_100` |
+| Gold Bars — 1,275 | One-time $25 | `PADDLE_PRICE_GOLD_25` |
+| Gold Bars — 2,600 | One-time $50 | `PADDLE_PRICE_GOLD_50` |
+| Gold Bars — 5,250 | One-time $100 | `PADDLE_PRICE_GOLD_100` |
 
-Product descriptions must say: virtual currency for a Discord game; not cash-out; not a security; login required on this store; Credits cannot be bought. Packs from $25 include 30 days of Patron. Patron is **not** a Paddle subscription.
+Product descriptions must say: virtual currency for a Discord game; not cash-out; not a security; login required on this store; Credits cannot be bought. Patron is **not** sold as days on a pack and is **not** a Paddle subscription. Lifetime Gold Bars bought ≥ 2,600 unlocks Patron tier 1.
 
-The site creates a Paddle transaction (`POST /transactions`) with `custom_data.discord_id` and `custom_data.sku_key`, then 302s to `data.checkout.url`. Never put a raw Paddle payment link in Discord.
+The store page uses `Paddle.PricePreview()` (display `formattedTotals` only) and `Paddle.Checkout.open()` overlay (`displayMode: 'overlay'`, `variant: 'one-page'`). A no-JS POST fallback still creates a Paddle transaction. Never put a raw Paddle payment link in Discord.
 
 Docs: <https://developer.paddle.com/api-reference/transactions/create>
 
@@ -281,14 +283,15 @@ Dashboard → Notifications / webhook destination:
 
 - URL: `https://{{STORE_ORIGIN}}/api/webhooks/paddle`
 - Signing secret → `PADDLE_WEBHOOK_SECRET`
-- Events (subscribe **only** these):
+- Events (update the **existing** destination — do **not** create a second one):
 
 | Event | Why |
 | --- | --- |
-| `transaction.completed` | Grant Gold Bars (and Patron days from the catalog if the pack includes them). |
-| `adjustment.updated` | Reverse Gold Bars when a refund or chargeback is **approved**. Lookup the original transaction if custom data is missing. Do not reverse Patron. |
+| `transaction.completed` | Grant Gold Bars. Recompute Patron from lifetime GL. |
+| `customer.created` / `customer.updated` | Mirror Paddle customer into `customers` for the invoice portal. |
+| `adjustment.updated` | Reverse Gold Bars when a refund or chargeback is **approved**. Recompute Patron (may turn off). |
 
-Do **not** subscribe to `transaction.updated` — that can double-grant. Patron is not billed as a Paddle subscription, so ignore subscription events.
+Do **not** subscribe to `transaction.updated` — that can double-grant. Ignore `subscription.*` events if they arrive.
 
 Return **HTTP 200** after signature verify + durable insert. Paddle retries on non-200.
 
@@ -331,10 +334,11 @@ All pages: dark theme, footer legal links, “Not the game — play in Discord�
 | `/login` | Public | Button → Discord OAuth. Query `?next=` allowed only as relative path on this origin. |
 | `/api/auth/discord/callback` | Public | OAuth callback. |
 | `/logout` | Session | Clear cookie, redirect `/`. |
-| `/store` | Public ok; buy requires login | Four Gold Bar packs. $25+ include Patron. |
-| `/buy/:sku_key` | **Required** | Validates sku, session, player row, checkboxes, redirects to Paddle. `sku_key` ∈ `gold-10`, `gold-25`, `gold-50`, `gold-100`. |
-| `/account` | **Required** | Avatar, username, CR (read-only), BN (read-only), GL, Patron on/off + expiry. |
-| `/success` | Session optional | Payment sent. Gold Bars (and Patron if included) update after the webhook. |
+| `/store` | Public ok; buy requires login | Four Gold Bar packs. Prices from `Paddle.PricePreview` `formattedTotals`. Patron from lifetime GL, not days on a pack. |
+| `/buy/:sku_key` | **Required** | Validates sku, session, player row, checkboxes, opens Paddle overlay. `sku_key` ∈ `gold-10`, `gold-25`, `gold-50`, `gold-100`. |
+| `/account` | **Required** | Avatar, username, CR (read-only), BN (read-only), GL, Patron tier 1 on/off. Invoice portal button. |
+| `/welcome` | Session optional | Payment sent. Gold Bars (and Patron if lifetime GL crosses 2,600) update after the webhook. |
+| `/success` | — | 302 → `/welcome`. |
 | `/legal` | Public | Terms, privacy, refunds, cookies, virtual items as chapters. |
 | `/legal/:slug` | Public | Redirects to `/legal#slug`. |
 | `/support` | Public | `{{SUPPORT_EMAIL}}`, Discord server invite `{{DISCORD_SUPPORT_INVITE}}`, “purchases need Discord login”. |
@@ -383,8 +387,8 @@ The website **does not create** the `players` table. The bot already did. Websit
 | `marks` | int | Dual-write with GL grants/refunds |
 | `gold_bars` | int not null default 0 | Increment on GL purchase; decrement on refund clamp ≥ 0 |
 | `bonds` | int not null default 0 | **Read only** |
-| `subscription_active` | boolean not null default false | Write from subscription events |
-| `subscription_expires_at` | timestamptz null | Write from `renews_at` / `ends_at` |
+| `subscription_active` | boolean not null default false | Write from lifetime GL ≥ 2,600 |
+| `subscription_expires_at` | timestamptz null | Keep **null** while gold-based Patron is on |
 | `onboarding_step` | string not null default `not_started` | Read (display “finish tutorial” if not complete) |
 | `created_at` / `last_seen_at` | timestamptz | Do not use website traffic to fake Discord `last_seen_at` |
 
@@ -440,34 +444,30 @@ export const CATALOG = {
     kind: 'one_time',
     gold: 500,
     usdPlaceholder: 10,
-    patronDays: 0,
     variantEnv: 'PADDLE_PRICE_GOLD_10',
   },
   'gold-25': {
     sku_key: 'gold-25',
-    label: 'Gold Bars — 1,300',
+    label: 'Gold Bars — 1,275',
     kind: 'one_time',
-    gold: 1300,
+    gold: 1275,
     usdPlaceholder: 25,
-    patronDays: 30,
     variantEnv: 'PADDLE_PRICE_GOLD_25',
   },
   'gold-50': {
     sku_key: 'gold-50',
-    label: 'Gold Bars — 2,700',
+    label: 'Gold Bars — 2,600',
     kind: 'one_time',
-    gold: 2700,
+    gold: 2600,
     usdPlaceholder: 50,
-    patronDays: 30,
     variantEnv: 'PADDLE_PRICE_GOLD_50',
   },
   'gold-100': {
     sku_key: 'gold-100',
-    label: 'Gold Bars — 5,600',
+    label: 'Gold Bars — 5,250',
     kind: 'one_time',
-    gold: 5600,
+    gold: 5250,
     usdPlaceholder: 100,
-    patronDays: 30,
     variantEnv: 'PADDLE_PRICE_GOLD_100',
   },
 };
@@ -508,41 +508,20 @@ WHERE id = :player_id;
 
 If they already converted GL → BN, the GL wallet may be lower than `:delta`. **Clamp at 0.** Do not confiscate Bonds. Legal copy must say refunds may be denied or partial after conversion/spend (see §12.5).
 
-**Pass on** (`subscription_created`, `subscription_unpaused`, `subscription_resumed`, `subscription_payment_success`, `subscription_payment_recovered`, and `subscription_updated` when status is `active` or `on_trial`):
+**Patron sync** (after every gold grant or refund, from lifetime `store_orders.gold_delta`):
 
 ```sql
 UPDATE players
-SET subscription_active = TRUE,
-    subscription_expires_at = :expires_at
+SET subscription_active = :active,   -- true iff lifetime GL >= 2600
+    subscription_expires_at = NULL
 WHERE id = :player_id;
 ```
 
-`:expires_at` = `attributes.ends_at` if not null, else `attributes.renews_at`. If both null, set `NOW() + interval '35 days'` as a safety ceiling and log.
-
-**Pass off** (`subscription_expired`, `subscription_paused`, or `subscription_updated` with status in `expired`, `unpaid` (v1), and `cancelled` **only when** `ends_at` is in the past or null):
-
-```sql
-UPDATE players
-SET subscription_active = FALSE,
-    subscription_expires_at = COALESCE(:ends_at, NOW())
-WHERE id = :player_id;
-```
-
-For `cancelled` with `ends_at` in the future: keep `subscription_active = TRUE` and set `subscription_expires_at = ends_at` (paid through period).
-
-**`order_created` for the pass variant:** `effect = 'ignored'` for gold; wait for `subscription_created` (or apply pass_on if custom data is complete — but **do not double-apply**; unique event ids differ so pass_on twice must be idempotent: setting the same flags is OK).
+Do **not** stack calendar days. Do **not** listen to Paddle `subscription.*` events to turn Patron on. Ignore those events if they arrive.
 
 ### 7.6 Subscription statuses (Paddle)
 
-Typical `attributes.status`: `on_trial`, `active`, `paused`, `past_due`, `unpaid`, `cancelled`, `expired`.
-
-v1 mapping:
-
-| Pass status | `subscription_active` |
-| --- | --- |
-| `on_trial`, `active`, `past_due` | true (until expiry timestamp) |
-| `paused`, `unpaid`, `expired` | false |
-| `cancelled` | true until `ends_at`, then false |
+There is **no** Paddle subscription SKU in v1. If `subscription.*` webhooks are delivered anyway, return 200 and do nothing. Patron is computed only from lifetime Gold Bars bought.
 
 ---
 
@@ -567,6 +546,7 @@ DATABASE_URL=postgres://...
 PADDLE_ENV=sandbox
 PADDLE_API_KEY=
 PADDLE_WEBHOOK_SECRET=
+PADDLE_CLIENT_TOKEN=
 PADDLE_PRICE_GOLD_10=
 PADDLE_PRICE_GOLD_25=
 PADDLE_PRICE_GOLD_50=
@@ -591,10 +571,10 @@ DISCORD_BOT_PUBLIC_URL=
 Bot repo (later, not this website) should set Link buttons to:
 
 ```
-PADDLE_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
-PADDLE_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
-PADDLE_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
-PADDLE_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
+STORE_CHECKOUT_GOLD_10={{STORE_ORIGIN}}/buy/gold-10
+STORE_CHECKOUT_GOLD_25={{STORE_ORIGIN}}/buy/gold-25
+STORE_CHECKOUT_GOLD_50={{STORE_ORIGIN}}/buy/gold-50
+STORE_CHECKOUT_GOLD_100={{STORE_ORIGIN}}/buy/gold-100
 ```
 
 Those bot env names are historical; values must be **this website**, not raw Paddle URLs.
@@ -671,7 +651,7 @@ Show CR with note “Cannot be purchased”. BN “Daily, granted in Discord”.
 
 - Favicon: simple gold bar / square, dark. Not a Discord logo (trademark).
 - Title: `Store — Market Game`
-- `/success` does not claim “you have 500 GL” until you re-read DB; say “usually a few seconds”. Offer Refresh.
+- `/welcome` does not claim “you have 500 GL” until you re-read DB; say “usually a few seconds”. Offer Refresh.
 - Empty player: illustration-free; one paragraph + Discord instructions.
 - Loading: no skeleton carnival; muted “Loading”.
 - 404: `MARKET GAME — STORE` + link home.
@@ -695,7 +675,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 - [ ] 18+ checkbox before redirect to Paddle
 - [ ] Terms + Virtual Items accepted before redirect
 - [ ] Footer links on every page
-- [ ] Paddle checkout success URL points at `/success`; terms on this site
+- [ ] Paddle checkout success URL points at `/welcome`; terms on this site
 - [ ] No CR for sale
 - [ ] No “investment / profit / ROI / interest on Gold Bars” language
 - [ ] Refund policy matches actual webhook behavior (clamp GL, no BN clawback)
@@ -725,7 +705,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Operator.** These Terms are between you and **{{OPERATOR_LEGAL_NAME}}** (“Operator”, “we”), {{OPERATOR_REGISTERED_ADDRESS}}. Contact: {{OPERATOR_CONTACT_EMAIL}}.
 >
-> **Game.** “Disgrowth” / “Market Game” is a Discord-based simulation game operated by the Operator. The game client is a Discord bot. This website (the “Store”) sells certain virtual items and a subscription. Payments are processed by Paddle as Merchant of Record.
+> **Game.** “Disgrowth” / “Market Game” is a Discord-based simulation game operated by the Operator. The game client is a Discord bot. This website (the “Store”) sells Gold Bar packs. Payments are processed by Paddle as Merchant of Record.
 >
 > **Agreement.** By creating a session (Discord login) or completing a purchase you agree to these Terms, the Virtual Items Policy, the Refund Policy, and the Privacy Policy. If you do not agree, do not log in or pay.
 >
@@ -737,7 +717,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Not Paddle's game.** Paddle processes payment. Game rules, virtual items, and Discord delivery are the Operator’s.
 >
-> **License, not ownership.** Gold Bars, Bonds, Credits, the Accountant pass, and any other in-game value are **licensed virtual items** as described in the Virtual Items Policy. They have no cash value. You may not sell, swap, or escrow them for real money. We may change, reset, or remove items when we reasonably need to operate or shut down the game.
+> **License, not ownership.** Gold Bars, Bonds, Credits, Patron, and any other in-game value are **licensed virtual items** as described in the Virtual Items Policy. They have no cash value. You may not sell, swap, or escrow them for real money. We may change, reset, or remove items when we reasonably need to operate or shut down the game.
 >
 > **Credits.** Credits cannot be purchased on the Store and never will be under these Terms as of the last updated date.
 >
@@ -745,7 +725,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Service availability.** The Store and the game may be unavailable. Purchases grant virtual items in the game database; they do not guarantee uptime, a particular economic outcome, or competitive rank.
 >
-> **Accountant pass.** The pass provides in-game convenience described on `/store` (extra daily Bonds issued by the game bot, and occasional DM hints). Hints are imperfect, not professional advice, not guaranteed, and may pause if you are inactive in the Discord server. The pass is billed as a subscription via Paddle.
+> **Patron.** Patron is not billed as a Paddle subscription. If lifetime Gold Bars granted on a Discord account (net of refunds) reach 2,600, Patron tier 1 turns on: extra daily Bonds issued by the game bot, and occasional DM hints. Hints are imperfect, not professional advice, not guaranteed, and may pause if you are inactive in the Discord server. Logging into this website does not count as server activity. A refund that drops lifetime Gold Bars below 2,600 turns Patron off.
 >
 > **Changes.** We may change the Store catalog, prices (for future buys), or these Terms. Continued use after notice (site post and/or Discord) counts as acceptance of the new Terms for later purchases. Material changes to virtual-item licences will not silently convert Credits into a paid product.
 >
@@ -809,11 +789,11 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > Payments are charged by **Paddle** as Merchant of Record. Chargebacks go through them; contacting us first is faster.
 >
-> **Virtual items.** Gold Bars and the Accountant pass are digital, delivered to the linked Discord id when our webhook succeeds (usually seconds).
+> **Virtual items.** Gold Bars and Patron are digital. Gold Bars are delivered to the linked Discord id when our webhook succeeds (usually seconds). Patron follows lifetime Gold Bars bought.
 >
 > **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars (and Marks mirror) and approve a refund via Paddle. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
 >
-> **Accountant pass.** Unused time in the current billing period may be refunded at our discretion; access is turned off when the refund is processed. If you used pass perks (hints, extra Bonds already granted), we may refuse.
+> **Patron.** Patron follows lifetime Gold Bars bought (net of refunds). If a refund drops you below 2,600, Patron turns off. We do not sell a standalone Patron subscription. Extra Bonds already granted are not clawed back.
 >
 > **Chargebacks.** If you chargeback after receiving items, we may disable Store access and game perks and dispute with the MoR.
 >
@@ -847,7 +827,7 @@ If you later add Plausible/GA, you must add a banner and this section **before**
 
 > Last updated: {{DATE}}
 >
-> **License.** Gold Bars (GL), Bonds (BN), Credits (CR), and the Accountant pass are **limited, revocable, non-exclusive, non-transferable licences** to use features of Disgrowth / Market Game. They are **not** money, e-money, deposits, securities, commodities, or crypto-assets. They cannot be redeemed with us for cash.
+> **License.** Gold Bars (GL), Bonds (BN), Credits (CR), and Patron are **limited, revocable, non-exclusive, non-transferable licences** to use features of Disgrowth / Market Game. They are **not** money, e-money, deposits, securities, commodities, or crypto-assets. They cannot be redeemed with us for cash.
 >
 > **Credits (CR).** Earned and spent inside the simulation. **Not for sale** on the Store.
 >
@@ -855,9 +835,9 @@ If you later add Plausible/GA, you must add a banner and this section **before**
 >
 > **Gold Bars (GL).** Premium wallet sold on the Store. Dual-recorded internally with a legacy “Marks” field. Buying GL does not buy Credits.
 >
-> **Accountant pass.** Subscription licence for extra daily Bonds and in-game DM hints, while active and while you meet the game’s activity rules (including inactivity pause).
+> **Patron.** A perk unlocked when lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600** (Patron tier 1). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a Paddle subscription, not a cash product, and is not sold on its own. First-purchase doubling applies to Gold Bars only.
 >
-> **No secondary market.** You may not sell accounts, Gold Bars, or the pass for real money. We may reclaim items obtained that way.
+> **No secondary market.** You may not sell accounts, Gold Bars, or Patron for real money. We may reclaim items obtained that way.
 >
 > **Changes and shutdown.** We may rebalance numbers, close the game, or wipe wallets. If we shut down for good we are not required to cash out. We may offer goodwill at our discretion.
 >
@@ -918,7 +898,7 @@ You cannot use the Discord bot’s interaction harness from this repo. Prove gra
 
 After this store is live, the Discord bot should:
 
-1. Set `PADDLE_CHECKOUT_*` to `{{STORE_ORIGIN}}/buy/...` so Link buttons carry the user through login.
+1. Set `STORE_CHECKOUT_GOLD_*` to `{{STORE_ORIGIN}}/buy/...` so Link buttons carry the user through login.
 2. Keep GL display from `gold_bars` (Marks dual-write).
 3. **Not** implement a second Paddle webhook if the website already grants (avoid double credit).
 
@@ -959,7 +939,7 @@ For agentic workers in the **new website repo**. Check boxes as you go.
 - [ ] `/store` three cards with placeholder USD.
 - [ ] `/account` wallets + pass.
 - [ ] `/buy/:sku` gates.
-- [ ] `/success`, `/support`.
+- [ ] `/welcome`, `/support`.
 - [ ] Legal routes with draft copy **and** a visible “Not legal advice; placeholders” banner until `OPERATOR.md` is filled, then remove the banner.
 
 ### Task 5 — Paddle checkout URLs
@@ -990,12 +970,12 @@ For agentic workers in the **new website repo**. Check boxes as you go.
 
 ## 17. Acceptance tests (human)
 
-1. Logged-out `/buy/gold-starter` ends up at Discord OAuth then back.
+1. Logged-out `/buy/gold-10` ends up at Discord OAuth then back.
 2. User who never ran the bot cannot pay (blocked page).
-3. User who ran `/disgrowth` can pay test-mode starter; SQL shows `gold_bars` and `marks` += 500; Discord `/shop` matches.
-4. Double-delivery of the same webhook does not add 1000.
-5. Pass subscribe → `/account` shows on; Discord shop “Accountant pass **on**”.
-6. Refund starter in Paddle → GL decreases, not below 0.
+3. User who ran `/disgrowth` can pay test-mode $10 pack; SQL shows `gold_bars` and `marks` += 500 (or 1000 if first purchase); Discord `/shop` matches.
+4. Double-delivery of the same webhook does not add extra Gold Bars.
+5. Lifetime Gold Bars ≥ 2,600 → `/account` shows Patron tier 1; Discord shop “Patron **tier 1**”.
+6. Refund starter in Paddle → GL decreases, not below 0; Patron may turn off if lifetime drops below 2,600.
 7. Footer legal pages render and match grants (no “cash out”).
 8. Mobile + desktop layout readable, gold only on GL CTA.
 
@@ -1045,11 +1025,11 @@ Until this is filled, keep a site banner: “Store in preview — legal entity a
 | sku_key | GL | USD | Patron | Paddle type |
 | --- | --- | --- | --- | --- |
 | gold-10 | 500 | 10 | — | one-time |
-| gold-25 | 1300 | 25 | 30 days | one-time |
-| gold-50 | 2700 | 50 | 30 days | one-time |
-| gold-100 | 5600 | 100 | 30 days | one-time |
+| gold-25 | 1,275 | 25 | — | one-time |
+| gold-50 | 2,600 | 50 | unlocks tier 1 (lifetime ≥ 2,600) | one-time |
+| gold-100 | 5,250 | 100 | unlocks tier 1 | one-time |
 
-Daily Bonds (bot): 5 free / 12 pass. Convert 1 GL = 1 BN in Discord only.
+Daily Bonds (bot): 5 free / **8** Patron tier 1. Convert 1 GL = 1 BN in Discord only. First purchase doubles GL.
 
 ---
 
