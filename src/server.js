@@ -1,6 +1,6 @@
 import { config } from './config.js';
 import { createDb } from './db.js';
-import { createApp } from './app.js';
+import { createApp } from './create-app.js';
 
 const onVercel = Boolean(process.env.VERCEL || process.env.VERCEL_ENV);
 
