@@ -1,0 +1,32 @@
+# Game Postgres for this VPS. Bot and store both use it.
+# Listens on 127.0.0.1 only — not the internet, not Vercel.
+#
+#   mkdir -p /opt/disgrowth && cd /opt/disgrowth
+#   # copy this file + set POSTGRES_PASSWORD in .env
+#   docker compose up -d postgres
+#
+# DATABASE_URL on this machine (store + bot):
+#   postgres://market_game:YOUR_PASSWORD@127.0.0.1:5432/market_game
+#
+# Do not map 5432 to 0.0.0.0. Do not point Vercel at this database.
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: market_game
+      POSTGRES_DB: market_game
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U market_game -d market_game"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+volumes:
+  pgdata:
