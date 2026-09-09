@@ -85,7 +85,7 @@ You still need:
 
 ## HTTPS / nginx
 
-`deploy/nginx/disgrowth.conf` is the intended origin config (Cloudflare Full Strict + origin certs). Port 80 redirects to HTTPS. `ngx_http_realip_module` applies `CF-Connecting-IP` only when the TCP peer is in Cloudflare's published ranges; Node rates limits by `req.ip` (one trusted hop) and ignores a client-supplied `CF-Connecting-IP`. Firewall origin `:80`/`:443` to Cloudflare IPs as well.
+`deploy/nginx/disgrowth.conf` is the origin config (Cloudflare origin certs at `/etc/ssl/cloudflare/disgrowth.pem`). Port 80 still **proxies** to Node: live traffic arrives as HTTP (Flexible SSL or grey-cloud DNS), and a 301 to HTTPS loops the site. After the Cloudflare dashboard is Full (strict) **and** the A record is orange-cloud, switch `:80` to `return 301 https://disgrowth.net$request_uri;`. `ngx_http_realip_module` applies `CF-Connecting-IP` only when the TCP peer is in Cloudflare's published ranges; Node rates limits by `req.ip` (one trusted hop) and ignores a client-supplied `CF-Connecting-IP`. Firewall origin `:80`/`:443` to Cloudflare IPs once orange-cloud is on.
 
 The ticker on each HTML page is an in-process snapshot (30s TTL, one Postgres query for the process). Pages do not query `price_history` per visitor.
 
