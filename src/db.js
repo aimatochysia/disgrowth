@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
+import { discordId as parseDiscordId } from './lib/validate.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -11,6 +12,8 @@ export function poolOptions(databaseUrl, env = process.env) {
     max: 10,
     idleTimeoutMillis: 30_000,
     connectionTimeoutMillis: 4_000,
+    query_timeout: 8_000,
+    statement_timeout: 8_000,
   };
   const sslFlag = String(env.DATABASE_SSL || env.PGSSLMODE || '').toLowerCase();
   const urlWantsSsl = /sslmode=(require|verify-ca|verify-full)/i.test(databaseUrl);
@@ -55,32 +58,38 @@ export function createDb(databaseUrl) {
     },
 
     async findPlayerByDiscordId(discordId) {
+      const id = parseDiscordId(discordId);
+      if (!id) return null;
       const { rows } = await pool.query(
         `SELECT id, discord_id, credits, bonds, gold_bars, marks,
                 subscription_active, subscription_expires_at, onboarding_step
          FROM players
          WHERE discord_id = $1`,
-        [String(discordId)],
+        [id],
       );
       return rows[0] || null;
     },
 
     async hasUsedFirstPurchase(discordId) {
+      const id = parseDiscordId(discordId);
+      if (!id) return false;
       const { rows } = await pool.query(
         `SELECT 1 FROM store_first_purchase WHERE discord_id = $1 LIMIT 1`,
-        [String(discordId)],
+        [id],
       );
       return Boolean(rows[0]);
     },
 
     async findCustomerByDiscordId(discordId) {
+      const id = parseDiscordId(discordId);
+      if (!id) return null;
       const { rows } = await pool.query(
         `SELECT customer_id, email, discord_id
          FROM customers
          WHERE discord_id = $1
          ORDER BY updated_at DESC
          LIMIT 1`,
-        [String(discordId)],
+        [id],
       );
       return rows[0] || null;
     },

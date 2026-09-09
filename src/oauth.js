@@ -1,4 +1,6 @@
 import { randomToken, safeReturnPath } from './lib/security.js';
+import { fetchWithTimeout } from './lib/http.js';
+import { discordAvatar, discordId } from './lib/validate.js';
 import { seal, unseal } from './session.js';
 
 const OAUTH_STATE_MS = 10 * 60 * 1000;
@@ -44,11 +46,11 @@ export async function exchangeCode({ code, clientId, clientSecret, redirectUri, 
     code,
     redirect_uri: redirectUri,
   });
-  const res = await fetchImpl('https://discord.com/api/oauth2/token', {
+  const res = await fetchWithTimeout(fetchImpl, 'https://discord.com/api/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body,
-  });
+  }, 8_000);
   if (!res.ok) {
     const text = await res.text();
     const err = new Error(`Discord token exchange failed (${res.status})`);
@@ -59,9 +61,9 @@ export async function exchangeCode({ code, clientId, clientSecret, redirectUri, 
 }
 
 export async function fetchIdentify(accessToken, fetchImpl = fetch) {
-  const res = await fetchImpl('https://discord.com/api/users/@me', {
+  const res = await fetchWithTimeout(fetchImpl, 'https://discord.com/api/users/@me', {
     headers: { Authorization: `Bearer ${accessToken}` },
-  });
+  }, 8_000);
   if (!res.ok) {
     throw new Error(`Discord identify failed (${res.status})`);
   }
@@ -75,14 +77,22 @@ export function newOAuthState(next, secret) {
   };
 }
 
-export function sessionFromDiscordUser(user) {
+export function sessionFromDiscordUser(user, config = {}) {
+  const id = discordId(user?.id);
+  if (!id) {
+    const err = new Error('invalid_discord_user');
+    err.code = 'invalid_discord_user';
+    throw err;
+  }
   const email = user.email && String(user.email).includes('@') ? String(user.email) : '';
+  const days = Number(config.SESSION_DAYS) > 0 ? Number(config.SESSION_DAYS) : 14;
   return {
-    discordId: String(user.id),
-    username: user.username || '',
-    globalName: user.global_name || user.username || '',
-    avatar: user.avatar || null,
+    discordId: id,
+    username: String(user.username || '').slice(0, 64),
+    globalName: String(user.global_name || user.username || '').slice(0, 64),
+    avatar: discordAvatar(user.avatar) || null,
     email,
     createdAt: Date.now(),
+    exp: Date.now() + days * 24 * 60 * 60 * 1000,
   };
 }

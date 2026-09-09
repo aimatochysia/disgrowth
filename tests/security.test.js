@@ -25,6 +25,28 @@ test('login return path never sends the player back to /login', () => {
   assert.equal(safeReturnPath('https://evil.example'), '/store');
 });
 
+test('Paddle and Discord URLs cannot open-redirect off this store', async () => {
+  const { csrfOriginOk, isDiscordInviteUrl, isTrustedPaddleHttpUrl } = await import('../src/lib/http.js');
+  assert.equal(isTrustedPaddleHttpUrl('https://sandbox-buy.paddle.com/checkout/txn'), true);
+  assert.equal(isTrustedPaddleHttpUrl('https://disgrowth.net/?_ptxn=txn'), true);
+  assert.equal(isTrustedPaddleHttpUrl('https://disgrowth.vercel.app?_ptxn=txn'), true);
+  assert.equal(isTrustedPaddleHttpUrl('https://evil.example/phish'), false);
+  assert.equal(isTrustedPaddleHttpUrl('javascript:alert(1)'), false);
+  assert.equal(isTrustedPaddleHttpUrl('http://sandbox-buy.paddle.com/x'), false);
+  assert.equal(isTrustedPaddleHttpUrl('http://127.0.0.1/welcome', 'http://127.0.0.1'), true);
+  assert.equal(isDiscordInviteUrl('https://discord.gg/XMadQ9tAd'), true);
+  assert.equal(isDiscordInviteUrl('https://evil.example/invite'), false);
+  assert.equal(csrfOriginOk({ headers: {} }, 'https://disgrowth.net'), true);
+  assert.equal(
+    csrfOriginOk({ headers: { origin: 'https://evil.example' } }, 'https://disgrowth.net'),
+    false,
+  );
+  assert.equal(
+    csrfOriginOk({ headers: { origin: 'https://disgrowth.net' } }, 'https://disgrowth.net'),
+    true,
+  );
+});
+
 test('webhook payload redacts email and card fields', () => {
   const out = redactPayload({
     data: {

@@ -2,13 +2,16 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import express from 'express';
 import helmet from 'helmet';
-import rateLimit from 'express-rate-limit';
+import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { CATALOG, catalogItemsFromConfig, isSku } from './catalog.js';
 import { artCss, artHtmlClass, detectArt } from './art.js';
 import { checkoutConfigured, createPaddleCheckoutUrl, priceIdForSku } from './checkout.js';
 import { authorizeUrl, decodeOAuthState, encodeOAuthState, exchangeCode, fetchIdentify, sessionFromDiscordUser } from './oauth.js';
 import { render } from './lib/html.js';
 import { firstQueryValue, safeReturnPath } from './lib/security.js';
+import { clientIp, csrfOriginOk, isTrustedPaddleHttpUrl } from './lib/http.js';
+import { logEvent } from './lib/log.js';
+import { yesFlag } from './lib/validate.js';
 import { countryFromRequest } from './country.js';
 import { createCustomerPortalUrl, createPaddleSdk } from './paddle.js';
 import {
@@ -41,7 +44,8 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   });
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', config.production || process.env.VERCEL ? true : 1);
+  // One hop in front of Node (nginx). Vercel strips spoofed X-Forwarded-For itself.
+  app.set('trust proxy', process.env.VERCEL ? true : 1);
 
   const artClass = artHtmlClass(art);
 
@@ -64,18 +68,60 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
             'https://*.paddle.com',
           ],
           frameSrc: ['https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
+          frameAncestors: ["'none'"],
           formAction: ["'self'", 'https://*.paddle.com', 'https://sandbox-buy.paddle.com', 'https://buy.paddle.com'],
           objectSrc: ["'none'"],
+          baseUri: ["'self'"],
           ...(config.production ? {} : { upgradeInsecureRequests: null }),
         },
       },
       crossOriginEmbedderPolicy: false,
       crossOriginResourcePolicy: { policy: 'cross-origin' },
+      frameguard: { action: 'deny' },
+      referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
+      hsts: config.production
+        ? { maxAge: 15552000, includeSubDomains: true, preload: false }
+        : false,
     }),
   );
 
+  function rateKey(req) {
+    const ip = clientIp(req);
+    try {
+      return ipKeyGenerator(ip);
+    } catch {
+      return ip || '0.0.0.0';
+    }
+  }
+
+  function skipCheap(req) {
+    if (config.NODE_ENV === 'test') return true;
+    if (req.path === '/healthz') return true;
+    return /\.(css|js|map|png|svg|ico|webp|woff2?|txt)$/i.test(req.path);
+  }
+
+  const limiterBase = {
+    windowMs: 60 * 1000,
+    standardHeaders: 'draft-7',
+    legacyHeaders: false,
+    keyGenerator: (req) => rateKey(req),
+    skip: skipCheap,
+    validate: { xForwardedForHeader: false, trustProxy: false },
+  };
+
+  app.use(rateLimit({ ...limiterBase, limit: 240 }));
+
+  const authLimit = rateLimit({ ...limiterBase, limit: 20 });
+  const buyLimit = rateLimit({ ...limiterBase, limit: 12 });
+  const webhookLimit = rateLimit({
+    ...limiterBase,
+    limit: 120,
+    skip: () => config.NODE_ENV === 'test',
+  });
+
   app.post(
     '/api/webhooks/paddle',
+    webhookLimit,
     express.raw({ type: 'application/json', limit: '1mb' }),
     async (req, res) => {
       const rawBody = Buffer.isBuffer(req.body) ? req.body : Buffer.from(req.body || '');
@@ -86,24 +132,24 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         db,
         log: console,
       });
+      if (result.status === 401) {
+        logEvent('warn', 'paddle_webhook_rejected', { ip: clientIp(req) });
+      }
       res.status(result.status).json(result.body);
     },
   );
 
   app.use(express.urlencoded({ extended: false, limit: '32kb' }));
-  app.use(express.static(path.join(rootDir, 'public'), { maxAge: config.production ? '1h' : 0 }));
+  app.use(
+    express.static(path.join(rootDir, 'public'), {
+      maxAge: config.production ? '1h' : 0,
+      dotfiles: 'deny',
+      index: false,
+    }),
+  );
 
   app.get('/art.css', (_req, res) => {
     res.type('css').send(artCss(art));
-  });
-
-  const authLimit = rateLimit({
-    windowMs: 60 * 1000,
-    limit: 20,
-    standardHeaders: 'draft-7',
-    legacyHeaders: false,
-    skip: () => config.NODE_ENV === 'test',
-    validate: { xForwardedForHeader: false, trustProxy: false },
   });
 
   function buildPaddleBoot(req, user) {
@@ -125,6 +171,12 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   function page(req, res, { title, page: pageName, description, body, status = 200, paddle = false }) {
     try {
       const user = readSession(req, config);
+      if (user) {
+        res.set('Cache-Control', 'private, no-store');
+      } else {
+        res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=15');
+        res.set('Vary', 'Cookie, Accept-Encoding');
+      }
       res.status(status).type('html').send(
         render(
           layout({
@@ -142,8 +194,9 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         ),
       );
     } catch (err) {
-      console.error('[store] render failed', err);
+      logEvent('error', 'render_failed', { err: String(err?.message || err) });
       if (!res.headersSent) {
+        res.set('Cache-Control', 'no-store');
         res.status(500).type('html').send('Store is temporarily unavailable.');
       }
     }
@@ -160,8 +213,15 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     next();
   }
 
+  function rejectBadOrigin(req, res) {
+    if (csrfOriginOk(req, config.STORE_ORIGIN)) return false;
+    res.status(403).type('html').set('Cache-Control', 'no-store').send('Forbidden.');
+    return true;
+  }
+
   app.get('/healthz', async (_req, res) => {
     const dbStatus = db ? await db.health() : 'down';
+    res.set('Cache-Control', 'no-store');
     res.status(200).json({
       ok: true,
       db: dbStatus,
@@ -247,11 +307,11 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         fetchImpl,
       });
       const profile = await fetchIdentify(token.access_token, fetchImpl);
-      setSessionCookie(res, sessionFromDiscordUser(profile), config);
+      setSessionCookie(res, sessionFromDiscordUser(profile, config), config);
       const next = safeReturnPath(pending.next);
       res.status(200).type('html').set('Cache-Control', 'no-store').send(oauthContinuePage(next));
     } catch (err) {
-      console.error('[store] oauth callback', err.message, err.detail || '');
+      logEvent('warn', 'oauth_callback_failed', { reason: err.code || err.message });
       res.redirect(302, '/login?error=oauth');
     }
   });
@@ -274,7 +334,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
           paddleCustomer = await db.findCustomerByDiscordId(req.user.discordId);
         }
       } catch (err) {
-        console.error('[store] account query', err.message);
+        logEvent('error', 'account_query_failed', { err: String(err?.message || err) });
       }
     }
     page(req, res, {
@@ -291,6 +351,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   });
 
   app.post('/account/portal', requireSession, async (req, res) => {
+    if (rejectBadOrigin(req, res)) return;
     try {
       if (!db || typeof db.findCustomerByDiscordId !== 'function') {
         res.redirect(302, '/account?portal=missing');
@@ -303,9 +364,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       }
       const paddle = createPaddleSdk(config);
       const url = await createCustomerPortalUrl(paddle, customer.customer_id);
+      if (!isTrustedPaddleHttpUrl(url, config.STORE_ORIGIN)) {
+        res.redirect(302, '/account?portal=error');
+        return;
+      }
       res.redirect(302, url);
     } catch (err) {
-      console.error('[store] portal', err.message);
+      logEvent('error', 'paddle_portal_failed', { err: String(err?.message || err) });
       res.redirect(302, '/account?portal=error');
     }
   });
@@ -328,7 +393,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
           firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(req.user.discordId));
         }
       } catch (err) {
-        console.error('[store] buy query', err.message);
+        logEvent('error', 'buy_query_failed', { err: String(err?.message || err) });
       }
     }
     const sku = skuWithPrice(req.params.sku);
@@ -348,7 +413,8 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     });
   });
 
-  app.post('/buy/:sku', requireSession, async (req, res) => {
+  app.post('/buy/:sku', requireSession, buyLimit, async (req, res) => {
+    if (rejectBadOrigin(req, res)) return;
     if (!isSku(req.params.sku)) {
       page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
       return;
@@ -363,7 +429,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
           firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(req.user.discordId));
         }
       } catch (err) {
-        console.error('[store] buy query', err.message);
+        logEvent('error', 'buy_query_failed', { err: String(err?.message || err) });
       }
     }
     const show = (error) =>
@@ -387,7 +453,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       show('Run /disgrowth in Discord, then refresh.');
       return;
     }
-    if (req.body?.age !== 'yes' || req.body?.terms !== 'yes' || req.body?.novalue !== 'yes') {
+    if (!yesFlag(req.body?.age) || !yesFlag(req.body?.terms) || !yesFlag(req.body?.novalue)) {
       show('Confirm all three checkboxes to continue.');
       return;
     }
@@ -410,9 +476,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         checkoutUrl: config.STORE_ORIGIN,
         fetchImpl,
       });
+      if (!isTrustedPaddleHttpUrl(url, config.STORE_ORIGIN)) {
+        show('Checkout could not be started. Try again in a moment.');
+        return;
+      }
       res.redirect(302, url);
     } catch (err) {
-      console.error('[store] paddle checkout', err.message, err.detail || '');
+      logEvent('error', 'paddle_checkout_failed', { err: String(err?.message || err) });
       show('Checkout could not be started. Try again in a moment.');
     }
   });
@@ -447,12 +517,12 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   });
 
   app.use((err, req, res, next) => {
-    console.error('[store] request failed', err);
+    logEvent('error', 'request_failed', { err: String(err?.message || err) });
     if (res.headersSent) {
       next(err);
       return;
     }
-    res.status(500).type('html').send('Store is temporarily unavailable.');
+    res.status(500).type('html').set('Cache-Control', 'no-store').send('Store is temporarily unavailable.');
   });
 
   return app;

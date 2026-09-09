@@ -185,6 +185,7 @@ test('homepage still renders when Vercel DATABASE_URL is localhost', async () =>
   await withServer(app, async (base) => {
     const home = await fetch(`${base}/`);
     assert.equal(home.status, 200);
+    assert.match(home.headers.get('strict-transport-security') || '', /max-age=15552000/);
     const html = await home.text();
     assert.match(html, /Disgrowth/);
     const store = await fetch(`${base}/store`);
@@ -565,6 +566,113 @@ test('oauth state mismatch redirects to login', async () => {
     const res = await fetch(`${base}/api/auth/discord/callback?code=abc&state=nope`, { redirect: 'manual' });
     assert.equal(res.status, 302);
     assert.match(res.headers.get('location'), /\/login\?error=oauth/);
+  });
+});
+
+test('HTML responses set clickjacking and MIME sniffing headers', async () => {
+  const cfg = config();
+  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/`);
+    assert.equal(res.status, 200);
+    assert.equal(res.headers.get('x-content-type-options'), 'nosniff');
+    assert.match(String(res.headers.get('x-frame-options') || res.headers.get('content-security-policy')), /DENY|frame-ancestors 'none'/i);
+    assert.match(res.headers.get('content-security-policy') || '', /cdn\.paddle\.com/);
+  });
+});
+
+test('POST /buy with a foreign Origin is forbidden', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const app = createApp({
+    config: cfg,
+    db: mockDb({ player }),
+    art: {},
+    fetchImpl: async () => {
+      throw new Error('paddle must not be called');
+    },
+  });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/buy/gold-10`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        cookie: sessionCookie(cfg),
+        origin: 'https://evil.example',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'age=yes&terms=yes&novalue=yes',
+    });
+    assert.equal(res.status, 403);
+    assert.equal(res.headers.get('location'), null);
+  });
+});
+
+test('POST /buy does not redirect to an untrusted checkout URL', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const app = createApp({
+    config: cfg,
+    db: mockDb({ player }),
+    art: {},
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return { data: { checkout: { url: 'https://evil.example/checkout' } } };
+      },
+      async text() {
+        return '';
+      },
+    }),
+  });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/buy/gold-10`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        cookie: sessionCookie(cfg),
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'age=yes&terms=yes&novalue=yes',
+    });
+    assert.equal(res.status, 400);
+    assert.equal(res.headers.get('location'), null);
+  });
+});
+
+test('oauth callback rejects a non-numeric Discord id', async () => {
+  const cfg = config();
+  const app = createApp({
+    config: cfg,
+    db: mockDb(),
+    art: {},
+    fetchImpl: async (url) => {
+      const href = String(url);
+      if (href.includes('/oauth2/token')) {
+        return { ok: true, async json() { return { access_token: 'tok' }; }, async text() { return ''; } };
+      }
+      return {
+        ok: true,
+        async json() {
+          return { id: 'not-a-snowflake', username: 'x' };
+        },
+        async text() {
+          return '';
+        },
+      };
+    },
+  });
+  await withServer(app, async (base) => {
+    const start = await fetch(`${base}/auth/discord`, { redirect: 'manual' });
+    const loc = new URL(start.headers.get('location'));
+    const state = loc.searchParams.get('state');
+    const cb = await fetch(
+      `${base}/api/auth/discord/callback?code=ok&state=${encodeURIComponent(state)}`,
+      { redirect: 'manual' },
+    );
+    assert.equal(cb.status, 302);
+    assert.match(cb.headers.get('location'), /\/login\?error=oauth/);
+    assert.doesNotMatch(cb.headers.get('set-cookie') || '', /mg_session=/);
   });
 });
 

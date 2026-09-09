@@ -105,6 +105,15 @@ test('live client token with sandbox env is a boot error', () => {
   assert.ok(cfg.bootErrors.some((item) => /PADDLE_CLIENT_TOKEN/.test(item)));
 });
 
+test('invite URLs that are not Discord are dropped', () => {
+  const cfg = loadConfig({
+    DISCORD_SUPPORT_INVITE: 'https://evil.example/phish',
+    DISCORD_COMMUNITY_INVITE: 'https://example.com/invite',
+  });
+  assert.equal(cfg.DISCORD_SUPPORT_INVITE, '');
+  assert.equal(cfg.DISCORD_COMMUNITY_INVITE, 'https://discord.gg/XMadQ9tAd');
+});
+
 test('blank paddle keys are treated as empty', () => {
   const cfg = loadConfig({
     NODE_ENV: 'production',

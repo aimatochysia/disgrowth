@@ -1,4 +1,6 @@
-import { CATALOG } from './catalog.js';
+import { CATALOG, isSku } from './catalog.js';
+import { fetchWithTimeout, isTrustedPaddleHttpUrl } from './lib/http.js';
+import { discordId as parseDiscordId } from './lib/validate.js';
 
 export function paddleApiBase(envName) {
   return envName === 'production' ? 'https://api.paddle.com' : 'https://sandbox-api.paddle.com';
@@ -20,7 +22,7 @@ function checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl }
   const payload = {
     items: [{ price_id: priceId, quantity: 1 }],
     custom_data: {
-      discord_id: String(discordId),
+      discord_id: parseDiscordId(discordId),
       sku_key: skuKey,
     },
   };
@@ -45,8 +47,16 @@ export async function createPaddleCheckoutUrl({
   checkoutUrl,
   fetchImpl = fetch,
 }) {
+  const id = parseDiscordId(discordId);
+  if (!id || !isSku(skuKey)) {
+    throw new Error('paddle_checkout_invalid_custom_data');
+  }
   async function post(payload) {
-    const res = await fetchImpl(`${String(apiBase).replace(/\/$/, '')}/transactions`, {
+    const base = String(apiBase || '').replace(/\/$/, '');
+    if (base !== 'https://api.paddle.com' && base !== 'https://sandbox-api.paddle.com') {
+      throw new Error('paddle_api_base_invalid');
+    }
+    const res = await fetchWithTimeout(fetchImpl, `${base}/transactions`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -54,7 +64,7 @@ export async function createPaddleCheckoutUrl({
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(payload),
-    });
+    }, 12_000);
 
     if (!res.ok) {
       const detail = await res.text().catch(() => '');
@@ -68,15 +78,18 @@ export async function createPaddleCheckoutUrl({
     if (!url) {
       throw new Error('paddle_checkout_missing_url');
     }
+    if (!isTrustedPaddleHttpUrl(url, checkoutUrl || successUrl)) {
+      throw new Error('paddle_checkout_untrusted_url');
+    }
     return url;
   }
 
-  const withOrigin = checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl });
+  const withOrigin = checkoutPayload({ priceId, discordId: id, skuKey, successUrl, checkoutUrl });
   try {
     return await post(withOrigin);
   } catch (err) {
     if (!checkoutUrl || !unapprovedCheckoutUrl(err.detail)) throw err;
-    return post(checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl: '' }));
+    return post(checkoutPayload({ priceId, discordId: id, skuKey, successUrl, checkoutUrl: '' }));
   }
 }
 

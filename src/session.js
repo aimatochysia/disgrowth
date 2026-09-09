@@ -1,12 +1,18 @@
 import crypto from 'node:crypto';
 import { sha256 } from './lib/security.js';
+import { discordAvatar, discordId } from './lib/validate.js';
 
 const COOKIE_DEV = 'mg_session';
 const COOKIE_PROD = '__Host-mg_session';
-const OAUTH_COOKIE = 'mg_oauth';
+const OAUTH_DEV = 'mg_oauth';
+const OAUTH_PROD = '__Host-mg_oauth';
 
 function cookieName(production) {
   return production ? COOKIE_PROD : COOKIE_DEV;
+}
+
+function oauthCookieName(production) {
+  return production ? OAUTH_PROD : OAUTH_DEV;
 }
 
 function keyFromSecret(secret) {
@@ -74,7 +80,8 @@ export function readSession(req, config) {
   const cookies = parseCookies(req.headers.cookie);
   const token = cookies[cookieName(config.production)];
   const session = unseal(token, config.SESSION_SECRET);
-  if (!session || !session.discordId) return null;
+  if (!session || !discordId(session.discordId)) return null;
+  if (session.exp && Number(session.exp) < Date.now()) return null;
   return session;
 }
 
@@ -101,7 +108,7 @@ export function clearSessionCookie(res, config) {
 export function setOAuthCookie(res, payload, config) {
   const token = seal({ ...payload, exp: Date.now() + 10 * 60 * 1000 }, config.SESSION_SECRET);
   const prev = res.getHeader('Set-Cookie');
-  const cookie = serializeCookie(OAUTH_COOKIE, token, {
+  const cookie = serializeCookie(oauthCookieName(config.production), token, {
     maxAge: 10 * 60,
     production: config.production,
   });
@@ -110,14 +117,14 @@ export function setOAuthCookie(res, payload, config) {
 
 export function readOAuthCookie(req, config) {
   const cookies = parseCookies(req.headers.cookie);
-  const payload = unseal(cookies[OAUTH_COOKIE], config.SESSION_SECRET);
+  const payload = unseal(cookies[oauthCookieName(config.production)], config.SESSION_SECRET);
   if (!payload || payload.exp < Date.now()) return null;
   return payload;
 }
 
 export function clearOAuthCookie(res, config) {
   const prev = res.getHeader('Set-Cookie');
-  const cookie = serializeCookie(OAUTH_COOKIE, '', {
+  const cookie = serializeCookie(oauthCookieName(config.production), '', {
     maxAge: 0,
     production: config.production,
   });
@@ -131,9 +138,11 @@ function appendCookie(prev, cookie) {
 }
 
 export function discordAvatarUrl(id, avatar) {
-  if (avatar) return `https://cdn.discordapp.com/avatars/${id}/${avatar}.png?size=64`;
+  const safeId = discordId(id);
+  const safeAvatar = discordAvatar(avatar);
+  if (safeId && safeAvatar) return `https://cdn.discordapp.com/avatars/${safeId}/${safeAvatar}.png?size=64`;
   try {
-    const idx = Number(BigInt(id) >> 22n) % 6;
+    const idx = Number(BigInt(safeId || '0') >> 22n) % 6;
     return `https://cdn.discordapp.com/embed/avatars/${idx}.png`;
   } catch {
     return 'https://cdn.discordapp.com/embed/avatars/0.png';

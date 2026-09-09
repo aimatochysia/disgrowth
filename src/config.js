@@ -1,4 +1,5 @@
 import dotenv from 'dotenv';
+import { isDiscordInviteUrl } from './lib/http.js';
 
 dotenv.config();
 
@@ -142,8 +143,12 @@ export function loadConfig(env = process.env) {
     OPERATOR_CONTACT_EMAIL: real(env.OPERATOR_CONTACT_EMAIL) || 'kaelisquinn@gmail.com',
     SUPPORT_EMAIL: real(env.SUPPORT_EMAIL) || 'kaelisquinn@gmail.com',
     PRIVACY_EMAIL: real(env.PRIVACY_EMAIL) || 'kaelisquinn@gmail.com',
-    DISCORD_SUPPORT_INVITE: real(env.DISCORD_SUPPORT_INVITE),
-    DISCORD_COMMUNITY_INVITE: real(env.DISCORD_COMMUNITY_INVITE) || 'https://discord.gg/XMadQ9tAd',
+    DISCORD_SUPPORT_INVITE: isDiscordInviteUrl(real(env.DISCORD_SUPPORT_INVITE))
+      ? real(env.DISCORD_SUPPORT_INVITE)
+      : '',
+    DISCORD_COMMUNITY_INVITE: isDiscordInviteUrl(real(env.DISCORD_COMMUNITY_INVITE))
+      ? real(env.DISCORD_COMMUNITY_INVITE)
+      : 'https://discord.gg/XMadQ9tAd',
     LOG_RETENTION_DAYS: Number(env.LOG_RETENTION_DAYS) || 90,
     SLA_DAYS: Number(env.SLA_DAYS) || 5,
     TRANSFER_MECHANISM: real(env.TRANSFER_MECHANISM) || 'hosting may process data outside your country',

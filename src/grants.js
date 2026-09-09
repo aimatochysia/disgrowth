@@ -1,4 +1,5 @@
 import { CATALOG, PATRON_TIER1_LIFETIME_GOLD, resolveSku } from './catalog.js';
+import { discordId as parseDiscordId } from './lib/validate.js';
 
 export const GOLD_GRANT_SQL = `
 UPDATE players
@@ -59,9 +60,7 @@ export function extractPriceId(data) {
 
 export function extractDiscordId(data) {
   const custom = data?.custom_data || {};
-  const id = custom.discord_id ?? custom.discordId;
-  if (id == null || id === '') return '';
-  return String(id);
+  return parseDiscordId(custom.discord_id ?? custom.discordId);
 }
 
 export function extractCustomerId(data) {
@@ -156,7 +155,7 @@ export function interpretWebhook(body, ctx) {
       apply: true,
       effect: 'customer_upsert',
       lemonOrderId: base.customerId,
-      discordId: extractDiscordId(data) || (data.custom_data?.discord_id ? String(data.custom_data.discord_id) : ''),
+      discordId: extractDiscordId(data),
     };
   }
 

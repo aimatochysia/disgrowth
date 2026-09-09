@@ -1,5 +1,6 @@
 import { Environment, Paddle } from '@paddle/paddle-node-sdk';
 import { verifyPaddleSignature } from './lib/security.js';
+import { isTrustedPaddleHttpUrl } from './lib/http.js';
 
 export function paddleEnvValid(value) {
   return value === 'production' || value === 'sandbox';
@@ -49,6 +50,8 @@ export async function createCustomerPortalUrl(paddle, customerId) {
   if (!paddle) throw new Error('paddle_unconfigured');
   const session = await paddle.customers.portalSessions.create(customerId);
   const url = session?.urls?.general?.overview;
-  if (!url) throw new Error('paddle_portal_missing_url');
+  if (!url || !isTrustedPaddleHttpUrl(url)) {
+    throw new Error('paddle_portal_untrusted_url');
+  }
   return url;
 }
