@@ -342,7 +342,64 @@ test('POST /buy with player creates a Paddle transaction and redirects', async (
     assert.equal(sent.items[0].price_id, 'pri_gold_10');
     assert.equal(sent.custom_data.discord_id, '42');
     assert.equal(sent.custom_data.sku_key, 'gold-10');
+    assert.equal(sent.checkout.url, 'http://127.0.0.1');
     assert.equal(sent.checkout.settings.success_url, 'http://127.0.0.1/welcome');
+  });
+});
+
+test('POST /buy retries Paddle checkout without STORE_ORIGIN when the domain is not approved', async () => {
+  const cfg = config();
+  const player = { id: 7, discord_id: '42' };
+  const calls = [];
+  const app = createApp({
+    config: cfg,
+    db: mockDb({ player }),
+    art: {},
+    fetchImpl: async (url, opts) => {
+      const sent = JSON.parse(opts.body);
+      calls.push(sent);
+      if (sent.checkout?.url) {
+        return {
+          ok: false,
+          status: 400,
+          async json() {
+            return {};
+          },
+          async text() {
+            return JSON.stringify({
+              error: {
+                detail: 'The value you passed for `checkout.url` does not contain a domain that has been approved by Paddle',
+              },
+            });
+          },
+        };
+      }
+      return {
+        ok: true,
+        async json() {
+          return { data: { checkout: { url: 'https://disgrowth.vercel.app?_ptxn=txn_fallback' } } };
+        },
+        async text() {
+          return '';
+        },
+      };
+    },
+  });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/buy/gold-10`, {
+      method: 'POST',
+      redirect: 'manual',
+      headers: {
+        cookie: sessionCookie(cfg),
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'age=yes&terms=yes&novalue=yes',
+    });
+    assert.equal(res.status, 302);
+    assert.equal(res.headers.get('location'), 'https://disgrowth.vercel.app?_ptxn=txn_fallback');
+    assert.equal(calls.length, 2);
+    assert.equal(calls[0].checkout.url, 'http://127.0.0.1');
+    assert.equal(calls[1].checkout.url, undefined);
   });
 });
 

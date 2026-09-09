@@ -48,7 +48,7 @@
   }
 
   function openCheckout(priceId, sku) {
-    if (!priceId) return;
+    if (!priceId) return null;
     const request = {
       items: [{ priceId, quantity: 1 }],
       settings: {
@@ -61,16 +61,33 @@
     if (boot.discordId) request.customData.discord_id = String(boot.discordId);
     if (sku) request.customData.sku_key = String(sku);
     if (boot.customerEmail) request.customer = { email: String(boot.customerEmail) };
-    Paddle.Checkout.open(request);
+    return Paddle.Checkout.open(request);
   }
 
   const form = document.querySelector('[data-buy-form][data-paddle-overlay]');
   if (form) {
+    let overlay = true;
     form.addEventListener('submit', (event) => {
+      if (!overlay) return;
       const boxes = [...form.querySelectorAll('input[type="checkbox"][required]')];
       if (boxes.some((box) => !box.checked)) return;
       event.preventDefault();
-      openCheckout(form.getAttribute('data-price-id'), form.getAttribute('data-sku'));
+      const fallback = () => {
+        overlay = false;
+        form.submit();
+      };
+      try {
+        const opened = openCheckout(form.getAttribute('data-price-id'), form.getAttribute('data-sku'));
+        if (opened && typeof opened.catch === 'function') {
+          opened.catch((err) => {
+            console.error('[store] overlay checkout', err);
+            fallback();
+          });
+        }
+      } catch (err) {
+        console.error('[store] overlay checkout', err);
+        fallback();
+      }
     });
   }
 })();

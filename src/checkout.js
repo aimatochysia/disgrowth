@@ -16,15 +16,7 @@ export function checkoutConfigured(config, sku) {
   return Boolean(envOk && canCharge && priceIdForSku(sku, config));
 }
 
-export async function createPaddleCheckoutUrl({
-  apiKey,
-  apiBase,
-  priceId,
-  discordId,
-  skuKey,
-  successUrl,
-  fetchImpl = fetch,
-}) {
+function checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl }) {
   const payload = {
     items: [{ price_id: priceId, quantity: 1 }],
     custom_data: {
@@ -32,33 +24,60 @@ export async function createPaddleCheckoutUrl({
       sku_key: skuKey,
     },
   };
-  if (successUrl) {
-    payload.checkout = { settings: { success_url: String(successUrl) } };
+  const checkout = {};
+  if (checkoutUrl) checkout.url = String(checkoutUrl);
+  if (successUrl) checkout.settings = { success_url: String(successUrl) };
+  if (Object.keys(checkout).length) payload.checkout = checkout;
+  return payload;
+}
+
+function unapprovedCheckoutUrl(detail) {
+  return /does not contain a domain that has been approved/i.test(String(detail || ''));
+}
+
+export async function createPaddleCheckoutUrl({
+  apiKey,
+  apiBase,
+  priceId,
+  discordId,
+  skuKey,
+  successUrl,
+  checkoutUrl,
+  fetchImpl = fetch,
+}) {
+  async function post(payload) {
+    const res = await fetchImpl(`${String(apiBase).replace(/\/$/, '')}/transactions`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Paddle-Version': '1',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const detail = await res.text().catch(() => '');
+      const err = new Error(`paddle_checkout_${res.status}`);
+      err.detail = String(detail).slice(0, 400);
+      throw err;
+    }
+
+    const json = await res.json();
+    const url = json?.data?.checkout?.url;
+    if (!url) {
+      throw new Error('paddle_checkout_missing_url');
+    }
+    return url;
   }
 
-  const res = await fetchImpl(`${String(apiBase).replace(/\/$/, '')}/transactions`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Paddle-Version': '1',
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  });
-
-  if (!res.ok) {
-    const detail = await res.text().catch(() => '');
-    const err = new Error(`paddle_checkout_${res.status}`);
-    err.detail = String(detail).slice(0, 400);
-    throw err;
+  const withOrigin = checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl });
+  try {
+    return await post(withOrigin);
+  } catch (err) {
+    if (!checkoutUrl || !unapprovedCheckoutUrl(err.detail)) throw err;
+    return post(checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl: '' }));
   }
-
-  const json = await res.json();
-  const url = json?.data?.checkout?.url;
-  if (!url) {
-    throw new Error('paddle_checkout_missing_url');
-  }
-  return url;
 }
 
 /** @deprecated use priceIdForSku */

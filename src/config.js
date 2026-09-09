@@ -34,7 +34,7 @@ function requiredInProd(name, value, errors) {
   if (!value) errors.push(name);
 }
 
-/** Loopback hosts are fine on a laptop and unreachable from Vercel. */
+/** Loopback hosts are correct on a VPS/laptop and unreachable from Vercel. */
 export function databaseHost(databaseUrl) {
   const value = real(databaseUrl);
   if (!value) return '';
@@ -70,7 +70,8 @@ export function loadConfig(env = process.env) {
   const rawDatabaseUrl = real(env.DATABASE_URL);
   const dbHost = databaseHost(rawDatabaseUrl);
   const loopbackDb = Boolean(rawDatabaseUrl && isLoopbackHost(dbHost));
-  const DATABASE_URL = loopbackDb && (production || onVercel) ? '' : rawDatabaseUrl;
+  // Vercel functions cannot reach Docker/127.0.0.1. The VPS store can — that is the live DB.
+  const DATABASE_URL = loopbackDb && onVercel ? '' : rawDatabaseUrl;
   const PADDLE_API_KEY = real(env.PADDLE_API_KEY);
   const PADDLE_WEBHOOK_SECRET = real(env.PADDLE_WEBHOOK_SECRET);
   const PADDLE_CLIENT_TOKEN = real(env.PADDLE_CLIENT_TOKEN);
@@ -86,7 +87,7 @@ export function loadConfig(env = process.env) {
     requiredInProd('DISCORD_CLIENT_SECRET', DISCORD_CLIENT_SECRET, errors);
     requiredInProd('DATABASE_URL', DATABASE_URL, errors);
     requiredInProd('PADDLE_ENV', PADDLE_ENV, errors);
-    if (loopbackDb) {
+    if (loopbackDb && onVercel) {
       errors.push('DATABASE_URL (cannot be localhost/127.0.0.1 on Vercel)');
     }
   }
@@ -151,7 +152,7 @@ export function loadConfig(env = process.env) {
 
     checkoutReady: Boolean(
       envOk &&
-        PADDLE_CLIENT_TOKEN &&
+        (PADDLE_CLIENT_TOKEN || PADDLE_API_KEY) &&
         PADDLE_WEBHOOK_SECRET &&
         pricesReady,
     ),

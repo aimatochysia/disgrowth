@@ -98,7 +98,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     standardHeaders: 'draft-7',
     legacyHeaders: false,
     skip: () => config.NODE_ENV === 'test',
-    validate: { xForwardedForHeader: false },
+    validate: { xForwardedForHeader: false, trustProxy: false },
   });
 
   function buildPaddleBoot(req, user) {
@@ -401,6 +401,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         discordId: req.user.discordId,
         skuKey: sku.sku_key,
         successUrl: `${config.STORE_ORIGIN}/welcome`,
+        checkoutUrl: config.STORE_ORIGIN,
         fetchImpl,
       });
       res.redirect(302, url);

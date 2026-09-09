@@ -60,6 +60,28 @@ test('production localhost DATABASE_URL is ignored so Vercel can still render', 
   assert.ok(cfg.bootErrors.some((item) => /localhost/.test(item)));
 });
 
+test('production VPS localhost DATABASE_URL is kept', () => {
+  const cfg = loadConfig({
+    NODE_ENV: 'production',
+    SESSION_SECRET: 'test-session-secret-32-characters-min',
+    DISCORD_CLIENT_ID: 'client',
+    DISCORD_CLIENT_SECRET: 'secret',
+    DATABASE_URL: 'postgresql://market_game:market_game@127.0.0.1:5432/market_game',
+    PADDLE_ENV: 'production',
+    PADDLE_API_KEY: 'pdl_live_key',
+    PADDLE_WEBHOOK_SECRET: 'whsec',
+    PADDLE_PRICE_GOLD_10: 'pri_gold_10',
+    PADDLE_PRICE_GOLD_25: 'pri_gold_25',
+    PADDLE_PRICE_GOLD_50: 'pri_gold_50',
+    PADDLE_PRICE_GOLD_100: 'pri_gold_100',
+  });
+  assert.equal(cfg.DATABASE_URL, 'postgresql://market_game:market_game@127.0.0.1:5432/market_game');
+  assert.equal(cfg.dbReady, true);
+  assert.equal(cfg.checkoutReady, true);
+  assert.ok(!cfg.bootErrors.includes('DATABASE_URL'));
+  assert.ok(!cfg.bootErrors.some((item) => /localhost/.test(item)));
+});
+
 test('PADDLE_ENV is not silently defaulted from NODE_ENV', () => {
   const cfg = loadConfig({
     NODE_ENV: 'development',

@@ -24,7 +24,7 @@ SUPPORT_EMAIL=kaelisquinn@gmail.com
 PRIVACY_EMAIL=kaelisquinn@gmail.com
 ```
 
-Never commit API keys. Never set a Vercel env value to `-`, `blank`, or other placeholders (treated as empty). `SESSION_SECRET` must be 32+ random characters. `DATABASE_URL` on Vercel must be a host the function can reach — not Docker/`127.0.0.1`.
+Never commit API keys. Never set an env value to `-`, `blank`, or other placeholders (treated as empty). `SESSION_SECRET` must be 32+ random characters. On the VPS, `DATABASE_URL` is the Docker Postgres bound to `127.0.0.1` — the same database the bot uses.
 
 After fill-in: remove nothing from git — the banner disappears automatically when `OPERATOR_LEGAL_NAME` is present.
 
@@ -49,14 +49,14 @@ DELETE FROM store_first_purchase WHERE discord_id = :snowflake;
 
 You still have to do these outside this repo. The site will not grant Gold Bars until Paddle, Discord, and Postgres are live.
 
-1. **Vercel env (Production + Preview).** Real values only — never `-`.
-   - Required to boot: `SESSION_SECRET` (32+ chars), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL` (the **public** game Postgres the bot uses — not `127.0.0.1`).
-   - Required to sell: `STORE_ORIGIN=https://<your-domain>`, `PADDLE_ENV=production`, live `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_CLIENT_TOKEN` (`live_…`), the four `PADDLE_PRICE_GOLD_*` ids above.
+1. **VPS env** (`/opt/disgrowth/store/.env`). Real values only — never `-`.
+   - Required to boot: `SESSION_SECRET` (32+ chars), `DISCORD_CLIENT_ID`, `DISCORD_CLIENT_SECRET`, `DATABASE_URL` (the game Postgres the bot uses; `127.0.0.1` is correct on this machine).
+   - Required to sell: `STORE_ORIGIN=https://disgrowth.net`, `PADDLE_ENV=production`, live `PADDLE_API_KEY`, `PADDLE_WEBHOOK_SECRET`, `PADDLE_CLIENT_TOKEN` (`live_…`), the four `PADDLE_PRICE_GOLD_*` ids above.
+   - Paddle Checkout > Website approval must include `disgrowth.net` (not only `disgrowth.vercel.app`). Overlay and payment links on this domain stay closed until that domain is **approved**.
    - Optional: `OPERATOR_LEGAL_NAME` (preview banner until set), `DATABASE_SSL=1` if the host needs SSL and the URL has no `sslmode=require`.
-   - Framework preset: **Express** (`vercel.json` sets this). Redeploy after saving env.
 2. **Legal entity.** Set `OPERATOR_LEGAL_NAME` (banner stays until you do). Emails default to `kaelisquinn@gmail.com`. The public site does not show a street address or operator country; contact is email. Paddle still gets whatever seller details they require in their dashboard (private).
 3. **Discord OAuth.** Same application as the bot. Redirect URI: `https://{{STORE_ORIGIN}}/api/auth/discord/callback`. Scopes `identify email` (email prefills Paddle Checkout).
-4. **Database.** `DATABASE_URL` is the game Postgres. Run `npm run migrate` against that database (Vercel will not run it for you). Do not create stub `players` rows from the store.
+4. **Database.** `DATABASE_URL` is the game Postgres. Run `npm run migrate` against that database (the VPS update unit does this after a fast-forward). Do not create stub `players` rows from the store.
 5. **Paddle Billing (live catalog is done).** You still must:
    - Notification destination URL `https://{{STORE_ORIGIN}}/api/webhooks/paddle`.
    - Events: `transaction.completed`, `customer.created`, `customer.updated`, and `adjustment.updated`. Do **not** subscribe to `transaction.updated`. Subscription events can be delivered; the store ignores them.

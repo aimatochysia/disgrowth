@@ -58,7 +58,7 @@ WHERE discord_id = :snowflake;
 
 ## Health
 
-`GET /healthz` → `{ "ok": true, "db": "up" | "down", "oauth": bool, "checkout": bool, "missing": [] }`. No secrets. After a Vercel deploy, if `missing` lists env names or `checkout` is false, fix env and redeploy — do not set values to `-`.
+`GET /healthz` → `{ "ok": true, "db": "up" | "down", "oauth": bool, "checkout": bool, "missing": [] }`. No secrets. If `db` is down on the VPS, the store is ignoring `DATABASE_URL` or Postgres is down — localhost is valid here. If `checkout` is false, fix Paddle env (`PADDLE_CLIENT_TOKEN` or `PADDLE_API_KEY`, webhook secret, price ids) and restart the store unit.
 
 ## Discord bot (other repo)
 
@@ -81,3 +81,4 @@ You still need:
 2. Subscribe to `transaction.completed`, `customer.created`, `customer.updated`, and `adjustment.updated`. Do **not** subscribe to `transaction.updated`.
 3. In Checkout > Checkout settings, set the **default payment link** to the live store origin (an approved domain, not localhost). Overlay success URL is `/welcome`.
 4. `PADDLE_ENV=production` plus live API key, live client token (`live_…`), webhook signing secret, and live price ids on the host.
+5. Default payment link and an **approved** checkout domain must be `disgrowth.net`. `disgrowth.vercel.app` is leftover and cannot grant Gold Bars (it cannot see VPS Postgres).
