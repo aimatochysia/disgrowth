@@ -82,3 +82,13 @@ You still need:
 3. In Checkout > Checkout settings, set the **default payment link** to the live store origin (an approved domain, not localhost). Overlay success URL is `/welcome`.
 4. `PADDLE_ENV=production` plus live API key, live client token (`live_…`), webhook signing secret, and live price ids on the host.
 5. Default payment link and an **approved** checkout domain must be `disgrowth.net`. `disgrowth.vercel.app` is leftover and cannot grant Gold Bars (it cannot see VPS Postgres).
+
+## HTTPS / nginx
+
+`deploy/nginx/disgrowth.conf` is the intended origin config (Cloudflare Full Strict + origin certs). Port 80 redirects to HTTPS. `X-Forwarded-For` is the Cloudflare connecting IP or `$remote_addr`, never a client-supplied chain.
+
+The ticker on each HTML page is an in-process snapshot (30s TTL, one Postgres query for the process). Pages do not query `price_history` per visitor.
+
+## Security events
+
+Failed Discord logins, rejected Paddle webhook signatures, and checkout failures log as JSON lines (`oauth_callback_failed`, `paddle_webhook_rejected`, `paddle_checkout_failed`). systemd captures stdout/stderr for `disgrowth-store`. There is no public Swagger/GraphQL, no file upload, and no password database.

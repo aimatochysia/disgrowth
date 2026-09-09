@@ -67,3 +67,5 @@ You still have to do these outside this repo. The site will not grant Gold Bars 
 7. **Languages.** Pages are English only. Add Bahasa Indonesia if you market to ID consumers.
 8. **No analytics** in v1. If you add any, update Cookies + Privacy first.
 9. Optional later: enable the **digital-goods** tax category in Paddle if you want it; products currently use `standard`.
+10. **2FA** on GitHub, Paddle, Cloudflare, the VPS, and npm (if you ever publish). The store is Discord OAuth only — there is no password to hash.
+11. **Nginx.** Copy `deploy/nginx/disgrowth.conf`: port 80 must `301` to `https://disgrowth.net`. Do not proxy `:80` to Node with a fake `X-Forwarded-Proto: https`. Default Paddle payment link must be `https://disgrowth.net`.
