@@ -47,6 +47,18 @@ test('Paddle and Discord URLs cannot open-redirect off this store', async () => 
   );
 });
 
+test('clientIp ignores a spoofed CF-Connecting-IP header', async () => {
+  const { clientIp } = await import('../src/lib/http.js');
+  assert.equal(
+    clientIp({
+      ip: '127.0.0.1',
+      headers: { 'cf-connecting-ip': '203.0.113.9' },
+      socket: { remoteAddress: '127.0.0.1' },
+    }),
+    '127.0.0.1',
+  );
+});
+
 test('webhook payload redacts email and card fields', () => {
   const out = redactPayload({
     data: {

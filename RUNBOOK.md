@@ -85,7 +85,7 @@ You still need:
 
 ## HTTPS / nginx
 
-`deploy/nginx/disgrowth.conf` is the intended origin config (Cloudflare Full Strict + origin certs). Port 80 redirects to HTTPS. `X-Forwarded-For` is the Cloudflare connecting IP or `$remote_addr`, never a client-supplied chain.
+`deploy/nginx/disgrowth.conf` is the intended origin config (Cloudflare Full Strict + origin certs). Port 80 redirects to HTTPS. `ngx_http_realip_module` applies `CF-Connecting-IP` only when the TCP peer is in Cloudflare's published ranges; Node rates limits by `req.ip` (one trusted hop) and ignores a client-supplied `CF-Connecting-IP`. Firewall origin `:80`/`:443` to Cloudflare IPs as well.
 
 The ticker on each HTML page is an in-process snapshot (30s TTL, one Postgres query for the process). Pages do not query `price_history` per visitor.
 

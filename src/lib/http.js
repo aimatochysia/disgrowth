@@ -10,8 +10,8 @@ export function isSingleIp(value) {
 }
 
 export function clientIp(req) {
-  const cf = req?.headers?.['cf-connecting-ip'];
-  if (typeof cf === 'string' && isSingleIp(cf)) return cf.trim();
+  // Trust Express `req.ip` after a single proxy hop. Do not read
+  // CF-Connecting-IP here: a client who hits the origin directly can spoof it.
   const forwarded = req?.ip || req?.socket?.remoteAddress || '';
   return String(forwarded).replace(/^::ffff:/, '') || '0.0.0.0';
 }
