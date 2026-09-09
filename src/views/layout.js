@@ -2,6 +2,7 @@ import { html, raw } from '../lib/html.js';
 import { sceneMarkup } from './scene.js';
 import { discordAvatarUrl } from '../session.js';
 import { ageGate } from './age-gate.js';
+import { FALLBACK_TICKER, tickerTrack } from '../ticker.js';
 
 function paddleBootMarkup(boot) {
   if (!boot || !boot.clientToken || !boot.env) return '';
@@ -39,6 +40,7 @@ export function layout(data) {
     description = 'Disgrowth store. Gold Bars for the Discord city market.',
     body,
     paddleBoot = null,
+    tickerQuotes = FALLBACK_TICKER,
   } = data;
 
   const year = new Date().getUTCFullYear();
@@ -72,7 +74,7 @@ export function layout(data) {
 
   <div class="ticker" role="presentation">
     <div class="ticker-track">
-      ${Array.from({ length: 4 }, () => tickerUnit())}
+      ${tickerTrack(tickerQuotes)}
     </div>
   </div>
 
@@ -137,19 +139,6 @@ export function layout(data) {
   <script src="/js/app.js" defer></script>
 </body>
 </html>`;
-}
-
-function tickerUnit() {
-  return html`
-    <span>DISGROWTH</span>
-    <span class="dot">◆</span>
-    <span>CITY MARKET</span>
-    <span class="dot">◆</span>
-    <span>GOLD BARS</span>
-    <span class="dot">◆</span>
-    <span>PLAYED IN DISCORD</span>
-    <span class="dot">◆</span>
-  `;
 }
 
 export { discordSvg, discordAvatarUrl };

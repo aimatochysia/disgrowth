@@ -85,6 +85,25 @@ export function createDb(databaseUrl) {
       return rows[0] || null;
     },
 
+    async latestTickerQuotes() {
+      const { rows } = await pool.query(
+        `SELECT a.ticker, a.current_price AS price, prev.price AS prev_price
+         FROM assets a
+         LEFT JOIN LATERAL (
+           SELECT ph.price
+           FROM price_history ph
+           WHERE ph.asset_id = a.id
+             AND ph.grain = 'tick'
+           ORDER BY ph.recorded_at DESC
+           OFFSET 1
+           LIMIT 1
+         ) prev ON true
+         ORDER BY a.ticker
+         LIMIT 16`,
+      );
+      return rows;
+    },
+
     async health() {
       try {
         await pool.query('SELECT 1');

@@ -533,9 +533,27 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
 .ticker-track span {
   padding: 0 0.35rem;
 }
+.ticker .sym {
+  font-weight: 500;
+  letter-spacing: 0.08em;
+}
+.ticker .px.up {
+  color: color-mix(in srgb, #9ee0b8 72%, var(--ticker-fg));
+}
+.ticker .px.down {
+  color: color-mix(in srgb, #e7a3a3 72%, var(--ticker-fg));
+}
+.ticker .px.flat {
+  opacity: 0.9;
+}
 .ticker .dot {
   opacity: 0.35;
   font-size: 8px;
+}
+@media (prefers-reduced-motion: reduce) {
+  .ticker-track {
+    animation: none;
+  }
 }
 
 .site-header {

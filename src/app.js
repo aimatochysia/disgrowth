@@ -29,11 +29,16 @@ import { legalHubPage, loginPage, notFoundPage, oauthContinuePage, supportPage, 
 import { getLegalDoc } from './legal.js';
 import { config } from './config.js';
 import { createDb } from './db.js';
+import { createQuoteCache } from './ticker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 
-export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir) } = {}) {
+export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir), quoteCache } = {}) {
+  const quotes = quoteCache || createQuoteCache({
+    load: () => (db && typeof db.latestTickerQuotes === 'function' ? db.latestTickerQuotes() : []),
+    interval: config.NODE_ENV !== 'test',
+  });
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', config.production || process.env.VERCEL ? true : 1);
@@ -132,6 +137,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
             body,
             artClass,
             paddleBoot: paddle ? buildPaddleBoot(req, user) : null,
+            tickerQuotes: quotes.snapshot(),
           }),
         ),
       );

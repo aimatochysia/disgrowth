@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
 import { seal } from '../src/session.js';
+import { createQuoteCache } from '../src/ticker.js';
 
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
 
@@ -258,6 +259,36 @@ test('GET /healthz', async () => {
     assert.equal(json.ok, true);
     assert.equal(json.db, 'up');
   });
+});
+
+test('homepage ticker is a cached market strip, not a per-request query', async () => {
+  const cfg = config();
+  let loads = 0;
+  const db = {
+    ...mockDb(),
+    async latestTickerQuotes() {
+      loads += 1;
+      return [{ ticker: 'PRDC', price: 39.2633, prev_price: 39.5986 }];
+    },
+  };
+  const quoteCache = createQuoteCache({
+    load: () => db.latestTickerQuotes(),
+    interval: false,
+  });
+  await quoteCache.refresh();
+  const app = createApp({ config: cfg, db, art: {}, quoteCache });
+  await withServer(app, async (base) => {
+    const home = await fetch(`${base}/`);
+    const store = await fetch(`${base}/store`);
+    assert.equal(home.status, 200);
+    const html = await home.text();
+    assert.match(html, /class="ticker"/);
+    assert.match(html, />PRDC</);
+    assert.match(html, /39\.26/);
+    assert.match(await store.text(), />PRDC</);
+    assert.equal(loads, 1);
+  });
+  quoteCache.stop();
 });
 
 test('/buy without session redirects to login', async () => {
