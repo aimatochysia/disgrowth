@@ -14,7 +14,6 @@
     "migrate": "node src/migrate.js"
   },
   "dependencies": {
-    "@paddle/paddle-js": "^1.6.5",
     "@paddle/paddle-node-sdk": "^3.10.0",
     "dotenv": "^17.4.2",
     "express": "^5.1.0",
