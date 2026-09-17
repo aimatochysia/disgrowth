@@ -27,9 +27,9 @@ npm run migrate
 
 Applies every `sql/*.sql` file in order on `DATABASE_URL` (the game Postgres). Does not create `players`. Order rows use `provider = 'paddle'`. Columns named `lemon_*` store Paddle transaction / price ids for compatibility with the existing table.
 
-## First-purchase double
+## First-purchase Bonds
 
-`store_first_purchase` records one Discord id after the first successful Gold Bar grant. That grant writes **double** catalog Gold Bars. Later grants are catalog amounts. Refunding that original grant deletes the row so the bonus can apply again. Patron is recomputed from lifetime `gold_delta` (tier 1 at 2,600).
+`store_first_purchase` records one Discord id after the first successful Gold Bar grant. That grant writes **listed** catalog Gold Bars plus **the same number of Bonds**. Later grants are catalog Gold Bars only. Refunding that original grant deletes the row, claws back those Bonds (floor 0), and lets the gift apply again.
 
 Reset by hand:
 

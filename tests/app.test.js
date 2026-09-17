@@ -85,6 +85,14 @@ function mockDb({ player = null, seen = new Set(), grants = [] } = {}) {
             firstPurchase.set(discordId, params[1]);
             return { rowCount: 1, rows: [{ discord_id: discordId }] };
           }
+          if (/SELECT 1 FROM store_first_purchase/.test(text)) {
+            const discordId = String(params[0]);
+            const eventId = String(params[1]);
+            if (firstPurchase.get(discordId) === eventId) {
+              return { rowCount: 1, rows: [{ ok: 1 }] };
+            }
+            return { rowCount: 0, rows: [] };
+          }
           if (/DELETE FROM store_first_purchase/.test(text)) {
             const discordId = String(params[0]);
             if (firstPurchase.get(discordId) === params[1]) {
@@ -435,7 +443,7 @@ test('POST /buy retries Paddle checkout without STORE_ORIGIN when the domain is 
   });
 });
 
-test('/buy with player shows first-purchase double copy', async () => {
+test('/buy with player shows first-purchase Bonds copy', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const app = createApp({ config: cfg, db: mockDb({ player }), art: {} });
@@ -445,8 +453,11 @@ test('/buy with player shows first-purchase double copy', async () => {
     });
     assert.equal(res.status, 200);
     const html = await res.text();
-    assert.match(html, /1,000 Gold Bars/);
-    assert.match(html, /double the listed Gold Bars/);
+    assert.match(html, /500 Gold Bars/);
+    assert.doesNotMatch(html, /1,000 Gold Bars/);
+    assert.match(html, /500 Bonds/);
+    assert.match(html, /same number of Bonds/);
+    assert.doesNotMatch(html, /double the listed Gold Bars/);
     assert.match(html, /data-paddle-overlay/);
     assert.match(html, /id="paddle-boot"/);
     assert.match(html, /Are you 18 or older/);
@@ -729,7 +740,10 @@ test('idempotent double transaction.completed does not grant twice', async () =>
     assert.equal(ba.duplicate, true);
     const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
     assert.equal(grants.length, 1);
-    assert.equal(grants[0].params[0], 1000);
+    assert.equal(grants[0].params[0], 500);
+    const bonds = db.statements.filter((s) => /SET bonds = bonds \+/.test(s.text));
+    assert.equal(bonds.length, 1);
+    assert.equal(bonds[0].params[0], 500);
   });
 });
 
@@ -762,8 +776,11 @@ test('second gold-10 purchase is catalog amount, not doubled', async () => {
     }
     const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
     assert.equal(grants.length, 2);
-    assert.equal(grants[0].params[0], 1000);
+    assert.equal(grants[0].params[0], 500);
     assert.equal(grants[1].params[0], 500);
+    const bonds = db.statements.filter((s) => /SET bonds = bonds \+/.test(s.text));
+    assert.equal(bonds.length, 1);
+    assert.equal(bonds[0].params[0], 500);
   });
 });
 
@@ -792,7 +809,10 @@ test('gold-25 transaction.completed does not stack Patron days', async () => {
     assert.equal(res.status, 200);
     const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
     assert.equal(grants.length, 1);
-    assert.equal(grants[0].params[0], 2550);
+    assert.equal(grants[0].params[0], 1275);
+    const bonds = db.statements.filter((s) => /SET bonds = bonds \+/.test(s.text));
+    assert.equal(bonds.length, 1);
+    assert.equal(bonds[0].params[0], 1275);
     const stacked = db.statements.filter((s) => /INTERVAL '1 day'/.test(s.text));
     assert.equal(stacked.length, 0);
     const patron = db.statements.filter((s) => /subscription_active = \$1/.test(s.text) && /subscription_expires_at = NULL/.test(s.text));
@@ -827,14 +847,17 @@ test('gold-50 first purchase unlocks Patron tier 1 from lifetime Gold Bars', asy
     });
     assert.equal(res.status, 200);
     const grants = db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text));
-    assert.equal(grants[0].params[0], 5200);
+    assert.equal(grants[0].params[0], 2600);
+    const bonds = db.statements.filter((s) => /SET bonds = bonds \+/.test(s.text));
+    assert.equal(bonds.length, 1);
+    assert.equal(bonds[0].params[0], 2600);
     const patron = db.statements.filter((s) => /subscription_active = \$1/.test(s.text) && /subscription_expires_at = NULL/.test(s.text));
     assert.equal(patron.length, 1);
     assert.equal(patron[0].params[0], true);
   });
 });
 
-test('refund of a doubled first purchase reverses stored gold_delta', async () => {
+test('refund of a first purchase reverses listed gold and matching Bonds', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player });
@@ -876,7 +899,10 @@ test('refund of a doubled first purchase reverses stored gold_delta', async () =
     assert.equal(b.status, 200);
     const refunds = db.statements.filter((s) => /gold_bars = GREATEST/.test(s.text));
     assert.equal(refunds.length, 1);
-    assert.equal(refunds[0].params[0], 1000);
+    assert.equal(refunds[0].params[0], 500);
+    const bondRefunds = db.statements.filter((s) => /bonds = GREATEST/.test(s.text));
+    assert.equal(bondRefunds.length, 1);
+    assert.equal(bondRefunds[0].params[0], 500);
     const resets = db.statements.filter((s) => /DELETE FROM store_first_purchase/.test(s.text));
     assert.equal(resets.length, 1);
   });
@@ -916,8 +942,10 @@ test('landing and legal pages render', async () => {
     assert.match(legalHtml, /Terms of Service/);
     assert.match(legalHtml, /Refund Policy/);
     assert.match(legalHtml, /two \(2\) hours/);
-    assert.match(legalHtml, /Patron follows lifetime Gold Bars bought/);
+    assert.match(legalHtml, /as many Bonds as Gold Bars listed for that pack/);
     assert.match(legalHtml, /First Gold Bar purchase/);
+    assert.doesNotMatch(legalHtml, /double the Gold Bars/);
+    assert.doesNotMatch(legalHtml, /Unlocks Patron tier 1/);
     assert.match(legalHtml, /Paddle/);
     assert.match(legalHtml, /do not publish a street address/);
     assert.doesNotMatch(legalHtml, /Lemon Squeezy/);
@@ -929,7 +957,9 @@ test('landing and legal pages render', async () => {
     assert.match(storeHtml, /Gold Bars — 1,275/);
     assert.match(storeHtml, /Gold Bars — 2,600/);
     assert.match(storeHtml, /Gold Bars — 5,250/);
-    assert.match(storeHtml, /first Gold Bar purchase doubles/);
+    assert.match(storeHtml, /same number of Bonds as Gold Bars/);
+    assert.doesNotMatch(storeHtml, /Unlocks Patron tier 1/);
+    assert.doesNotMatch(storeHtml, /first Gold Bar purchase doubles/);
     assert.doesNotMatch(storeHtml, /Gold Bars — 1,300/);
     assert.doesNotMatch(storeHtml, /Gold Bars — 5,600/);
     assert.doesNotMatch(storeHtml, /30 days of Patron/);

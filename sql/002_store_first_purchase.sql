@@ -1,4 +1,4 @@
--- First Gold Bar purchase bonus (double once per Discord id). Resettable.
+-- First Gold Bar purchase bonus (matching Bonds once per Discord id). Resettable.
 
 CREATE TABLE IF NOT EXISTS store_first_purchase (
   discord_id          TEXT PRIMARY KEY,

@@ -47,7 +47,7 @@ export function welcomePage() {
     <section class="page-hero">
       <h1 class="display display-page">Welcome</h1>
       <p class="lede narrow">
-        Payment sent. Gold Bars usually show up in Discord within a few seconds. Open <code>/shop</code> to convert them to Bonds, or check your account here. If this was your first Gold Bar purchase, the bars are doubled. Patron tier 1 turns on when lifetime Gold Bars bought reach 2,600. If nothing appears, wait a moment and refresh.
+        Payment sent. Gold Bars usually show up in Discord within a few seconds. Open <code>/shop</code> to convert them to Bonds, or check your account here. If this was your first Gold Bar purchase, matching Bonds land with the listed bars. If nothing appears, wait a moment and refresh.
       </p>
       <div class="cta-row">
         <a class="btn btn-accent" href="/account">Open account</a>

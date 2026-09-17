@@ -1,11 +1,14 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { PATRON_TIER1_LIFETIME_GOLD } from '../src/catalog.js';
+import { PATRON_TIER1_LIFETIME_GOLD, firstPurchaseBondsForGold } from '../src/catalog.js';
 import {
   GOLD_GRANT_SQL,
   GOLD_REFUND_SQL,
+  BONDS_GRANT_SQL,
+  BONDS_REFUND_SQL,
   PATRON_SYNC_SQL,
   interpretWebhook,
+  applyInterpretation,
   patronActiveFromLifetime,
   writesCredits,
 } from '../src/grants.js';
@@ -192,9 +195,45 @@ test('grant SQL dual-writes gold_bars and marks and never writes credits', () =>
   assert.match(GOLD_GRANT_SQL, /gold_bars = gold_bars \+ \$1/);
   assert.match(GOLD_GRANT_SQL, /marks\s+= marks \+ \$1/);
   assert.match(GOLD_REFUND_SQL, /GREATEST\(0, gold_bars - \$1\)/);
+  assert.match(BONDS_GRANT_SQL, /bonds = bonds \+ \$1/);
+  assert.match(BONDS_REFUND_SQL, /GREATEST\(0, bonds - \$1\)/);
   assert.match(PATRON_SYNC_SQL, /subscription_active = \$1/);
   assert.doesNotMatch(PATRON_SYNC_SQL, /INTERVAL '1 day'/);
   assert.equal(writesCredits(GOLD_GRANT_SQL), false);
   assert.equal(writesCredits(GOLD_REFUND_SQL), false);
+  assert.equal(writesCredits(BONDS_GRANT_SQL), false);
+  assert.equal(writesCredits(BONDS_REFUND_SQL), false);
   assert.equal(writesCredits(PATRON_SYNC_SQL), false);
+});
+
+test('first-buy Bonds gift matches listed Gold and does not change catalog gold', () => {
+  assert.equal(firstPurchaseBondsForGold(500), 500);
+  assert.equal(firstPurchaseBondsForGold(1275), 1275);
+  assert.equal(firstPurchaseBondsForGold(2600), 2600);
+  assert.equal(firstPurchaseBondsForGold(5250), 5250);
+  assert.equal(firstPurchaseBondsForGold(-500), 500);
+});
+
+test('applyInterpretation grants listed Gold and matching first-buy Bonds without doubling Gold', async () => {
+  const statements = [];
+  const client = {
+    async query(text, params) {
+      statements.push({ text, params });
+      return { rows: [{ lifetime: 500 }] };
+    },
+  };
+  await applyInterpretation(
+    client,
+    {
+      effect: 'gold_grant',
+      goldDelta: 500,
+      bondsDelta: 500,
+      discordId: '99',
+    },
+    { id: 7 },
+  );
+  const gold = statements.find((s) => /gold_bars = gold_bars \+/.test(s.text));
+  const bonds = statements.find((s) => /bonds = bonds \+/.test(s.text));
+  assert.equal(gold.params[0], 500);
+  assert.equal(bonds.params[0], 500);
 });

@@ -39,7 +39,7 @@ Do not recreate these. One-time USD prices, quantity 1–1, tax category `standa
 | gold-50 | Gold Bars — 2,600 | $50 | `pro_01m1vqmv66et2m6xzd9vgvs1cv` | `pri_01m1vqmv7e7v51nja2mdcr7bgt` |
 | gold-100 | Gold Bars — 5,250 | $100 | `pro_01m1vqmvatcaehan5daxcym8pc` | `pri_01m1vqmvby50aw445v47wn7k16` |
 
-First Gold Bar purchase on a Discord account grants **double Gold Bars**. Patron is **not** sold as days on a pack. Lifetime Gold Bars bought (net of refunds) ≥ **2,600** unlocks Patron tier 1.
+First Gold Bar purchase on a Discord account grants **matching Bonds** once (same count as that pack's listed Gold Bars). Listed Gold Bars are unchanged. Packs sell Gold Bars. Rank is not a Store SKU.
 
 ```sql
 DELETE FROM store_first_purchase WHERE discord_id = :snowflake;

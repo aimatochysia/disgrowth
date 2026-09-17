@@ -2,8 +2,7 @@ import { html } from '../lib/html.js';
 import { formatQty } from '../catalog.js';
 
 export function buyPage({ sku, user, player, error, checkoutReady, overlayReady, firstPurchaseAvailable = false }) {
-  const grantGold = firstPurchaseAvailable ? sku.gold * 2 : sku.gold;
-  const grant = `${formatQty(grantGold)} Gold Bars`;
+  const grant = `${formatQty(sku.gold)} Gold Bars`;
   const priceId = sku.priceId || '';
 
   if (!player) {
@@ -27,12 +26,15 @@ export function buyPage({ sku, user, player, error, checkoutReady, overlayReady,
         <dl class="facts">
           <div><dt>Item</dt><dd>${sku.label || sku.name}</dd></div>
           <div><dt>You get</dt><dd>${grant}</dd></div>
+          ${firstPurchaseAvailable
+            ? html`<div><dt>First buy</dt><dd>${formatQty(sku.gold)} Bonds</dd></div>`
+            : ''}
           <div><dt>Price</dt><dd><span data-paddle-price-id="${priceId}">…</span></dd></div>
           <div><dt>Character</dt><dd>${user.globalName || user.username}</dd></div>
         </dl>
         <p>${sku.blurb}</p>
         ${firstPurchaseAvailable
-          ? html`<p class="hint">First Gold Bar purchase on this Discord account: you get double the listed Gold Bars this time. Later purchases are the listed amount.</p>`
+          ? html`<p class="hint">First Gold Bar purchase on this Discord account: the listed Gold Bars plus the same number of Bonds, once. Later purchases are the listed Gold Bars only.</p>`
           : ''}
         <p class="hint">
           These are virtual items with no cash value.
@@ -67,7 +69,7 @@ export function buyPage({ sku, user, player, error, checkoutReady, overlayReady,
         </label>
         <label class="check">
           <input type="checkbox" name="novalue" value="yes" required />
-          <span>I understand Gold Bars and Patron have no cash value and cannot be sold for money.</span>
+          <span>I understand Gold Bars and Bonds have no cash value and cannot be sold for money.</span>
         </label>
         <button class="btn btn-gold" type="submit" ${checkoutReady ? '' : 'disabled'}>
           Buy

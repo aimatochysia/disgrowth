@@ -7,7 +7,7 @@ export function storePage({ items = [] } = {}) {
       <h1 class="display display-page">Shop</h1>
       <p class="lede narrow">
         Gold Bars for the city. Prices are shown as Paddle totals for your country — the catalog is still $10, $25, $50, and $100.
-        Your first Gold Bar purchase doubles the bars (once per Discord account). Patron is unlocked from lifetime Gold Bars bought, not sold as a subscription.
+        Your first Gold Bar purchase adds the same number of Bonds as Gold Bars in that pack (once per Discord account). Packs are Gold Bars.
       </p>
     </section>
 

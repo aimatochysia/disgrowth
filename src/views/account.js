@@ -24,7 +24,6 @@ export function accountPage({ user, player, dbReady, paddleCustomer = null, port
     `;
   }
 
-  const passOn = Boolean(player.subscription_active);
   const onboarding = player.onboarding_step;
   const needsTutorial = onboarding && onboarding !== 'complete' && onboarding !== 'raise_stats';
 
@@ -55,7 +54,7 @@ export function accountPage({ user, player, dbReady, paddleCustomer = null, port
           <span class="code">BN</span>
           <h3>Bonds</h3>
           <p class="balance">${n(player.bonds)}</p>
-          <p class="stamp">Granted in Discord</p>
+          <p class="stamp">Claimed in Discord</p>
         </article>
         <article class="panel wallet wallet-gold">
           <span class="code">GL</span>
@@ -65,14 +64,10 @@ export function accountPage({ user, player, dbReady, paddleCustomer = null, port
         </article>
       </div>
 
-      <article class="panel pass-status">
-        <div>
-          <p class="kicker">Patron</p>
-          <p class="pass-flag ${passOn ? 'on' : 'off'}">${passOn ? 'Tier 1' : 'Off'}</p>
-        </div>
-        <p>${passOn ? 'Unlocked by lifetime Gold Bars bought (2,600+). Extra daily Bonds and occasional hints in Discord.' : 'Not active. Buy 2,600+ Gold Bars (lifetime, net of refunds) to unlock tier 1.'}</p>
-        <p class="hint">Hints may pause if you haven’t been in the server. Logging into this website doesn’t count. Patron is not a Paddle subscription.</p>
-        <a class="btn ${passOn ? 'btn-ghost' : 'btn-gold'}" href="/store">${passOn ? 'Back to shop' : 'Shop Gold Bars'}</a>
+      <article class="panel">
+        <p class="kicker">Store</p>
+        <p>Packs are Gold Bars. The first Gold Bar purchase on this Discord account also grants matching Bonds, once.</p>
+        <a class="btn btn-gold" href="/store">Shop Gold Bars</a>
       </article>
 
       <article class="panel">

@@ -1,6 +1,6 @@
 import { interpretWebhook, applyInterpretation } from './grants.js';
 import { redactPayload } from './lib/security.js';
-import { variantMapFromEnv } from './catalog.js';
+import { firstPurchaseBondsForGold, variantMapFromEnv } from './catalog.js';
 import { createPaddleSdk, unmarshalWebhook } from './paddle.js';
 
 /** This website owns Paddle grants. The Discord bot must not also credit Gold Bars. */
@@ -235,14 +235,21 @@ export async function handlePaddleWebhook({ rawBody, signature, config, db, log 
           [interpretation.discordId, interpretation.providerEventId],
         );
         if (firstPurchase.rowCount === 1) {
-          interpretation.goldDelta *= 2;
+          interpretation.bondsDelta = firstPurchaseBondsForGold(interpretation.goldDelta);
           interpretation.firstPurchaseBonus = true;
-          await client.query(
-            `UPDATE store_orders
-             SET gold_delta = $1
-             WHERE provider = 'paddle' AND provider_event_id = $2`,
-            [interpretation.goldDelta, interpretation.providerEventId],
-          );
+        }
+      }
+
+      if (interpretation.effect === 'gold_refund' && interpretation.originalGrantEventId) {
+        const used = await client.query(
+          `SELECT 1 FROM store_first_purchase
+           WHERE discord_id = $1 AND provider_event_id = $2
+           LIMIT 1`,
+          [interpretation.discordId, interpretation.originalGrantEventId],
+        );
+        if (used.rowCount === 1) {
+          interpretation.bondsDelta = -firstPurchaseBondsForGold(interpretation.goldDelta);
+          interpretation.firstPurchaseBonus = true;
         }
       }
 
@@ -261,6 +268,7 @@ export async function handlePaddleWebhook({ rawBody, signature, config, db, log 
         effect: interpretation.effect,
         playerId: player.id,
         goldDelta: interpretation.goldDelta,
+        bondsDelta: Number(interpretation.bondsDelta) || 0,
         firstPurchaseBonus: Boolean(interpretation.firstPurchaseBonus),
       };
     });

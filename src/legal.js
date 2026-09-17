@@ -41,13 +41,13 @@ const DOCS = {
 
 **Not Paddle’s game.** Paddle processes payment. Game rules, virtual items, and delivery in Discord are the Operator’s.
 
-**Licence, not ownership.** Gold Bars, Bonds, Credits, Patron, and any other in-game value are **licensed virtual items** as described in the Virtual Items Policy. They have no cash value. You may not sell, swap, or escrow them for real money. We may change, reset, or remove items when we reasonably need to operate or shut down the game.
+**Licence, not ownership.** Gold Bars, Bonds, Credits, and any other in-game value are **licensed virtual items** as described in the Virtual Items Policy. They have no cash value. You may not sell, swap, or escrow them for real money. We may change, reset, or remove items when we reasonably need to operate or shut down the game.
 
 **Credits.** Credits cannot be purchased on the Store and never will be under these Terms as of the last updated date.
 
-**Gold Bars and Patron.** The Store sells Gold Bars in set packs ($10, $25, $50, $100). Patron is **not** a paid Paddle subscription. If lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600**, Patron **tier 1** turns on: extra daily Bonds and occasional hints in Discord. Hints are imperfect, not professional advice, not guaranteed, and may pause if you have been away from the Discord server. Logging into this website does not count as server activity. A refund that drops lifetime Gold Bars below 2,600 turns Patron off.
+**Gold Bars.** The Store sells Gold Bars in set packs ($10, $25, $50, $100). Bonds are not sold as a pack. In-game rank follows lifetime Gold Bars bought in Discord; it is not a Store SKU.
 
-**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account delivers **double** the Gold Bars listed for that pack. Later purchases on the same Discord account are the listed amount. If that first grant is refunded, doubling can apply again. We can also reset this by hand if you ask support.
+**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account also delivers **as many Bonds as Gold Bars listed for that pack**, once. Later purchases are the listed Gold Bars only. Those Bonds do not add Gold Bars and do not count as Gold Bars bought. If that first grant is refunded, the matching Bonds gift can apply again. We can also reset this by hand if you ask support.
 
 **Acceptable use.** Do not attack the Store, scrape with abusive rates, exploit webhooks, falsify Discord identity, launder payments, or use the game or Store for anything illegal. We may suspend Store access and ask that the linked character be suspended in Discord.
 
@@ -81,7 +81,7 @@ const DOCS = {
 
 1. **Discord profile (OAuth identify + email).** User id, username, display name, avatar hash, and email when Discord provides it (used to prefill Paddle Checkout).
 2. **Session.** An encrypted cookie so we remember who is logged in.
-3. **Game account fields we read.** Credits, Bonds, Gold Bars, an internal mirror field, Patron flags, and tutorial progress — to show your account page and to apply purchases.
+3. **Game account fields we read.** Credits, Bonds, Gold Bars, an internal mirror field, and tutorial progress — to show your account page and to apply purchases.
 4. **Payments (via Paddle webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
 5. **Logs.** IP address, browser, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS}} days unless needed for fraud.
 
@@ -118,11 +118,9 @@ Payments are charged by **Paddle** as Merchant of Record. Chargebacks go through
 1. You ask within **two (2) hours** of the purchase; and
 2. The Gold Bars from that purchase are still in your Gold Bars wallet — they have not been converted to Bonds or otherwise used.
 
-If more than two hours have passed, we cannot refund. If the Gold Bars have already been converted or spent, we cannot refund. We treat a pack as used if your Gold Bars balance is below the amount actually granted for that purchase (including a first-purchase double). Wallet floors at zero — a reversal will not put the account into negative Gold Bars.
+If more than two hours have passed, we cannot refund. If the Gold Bars have already been converted or spent, we cannot refund. We treat a pack as used if your Gold Bars balance is below the amount actually granted for that purchase (listed Gold Bars, not a first-purchase Bonds gift). Wallet floors at zero — a reversal will not put the account into negative Gold Bars or Bonds.
 
-**First-purchase double.** If we refund the grant that used your first-purchase double, that Discord account can receive the double again on a later purchase. Refunding a later (non-doubled) purchase does not restore the double.
-
-**Patron.** Patron follows lifetime Gold Bars bought (net of refunds). If a refund drops you below the unlock line, Patron turns off. We do not sell a standalone Patron subscription on this Store.
+**First-purchase Bonds.** If we refund the grant that used your first-purchase matching Bonds, that Discord account can receive the matching Bonds gift again on a later purchase. Refunding a later purchase does not restore the Bonds gift.
 
 **Chargebacks.** If you chargeback after receiving items, we may disable Store access and game perks and dispute with the Merchant of Record.
 
@@ -156,17 +154,15 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
     kicker: 'Licence, not cash',
     body: `Last updated: {{DATE}}
 
-**Licence.** Gold Bars, Bonds, Credits, and Patron are **limited, revocable, non-exclusive, non-transferable licences** to use features of Disgrowth. They are **not** money, e-money, deposits, securities, commodities, or crypto-assets. They cannot be redeemed with us for cash.
+**Licence.** Gold Bars, Bonds, Credits, and other in-game value are **limited, revocable, non-exclusive, non-transferable licences** to use features of Disgrowth. They are **not** money, e-money, deposits, securities, commodities, or crypto-assets. They cannot be redeemed with us for cash.
 
 **Credits.** Earned and spent inside the simulation. **Not for sale** on the Store.
 
-**Bonds.** Daily spend in Discord. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
+**Bonds.** Daily spend in Discord, claimed there. The Store does not sell Bonds. The first Gold Bar purchase on a Discord account grants **as many Bonds as Gold Bars in that pack**, once. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
 
-**Gold Bars.** The premium wallet sold on this Store. Dual-recorded internally with a legacy mirror field. Buying Gold Bars does not buy Credits.
+**Gold Bars.** The premium wallet sold on this Store. Dual-recorded internally with a legacy mirror field. Buying Gold Bars does not buy Credits. First-purchase doubling of Gold Bars does not apply.
 
-**Patron.** A perk unlocked when lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600** (Patron tier 1). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a Paddle subscription, not a cash product, and is not sold on its own. First-purchase doubling applies to Gold Bars only.
-
-**No secondary market.** You may not sell accounts, Gold Bars, or Patron for real money. We may reclaim items obtained that way.
+**No secondary market.** You may not sell accounts, Gold Bars, or Bonds for real money. We may reclaim items obtained that way.
 
 **Changes and shutdown.** We may rebalance numbers, close the game, or wipe wallets. If we shut down for good we are not required to cash out. We may offer goodwill at our discretion.
 

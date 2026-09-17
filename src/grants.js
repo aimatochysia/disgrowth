@@ -15,6 +15,18 @@ SET gold_bars = GREATEST(0, gold_bars - $1),
 WHERE id = $2
 `.trim();
 
+export const BONDS_GRANT_SQL = `
+UPDATE players
+SET bonds = bonds + $1
+WHERE id = $2
+`.trim();
+
+export const BONDS_REFUND_SQL = `
+UPDATE players
+SET bonds = GREATEST(0, bonds - $1)
+WHERE id = $2
+`.trim();
+
 export const PASS_ON_SQL = `
 UPDATE players
 SET subscription_active = TRUE,
@@ -134,6 +146,7 @@ export function interpretWebhook(body, ctx) {
     lemonOrderId: data.id ? String(data.id) : null,
     lemonSubscriptionId: data.subscription_id ? String(data.subscription_id) : null,
     goldDelta: 0,
+    bondsDelta: 0,
     patronDays: 0,
     lookupOrder: false,
     subscriptionActive: undefined,
@@ -242,11 +255,19 @@ export async function syncPatronFromLifetime(client, { playerId, discordId }) {
 
 export async function applyInterpretation(client, interpretation, player) {
   const goldAbs = Math.abs(interpretation.goldDelta || 0);
+  const bondsDelta = Number(interpretation.bondsDelta) || 0;
+  const bondsAbs = Math.abs(bondsDelta);
   if (interpretation.effect === 'gold_grant' && goldAbs) {
     await client.query(GOLD_GRANT_SQL, [goldAbs, player.id]);
   }
   if (interpretation.effect === 'gold_refund' && goldAbs) {
     await client.query(GOLD_REFUND_SQL, [goldAbs, player.id]);
+  }
+  if (bondsAbs && bondsDelta > 0) {
+    await client.query(BONDS_GRANT_SQL, [bondsAbs, player.id]);
+  }
+  if (bondsAbs && bondsDelta < 0) {
+    await client.query(BONDS_REFUND_SQL, [bondsAbs, player.id]);
   }
   if (
     interpretation.subscriptionActive === true &&

@@ -12,6 +12,11 @@
 /** Lifetime net Gold Bars granted (store_orders gold_grant minus refunds) to unlock Patron tier 1. */
 export const PATRON_TIER1_LIFETIME_GOLD = 2600;
 
+/** First Gold Bar purchase grants this many Bonds for a pack's listed Gold. Does not change gold_delta. */
+export function firstPurchaseBondsForGold(gold) {
+  return Math.max(0, Math.floor(Math.abs(Number(gold) || 0)));
+}
+
 export const CATALOG = {
   'gold-10': {
     sku_key: 'gold-10',
@@ -28,7 +33,7 @@ export const CATALOG = {
     features: [
       '500 Gold Bars (GL)',
       'Convert 1:1 to Bonds in Discord',
-      'First purchase on this Discord account doubles the bars',
+      'First purchase on this Discord account adds 500 Bonds',
     ],
   },
   'gold-25': {
@@ -46,7 +51,7 @@ export const CATALOG = {
     features: [
       '1,275 Gold Bars (GL)',
       '~2% bulk vs the $10 pack',
-      'First purchase on this Discord account doubles the bars',
+      'First purchase on this Discord account adds 1,275 Bonds',
     ],
   },
   'gold-50': {
@@ -58,14 +63,13 @@ export const CATALOG = {
     usdPlaceholder: 50,
     variantEnv: 'PADDLE_PRICE_GOLD_50',
     ledger: 'GL-50',
-    description: '2,600 Gold Bars. About 4% more bars per dollar than the $10 pack. Unlocks Patron tier 1.',
-    summary: '2,600 Gold Bars. Unlocks Patron tier 1.',
-    blurb: 'A serious reserve. About 4% more Gold Bars per dollar than the $10 pack. This amount of lifetime Gold Bars bought unlocks Patron tier 1.',
+    description: '2,600 Gold Bars. About 4% more bars per dollar than the $10 pack.',
+    summary: '2,600 Gold Bars. About 4% bulk vs the $10 pack.',
+    blurb: 'A serious reserve. About 4% more Gold Bars per dollar than the $10 pack.',
     features: [
       '2,600 Gold Bars (GL)',
       '~4% bulk vs the $10 pack',
-      'Unlocks Patron tier 1 from lifetime Gold Bars bought',
-      'First purchase on this Discord account doubles the bars',
+      'First purchase on this Discord account adds 2,600 Bonds',
     ],
   },
   'gold-100': {
@@ -77,14 +81,13 @@ export const CATALOG = {
     usdPlaceholder: 100,
     variantEnv: 'PADDLE_PRICE_GOLD_100',
     ledger: 'GL-100',
-    description: '5,250 Gold Bars. 5% more bars per dollar than the $10 pack. Unlocks Patron tier 1.',
-    summary: '5,250 Gold Bars. 5% bulk. Unlocks Patron tier 1.',
-    blurb: 'The largest stack we sell. 5% more Gold Bars per dollar than the $10 pack. Unlocks Patron tier 1 from lifetime Gold Bars bought.',
+    description: '5,250 Gold Bars. 5% more bars per dollar than the $10 pack.',
+    summary: '5,250 Gold Bars. 5% bulk vs the $10 pack.',
+    blurb: 'The largest stack we sell. 5% more Gold Bars per dollar than the $10 pack.',
     features: [
       '5,250 Gold Bars (GL)',
       '5% bulk vs the $10 pack',
-      'Unlocks Patron tier 1 from lifetime Gold Bars bought',
-      'First purchase on this Discord account doubles the bars',
+      'First purchase on this Discord account adds 5,250 Bonds',
     ],
   },
 };
