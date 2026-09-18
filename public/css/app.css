@@ -1057,17 +1057,17 @@ html.theme-animated .legal-card {
   margin: 0 0 1.25rem;
 }
 
+.success-wallets .wallet {
+  padding: 1rem 1.15rem;
+}
+
+.success-wallets .balance {
+  font-size: 1.55rem;
+}
+
 .success-actions {
   margin-top: 1.15rem;
-}
-
-.buy-summary .steps {
-  margin: 0.35rem 0 1rem;
-}
-
-.buy-summary .steps li:last-child {
-  border-bottom: 0;
-  padding-bottom: 0.35rem;
+  margin-bottom: 0.35rem;
 }
 
 .beat-grid {

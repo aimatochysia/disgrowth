@@ -81,11 +81,6 @@ export function welcomePage({ user, player } = {}) {
           <div><dt>Delivered to</dt><dd>${character || 'Your Discord character'}</dd></div>
           <div><dt>Receipt</dt><dd>Paddle emailed it</dd></div>
         </dl>
-        <ol class="steps">
-          <li><strong>Check your Gold Bars</strong> on the account page, or in Discord.</li>
-          <li><strong>Run <code>/shop</code> in Discord</strong> when you want to convert Gold Bars to Bonds.</li>
-          <li><strong>If the balance is still catching up,</strong> wait a few seconds and refresh.</li>
-        </ol>
         <p class="hint">A first Gold Bar pack also adds the same number of Bonds. Later packs are Gold Bars only.</p>
       </div>
 
@@ -93,6 +88,12 @@ export function welcomePage({ user, player } = {}) {
         <a class="btn btn-accent" href="/account">View account</a>
         <a class="btn btn-ghost" href="/store">Back to shop</a>
       </div>
+
+      <ol class="steps">
+        <li><strong>Check your Gold Bars</strong> on the account page, or in Discord.</li>
+        <li><strong>Run <code>/shop</code> in Discord</strong> when you want to convert Gold Bars to Bonds.</li>
+        <li><strong>If the balance is still catching up,</strong> wait a few seconds and refresh.</li>
+      </ol>
     </section>
   `;
 }
