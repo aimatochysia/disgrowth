@@ -1052,6 +1052,24 @@ html.theme-animated .legal-card {
   grid-template-columns: repeat(3, 1fr);
 }
 
+.success-wallets {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0 0 1.25rem;
+}
+
+.success-actions {
+  margin-top: 1.15rem;
+}
+
+.buy-summary .steps {
+  margin: 0.35rem 0 1rem;
+}
+
+.buy-summary .steps li:last-child {
+  border-bottom: 0;
+  padding-bottom: 0.35rem;
+}
+
 .beat-grid {
   display: grid;
   gap: 1rem;
@@ -1576,6 +1594,7 @@ html.theme-animated .legal-card {
 
 @media (max-width: 900px) {
   .wallet-grid,
+  .success-wallets,
   .sku-grid,
   .legal-grid,
   .beat-grid {

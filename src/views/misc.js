@@ -1,4 +1,5 @@
 import { html } from '../lib/html.js';
+import { formatQty } from '../catalog.js';
 import { discordSvg } from './layout.js';
 import { getLegalDoc, legalBookPage, legalToc } from '../legal.js';
 
@@ -38,19 +39,58 @@ export function oauthContinuePage(next) {
 </html>`;
 }
 
-export function successPage() {
-  return welcomePage();
+export function successPage(opts) {
+  return welcomePage(opts);
 }
 
-export function welcomePage() {
+export function welcomePage({ user, player } = {}) {
+  const character = user?.globalName || user?.username || '';
+  const gold = formatQty(player?.gold_bars ?? 0);
+  const bonds = formatQty(player?.bonds ?? 0);
+
   return html`
     <section class="page-hero">
-      <h1 class="display display-page">Welcome</h1>
-      <p class="lede narrow">
-        Payment sent. Gold Bars usually show up in Discord within a few seconds. Open <code>/shop</code> to convert them to Bonds, or check your account here. If this was your first Gold Bar purchase, matching Bonds land with the listed bars. If nothing appears, wait a moment and refresh.
-      </p>
-      <div class="cta-row">
-        <a class="btn btn-accent" href="/account">Open account</a>
+      <p class="kicker">Checkout</p>
+      <h1 class="display display-page">Purchase complete</h1>
+      <p class="lede narrow">Gold Bars are on your Discord character.</p>
+    </section>
+
+    <section class="band tight">
+      ${player
+        ? html`
+            <div class="wallet-grid success-wallets">
+              <article class="panel wallet wallet-gold">
+                <span class="code">GL</span>
+                <h3>Gold Bars</h3>
+                <p class="balance">${gold}</p>
+                <p class="stamp">On your character</p>
+              </article>
+              <article class="panel wallet">
+                <span class="code">BN</span>
+                <h3>Bonds</h3>
+                <p class="balance">${bonds}</p>
+                <p class="stamp">Spend in Discord</p>
+              </article>
+            </div>
+          `
+        : ''}
+
+      <div class="panel buy-summary">
+        <dl class="facts">
+          <div><dt>Status</dt><dd>Confirmed</dd></div>
+          <div><dt>Delivered to</dt><dd>${character || 'Your Discord character'}</dd></div>
+          <div><dt>Receipt</dt><dd>Paddle emailed it</dd></div>
+        </dl>
+        <ol class="steps">
+          <li><strong>Check your Gold Bars</strong> on the account page, or in Discord.</li>
+          <li><strong>Run <code>/shop</code> in Discord</strong> when you want to convert Gold Bars to Bonds.</li>
+          <li><strong>If the balance is still catching up,</strong> wait a few seconds and refresh.</li>
+        </ol>
+        <p class="hint">A first Gold Bar pack also adds the same number of Bonds. Later packs are Gold Bars only.</p>
+      </div>
+
+      <div class="cta-row success-actions">
+        <a class="btn btn-accent" href="/account">View account</a>
         <a class="btn btn-ghost" href="/store">Back to shop</a>
       </div>
     </section>

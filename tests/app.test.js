@@ -443,6 +443,25 @@ test('POST /buy retries Paddle checkout without STORE_ORIGIN when the domain is 
   });
 });
 
+test('/welcome with session shows character wallets', async () => {
+  const cfg = config();
+  const player = { id: 4, discord_id: '42', gold_bars: 1500, bonds: 500, credits: 12 };
+  const app = createApp({ config: cfg, db: mockDb({ player }), art: {} });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/welcome`, {
+      headers: { cookie: sessionCookie(cfg) },
+    });
+    assert.equal(res.status, 200);
+    const html = await res.text();
+    assert.match(html, /Purchase complete/);
+    assert.match(html, /1,500/);
+    assert.match(html, /500/);
+    assert.match(html, />Ash</);
+    assert.match(html, /success-wallets/);
+    assert.doesNotMatch(html, /Payment sent/);
+  });
+});
+
 test('/buy with player shows first-purchase Bonds copy', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
@@ -973,7 +992,13 @@ test('landing and legal pages render', async () => {
     assert.doesNotMatch(storeHtml, /"country":"OTHERS"/);
     const welcome = await fetch(`${base}/welcome`);
     assert.equal(welcome.status, 200);
-    assert.match(await welcome.text(), /Welcome/);
+    const welcomeHtml = await welcome.text();
+    assert.match(welcomeHtml, /Purchase complete/);
+    assert.match(welcomeHtml, /Gold Bars are on your Discord character/);
+    assert.match(welcomeHtml, /\/shop/);
+    assert.doesNotMatch(welcomeHtml, />Welcome</);
+    assert.doesNotMatch(welcomeHtml, /Payment sent/);
+    assert.doesNotMatch(welcomeHtml, /matching Bonds land/);
     const legacySuccess = await fetch(`${base}/success`, { redirect: 'manual' });
     assert.equal(legacySuccess.status, 302);
     assert.equal(legacySuccess.headers.get('location'), '/welcome');

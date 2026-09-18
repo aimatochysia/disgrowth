@@ -487,8 +487,21 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }
   });
 
-  app.get('/welcome', (req, res) => {
-    page(req, res, { title: 'Welcome', page: 'success', body: welcomePage() });
+  app.get('/welcome', async (req, res) => {
+    const user = readSession(req, config);
+    let player = null;
+    if (user && db) {
+      try {
+        player = await db.findPlayerByDiscordId(user.discordId);
+      } catch (err) {
+        logEvent('error', 'welcome_query_failed', { err: String(err?.message || err) });
+      }
+    }
+    page(req, res, {
+      title: 'Purchase complete',
+      page: 'success',
+      body: welcomePage({ user, player }),
+    });
   });
 
   app.get('/success', (_req, res) => {
