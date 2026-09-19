@@ -3,6 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { discordId as parseDiscordId } from './lib/validate.js';
+import { sanitizeTicker } from './ticker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -61,7 +62,7 @@ export function createDb(databaseUrl) {
       const id = parseDiscordId(discordId);
       if (!id) return null;
       const { rows } = await pool.query(
-        `SELECT id, discord_id, credits, bonds, gold_bars, marks,
+        `SELECT id, discord_id, credits, bonds, gold_bars,
                 subscription_active, subscription_expires_at, onboarding_step
          FROM players
          WHERE discord_id = $1`,
@@ -113,6 +114,27 @@ export function createDb(databaseUrl) {
       return rows;
     },
 
+    async listMarketQuotes(at) {
+      const { rows } = await pool.query(MARKET_SNAPSHOT_SQL, [at || new Date()]);
+      return rows;
+    },
+
+    async findMarketAsset(ticker) {
+      const symbol = sanitizeTicker(ticker);
+      if (!symbol) return null;
+      const { rows } = await pool.query(MARKET_ASSET_SQL, [symbol]);
+      return rows[0] || null;
+    },
+
+    async listMarketHistory({ assetId, grain, since, limit = 2000 } = {}) {
+      const id = Number(assetId);
+      if (!Number.isInteger(id) || id <= 0) return [];
+      const grainKey = grain === 'day' || grain === 'month' ? grain : 'tick';
+      const cap = Math.min(Math.max(Number(limit) || 2000, 1), 2000);
+      const { rows } = await pool.query(MARKET_OHLC_SQL, [id, grainKey, since, cap]);
+      return rows;
+    },
+
     async health() {
       try {
         await pool.query('SELECT 1');
@@ -149,8 +171,42 @@ export const PLAYER_COLUMNS = [
   'credits',
   'bonds',
   'gold_bars',
-  'marks',
   'subscription_active',
   'subscription_expires_at',
   'onboarding_step',
 ];
+
+export const MARKET_SNAPSHOT_SQL = `
+SELECT a.ticker, a.name, a.type, a.sector,
+       a.current_price AS price,
+       open_px.px AS open_price
+FROM assets a
+LEFT JOIN LATERAL (
+  SELECT COALESCE(ph.close, ph.price) AS px
+  FROM price_history ph
+  WHERE ph.asset_id = a.id
+    AND ph.recorded_at <= $1
+  ORDER BY ph.recorded_at DESC
+  LIMIT 1
+) open_px ON true
+WHERE a.type IN ('commodity', 'company')
+ORDER BY a.type ASC, a.ticker ASC
+LIMIT 64
+`.trim();
+
+export const MARKET_ASSET_SQL = `
+SELECT id, ticker, name, type, sector, current_price
+FROM assets
+WHERE ticker = $1
+LIMIT 1
+`.trim();
+
+export const MARKET_OHLC_SQL = `
+SELECT recorded_at, period_start, open, high, low, close, price, volume
+FROM price_history
+WHERE asset_id = $1
+  AND grain = $2
+  AND recorded_at >= $3
+ORDER BY recorded_at ASC
+LIMIT $4
+`.trim();

@@ -921,6 +921,7 @@ test('landing and legal pages render', async () => {
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
     assert.match(html, />Home</);
     assert.match(html, />Shop</);
+    assert.match(html, />Market</);
     assert.match(html, />Terms</);
     assert.match(html, /btn-discord/);
     assert.match(html, /In the city/);
@@ -987,4 +988,58 @@ test('live overlay omits Environment.set so Paddle.js defaults to production', (
   assert.match(src, /displayMode: 'overlay'/);
   assert.match(src, /variant: 'one-page'/);
   assert.match(src, /formattedTotals/);
+});
+
+test('GET /market is watch-only and GET /api/market hides fair_price', async () => {
+  const marketCache = {
+    getSnapshot() {
+      return {
+        asOf: '2026-09-18T16:00:00.000Z',
+        quotes: [
+          { ticker: 'FUEL', name: 'Fuel', type: 'commodity', sector: 'logistics', price: '75.12', changePct: '-0.40' },
+          { ticker: 'ACME', name: 'Acme Co', type: 'company', sector: 'retail', price: '12.50', changePct: '25.00' },
+        ],
+      };
+    },
+    async refresh() {},
+    async getOhlc(ticker) {
+      if (ticker !== 'FUEL') return null;
+      return {
+        ticker: 'FUEL',
+        window: '24h',
+        bars: [{ t: 1726665600, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
+      };
+    },
+  };
+  const cfg = config();
+  const app = createApp({ config: cfg, db: mockDb(), art: {}, marketCache });
+  await withServer(app, async (base) => {
+    const page = await fetch(`${base}/market`);
+    assert.equal(page.status, 200);
+    const html = await page.text();
+    assert.match(html, />Market</);
+    assert.match(html, /Watch only/);
+    assert.match(html, /FUEL/);
+    assert.match(html, /ACME/);
+    assert.match(html, /id="market-boot"/);
+    assert.match(html, /\/js\/lightweight-charts\.js/);
+    assert.doesNotMatch(html, /fair_price/);
+    assert.doesNotMatch(html, /Buy Fuel/);
+    const snap = await fetch(`${base}/api/market/snapshot`);
+    assert.equal(snap.status, 200);
+    assert.match(snap.headers.get('cache-control') || '', /s-maxage=15/);
+    const json = await snap.json();
+    assert.equal(json.quotes[0].ticker, 'FUEL');
+    assert.doesNotMatch(JSON.stringify(json), /fair_price/);
+    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=24h`);
+    assert.equal(ohlc.status, 200);
+    const bars = await ohlc.json();
+    assert.equal(bars.ticker, 'FUEL');
+    assert.equal(bars.bars[0].c, 75.2);
+    assert.doesNotMatch(JSON.stringify(bars), /fair_price/);
+    const bad = await fetch(`${base}/api/market/ohlc?ticker=../x`);
+    assert.equal(bad.status, 404);
+    const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`);
+    assert.equal(unknown.status, 404);
+  });
 });

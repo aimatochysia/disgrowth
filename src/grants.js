@@ -3,15 +3,13 @@ import { discordId as parseDiscordId } from './lib/validate.js';
 
 export const GOLD_GRANT_SQL = `
 UPDATE players
-SET gold_bars = gold_bars + $1,
-    marks     = marks + $1
+SET gold_bars = gold_bars + $1
 WHERE id = $2
 `.trim();
 
 export const GOLD_REFUND_SQL = `
 UPDATE players
-SET gold_bars = GREATEST(0, gold_bars - $1),
-    marks     = GREATEST(0, marks - $1)
+SET gold_bars = GREATEST(0, gold_bars - $1)
 WHERE id = $2
 `.trim();
 

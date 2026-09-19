@@ -12,6 +12,14 @@ function paddleBootMarkup(boot) {
 <script src="/js/paddle-store.js" defer></script>`);
 }
 
+function marketBootMarkup(boot) {
+  if (!boot) return '';
+  const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
+  return raw(`<script type="application/json" id="market-boot">${json}</script>
+<script src="/js/lightweight-charts.js" defer></script>
+<script src="/js/market.js?v=20260918" defer></script>`);
+}
+
 export function markSvg(className = 'mark') {
   return html`
     <svg class="${className}" viewBox="0 0 32 32" aria-hidden="true">
@@ -40,6 +48,7 @@ export function layout(data) {
     description = 'Disgrowth store. Gold Bars for the Discord city market.',
     body,
     paddleBoot = null,
+    marketBoot = null,
     tickerQuotes = FALLBACK_TICKER,
   } = data;
 
@@ -89,6 +98,7 @@ export function layout(data) {
         <nav class="nav" id="site-nav" aria-label="Primary">
           <a href="/" class="${path === '/' ? 'is-on' : ''}">Home</a>
           <a href="/store" class="${path === '/store' || path.startsWith('/buy') ? 'is-on' : ''}">Shop</a>
+          <a href="/market" class="${path === '/market' ? 'is-on' : ''}">Market</a>
           <a href="/legal" class="${path.startsWith('/legal') ? 'is-on' : ''}">Terms</a>
           ${user ? html`<a href="/logout">Log out</a>` : ''}
         </nav>
@@ -136,6 +146,7 @@ export function layout(data) {
   </a>
   ${page === 'store' || page === 'buy' ? ageGate() : ''}
   ${paddleBootMarkup(paddleBoot)}
+  ${marketBootMarkup(marketBoot)}
   <script src="/js/app.js" defer></script>
 </body>
 </html>`;

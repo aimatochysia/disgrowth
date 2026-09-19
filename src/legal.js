@@ -81,7 +81,7 @@ const DOCS = {
 
 1. **Discord profile (OAuth identify + email).** User id, username, display name, avatar hash, and email when Discord provides it (used to prefill Paddle Checkout).
 2. **Session.** An encrypted cookie so we remember who is logged in.
-3. **Game account fields we read.** Credits, Bonds, Gold Bars, an internal mirror field, and tutorial progress — to show your account page and to apply purchases.
+3. **Game account fields we read.** Credits, Bonds, Gold Bars, and tutorial progress — to show your account page and to apply purchases.
 4. **Payments (via Paddle webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
 5. **Logs.** IP address, browser, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS}} days unless needed for fraud.
 
@@ -160,7 +160,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Bonds.** Daily spend in Discord, claimed there. The Store does not sell Bonds. The first Gold Bar purchase on a Discord account grants **as many Bonds as Gold Bars in that pack**, once. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
 
-**Gold Bars.** The premium wallet sold on this Store. Dual-recorded internally with a legacy mirror field. Buying Gold Bars does not buy Credits. First-purchase doubling of Gold Bars does not apply.
+**Gold Bars.** The premium wallet sold on this Store. Buying Gold Bars does not buy Credits. First-purchase doubling of Gold Bars does not apply.
 
 **No secondary market.** You may not sell accounts, Gold Bars, or Bonds for real money. We may reclaim items obtained that way.
 

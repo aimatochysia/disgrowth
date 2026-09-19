@@ -49,7 +49,7 @@ SELECT discord_id, provider_event_id, used_at
 FROM store_first_purchase
 WHERE discord_id = :snowflake;
 
-SELECT discord_id, credits, bonds, gold_bars, marks, subscription_active, subscription_expires_at
+SELECT discord_id, credits, bonds, gold_bars, subscription_active, subscription_expires_at
 FROM players
 WHERE discord_id = :snowflake;
 ```

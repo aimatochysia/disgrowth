@@ -28,18 +28,28 @@ import { homePage } from './views/home.js';
 import { storePage } from './views/store.js';
 import { buyPage } from './views/buy.js';
 import { accountPage } from './views/account.js';
+import { marketPage } from './views/market.js';
 import { legalHubPage, loginPage, notFoundPage, oauthContinuePage, supportPage, welcomePage } from './views/misc.js';
 import { getLegalDoc } from './legal.js';
 import { config } from './config.js';
 import { createDb } from './db.js';
-import { createQuoteCache } from './ticker.js';
+import { createQuoteCache, sanitizeTicker } from './ticker.js';
+import { CHART_WINDOWS, createMarketCache, loadMarketOhlc, resolveChartWindow } from './market.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 
-export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir), quoteCache } = {}) {
+export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir), quoteCache, marketCache } = {}) {
   const quotes = quoteCache || createQuoteCache({
     load: () => (db && typeof db.latestTickerQuotes === 'function' ? db.latestTickerQuotes() : []),
+    interval: config.NODE_ENV !== 'test',
+  });
+  const market = marketCache || createMarketCache({
+    loadSnapshot: async () => {
+      if (!db || typeof db.listMarketQuotes !== 'function') return [];
+      return db.listMarketQuotes(resolveChartWindow('24h').start);
+    },
+    loadOhlc: (ticker, windowKey) => loadMarketOhlc(db, ticker, windowKey),
     interval: config.NODE_ENV !== 'test',
   });
   const app = express();
@@ -113,6 +123,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   const authLimit = rateLimit({ ...limiterBase, limit: 20 });
   const buyLimit = rateLimit({ ...limiterBase, limit: 12 });
+  const marketLimit = rateLimit({ ...limiterBase, limit: 60 });
   const webhookLimit = rateLimit({
     ...limiterBase,
     limit: 120,
@@ -168,7 +179,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     return boot;
   }
 
-  function page(req, res, { title, page: pageName, description, body, status = 200, paddle = false }) {
+  function page(req, res, { title, page: pageName, description, body, status = 200, paddle = false, marketBoot = null }) {
     try {
       const user = readSession(req, config);
       if (user) {
@@ -189,6 +200,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
             body,
             artClass,
             paddleBoot: paddle ? buildPaddleBoot(req, user) : null,
+            marketBoot,
             tickerQuotes: quotes.snapshot(),
           }),
         ),
@@ -246,6 +258,47 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       paddle: true,
       body: storePage({ items: catalogItemsFromConfig(config) }),
     });
+  });
+
+  function sendMarketJson(res, body, status = 200) {
+    res.set('Cache-Control', 'public, max-age=15, s-maxage=15, stale-while-revalidate=45');
+    res.status(status).type('json').send(JSON.stringify(body));
+  }
+
+  app.get('/market', (req, res) => {
+    const snapshot = market.getSnapshot();
+    const requested = sanitizeTicker(firstQueryValue(req.query.ticker));
+    const ticker = requested || snapshot.quotes[0]?.ticker || '';
+    const rawWindow = firstQueryValue(req.query.window);
+    const windowKey = CHART_WINDOWS[rawWindow] ? rawWindow : '24h';
+    page(req, res, {
+      title: 'Market',
+      page: 'market',
+      description: 'Watch commodities and listed companies.',
+      marketBoot: { ticker, window: windowKey },
+      body: marketPage({ quotes: snapshot.quotes, ticker, windowKey }),
+    });
+  });
+
+  app.get('/api/market/snapshot', marketLimit, async (_req, res) => {
+    await market.refresh();
+    sendMarketJson(res, market.getSnapshot());
+  });
+
+  app.get('/api/market/ohlc', marketLimit, async (req, res) => {
+    const ticker = sanitizeTicker(firstQueryValue(req.query.ticker));
+    if (!ticker) {
+      res.set('Cache-Control', 'no-store');
+      res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
+      return;
+    }
+    const payload = await market.getOhlc(ticker, firstQueryValue(req.query.window));
+    if (!payload) {
+      res.set('Cache-Control', 'no-store');
+      res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
+      return;
+    }
+    sendMarketJson(res, payload);
   });
 
   app.get('/login', authLimit, (req, res) => {

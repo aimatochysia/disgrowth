@@ -1406,6 +1406,135 @@ html.theme-animated .legal-card {
   padding: 1.5rem 0 0.5rem;
 }
 
+html[data-page="market"] .wrap {
+  width: min(1120px, calc(100% - 2rem));
+}
+
+.market-board {
+  display: grid;
+  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  gap: 1.1rem;
+  align-items: start;
+  padding: 1rem 1.1rem 1.15rem;
+}
+
+.market-lists {
+  display: grid;
+  gap: 1.1rem;
+}
+
+.quote-heading {
+  font-family: Fraunces, serif;
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin: 0 0 0.55rem;
+}
+
+.quote-rows {
+  display: grid;
+  gap: 0.2rem;
+}
+
+.quote-row {
+  display: grid;
+  grid-template-columns: 4.2rem minmax(0, 1fr) auto auto;
+  gap: 0.45rem;
+  align-items: baseline;
+  padding: 0.35rem 0.45rem;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+  border: 1px solid transparent;
+}
+
+.quote-row:hover,
+.quote-row:focus-visible {
+  background: color-mix(in srgb, var(--text) 6%, transparent);
+}
+
+.quote-row.is-on {
+  border-color: var(--border);
+  background: color-mix(in srgb, var(--accent) 10%, transparent);
+}
+
+.quote-sym {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.82rem;
+  letter-spacing: 0.08em;
+}
+
+.quote-name {
+  color: var(--muted);
+  font-size: 0.86rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.quote-px {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.86rem;
+}
+
+.quote-chg {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.78rem;
+  min-width: 4.4rem;
+  text-align: right;
+}
+
+.quote-chg.up { color: var(--positive); }
+.quote-chg.down { color: var(--negative); }
+.quote-chg.flat { color: var(--muted); }
+
+.market-chart-pane {
+  min-width: 0;
+}
+
+.market-chart-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.8rem;
+  margin-bottom: 0.7rem;
+}
+
+.market-chart-head .kicker {
+  margin: 0;
+}
+
+.market-windows {
+  display: flex;
+  gap: 0.3rem;
+}
+
+.market-window {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-decoration: none;
+  color: var(--muted);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.2rem 0.65rem;
+}
+
+.market-window.is-on,
+.market-window:hover,
+.market-window:focus-visible {
+  color: var(--text);
+  border-color: var(--text);
+}
+
+.market-chart-canvas {
+  height: 420px;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--panel);
+}
+
 .site-footer {
   position: relative;
   z-index: 10;
@@ -1573,12 +1702,14 @@ html.theme-animated .legal-card {
 .site-header.is-compact .nav.is-open a:nth-child(2) { animation-delay: 0.07s; }
 .site-header.is-compact .nav.is-open a:nth-child(3) { animation-delay: 0.12s; }
 .site-header.is-compact .nav.is-open a:nth-child(4) { animation-delay: 0.17s; }
+.site-header.is-compact .nav.is-open a:nth-child(5) { animation-delay: 0.22s; }
 
 @media (max-width: 900px) {
   .wallet-grid,
   .sku-grid,
   .legal-grid,
-  .beat-grid {
+  .beat-grid,
+  .market-board {
     grid-template-columns: 1fr;
   }
 
@@ -1659,6 +1790,7 @@ html.theme-animated .legal-card {
   .nav.is-open a:nth-child(2) { animation-delay: 0.07s; }
   .nav.is-open a:nth-child(3) { animation-delay: 0.12s; }
   .nav.is-open a:nth-child(4) { animation-delay: 0.17s; }
+  .nav.is-open a:nth-child(5) { animation-delay: 0.22s; }
 
   .brand-sub {
     display: none;

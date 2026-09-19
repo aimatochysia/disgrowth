@@ -90,16 +90,13 @@ Older bot docs that mention Marks packs, Discord SKUs, recruit chits, or selling
 | Bonds | **BN** | `players.bonds` | Free/pass daily spend; franchise convenience SKUs in Discord | **Not sold.** Pass increases the *daily grant* the bot pays. |
 | Gold Bars | **GL** | `players.gold_bars` | Premium, bought here | **Yes — one-time packs on this site.** |
 
-**Rename in progress:** `players.marks` is a **dual-write mirror** of `gold_bars`. Every GL grant **must** set both:
+**Gold Bars live in `players.gold_bars` only.** There is no Marks wallet and no dual-write. Every GL grant **must** set:
 
 ```sql
 UPDATE players
-SET gold_bars = gold_bars + :n,
-    marks = marks + :n
+SET gold_bars = gold_bars + :n
 WHERE discord_id = :discord_id;
 ```
-
-(Use the exact SQL in §7.5 so Marks-only bot paths still see the balance.)
 
 **Conversion (Discord only, document on the store):** GL → BN at **1:1**. Never BN → GL. Never either into CR.
 
@@ -193,7 +190,7 @@ Player clicks /shop "$10 Gold" in Discord
   → Paddle.Checkout.open overlay (one-page) with customData.discord_id + sku_key
   → player pays on Paddle
   → Paddle POST {{STORE_ORIGIN}}/api/webhooks/paddle
-  → verify signature, idempotent insert store_orders + purchases, UPDATE players gold_bars+marks, recompute Patron from lifetime GL
+  → verify signature, idempotent insert store_orders + purchases, UPDATE players gold_bars, recompute Patron from lifetime GL
   → player returns to /welcome
   → Discord /shop and /dashboard show new GL
 ```
@@ -382,7 +379,6 @@ The website **does not create** the `players` table. The bot already did. Websit
 | `id` | serial PK | Read |
 | `discord_id` | string, unique | Read (join key). Never update. |
 | `credits` | int | **Read only.** Never increment from the store. |
-| `marks` | int | Dual-write with GL grants/refunds |
 | `gold_bars` | int not null default 0 | Increment on GL purchase; decrement on refund clamp ≥ 0 |
 | `bonds` | int not null default 0 | **Read only** |
 | `subscription_active` | boolean not null default false | Write from lifetime GL ≥ 2,600 |
@@ -423,7 +419,7 @@ CREATE INDEX IF NOT EXISTS store_orders_order_id_idx ON store_orders (lemon_orde
 
 Bot `findOrCreatePlayer`:
 
-- Inserts `discord_id`, `credits: 0`, `marks: 0`, `onboarding_step: 'not_started'`, `gold_bars: 0`, `bonds: 0`.
+- Inserts `discord_id`, `credits: 0`, `onboarding_step: 'not_started'`, `gold_bars: 0`, `bonds: 0`.
 - Then records a ledger transaction category `starting_grant` for **5000 Credits** (increments `credits`).
 
 If the website inserts a row **without** that grant, the bot will find the row later and **never** pay starting Credits.
@@ -488,8 +484,7 @@ Run in a **single transaction** after inserting `store_orders` (or: insert order
 
 ```sql
 UPDATE players
-SET gold_bars = gold_bars + :delta,
-    marks     = marks + :delta
+SET gold_bars = gold_bars + :delta
 WHERE id = :player_id;
 ```
 
@@ -499,8 +494,7 @@ WHERE id = :player_id;
 
 ```sql
 UPDATE players
-SET gold_bars = GREATEST(0, gold_bars - :delta),
-    marks     = GREATEST(0, marks - :delta)
+SET gold_bars = GREATEST(0, gold_bars - :delta)
 WHERE id = :player_id;
 ```
 
@@ -753,7 +747,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > 1. **Discord profile (OAuth `identify`).** User id (snowflake), username, display name, avatar hash. We do **not** request email in v1.
 > 2. **Session.** Encrypted cookie so we remember who is logged in.
-> 3. **Game account fields we read.** Credits, Bonds, Gold Bars, Marks (legacy mirror), subscription flags, onboarding step — to show `/account` and to apply purchases.
+> 3. **Game account fields we read.** Credits, Bonds, Gold Bars, subscription flags, onboarding step — to show `/account` and to apply purchases.
 > 4. **Payments (via Paddle webhooks).** Event type, order/subscription/variant ids, custom `discord_id` / `sku_key`, status, renewal/end timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number.
 > 5. **Logs.** IP address, user agent, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS:90}} days unless needed for fraud.
 >
@@ -789,7 +783,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
 >
 > **Virtual items.** Gold Bars and Patron are digital. Gold Bars are delivered to the linked Discord id when our webhook succeeds (usually seconds). Patron follows lifetime Gold Bars bought.
 >
-> **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars (and Marks mirror) and approve a refund via Paddle. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
+> **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars and approve a refund via Paddle. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
 >
 > **Patron.** Patron follows lifetime Gold Bars bought (net of refunds). If a refund drops you below 2,600, Patron turns off. We do not sell a standalone Patron subscription. Extra Bonds already granted are not clawed back.
 >
@@ -831,7 +825,7 @@ If you later add Plausible/GA, you must add a banner and this section **before**
 >
 > **Bonds (BN).** Daily spend wallet, granted by the game. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way.
 >
-> **Gold Bars (GL).** Premium wallet sold on the Store. Dual-recorded internally with a legacy “Marks” field. Buying GL does not buy Credits.
+> **Gold Bars (GL).** Premium wallet sold on the Store. Buying GL does not buy Credits.
 >
 > **Patron.** A perk unlocked when lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600** (Patron tier 1). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a Paddle subscription, not a cash product, and is not sold on its own. First-purchase doubling applies to Gold Bars only.
 >
@@ -874,7 +868,7 @@ Automated:
 - HMAC reject / accept fixtures (raw body + secret).
 - Idempotent double `order_created`.
 - Variant mapping disagreement → no grant.
-- GL grant dual-writes `gold_bars` and `marks`.
+- GL grant writes `gold_bars` only.
 - Refund clamp at 0.
 - Pass status matrix (active / cancelled with future ends_at / expired).
 - OAuth `state` mismatch.
@@ -897,7 +891,7 @@ You cannot use the Discord bot’s interaction harness from this repo. Prove gra
 After this store is live, the Discord bot should:
 
 1. Set `STORE_CHECKOUT_GOLD_*` to `{{STORE_ORIGIN}}/buy/...` so Link buttons carry the user through login.
-2. Keep GL display from `gold_bars` (Marks dual-write).
+2. Keep GL display from `gold_bars`.
 3. **Not** implement a second Paddle webhook if the website already grants (avoid double credit).
 
 If the website cannot share Postgres, add an HMAC grant API on the bot instead — that is a bot-repo leftover, not v1 store.
@@ -970,7 +964,7 @@ For agentic workers in the **new website repo**. Check boxes as you go.
 
 1. Logged-out `/buy/gold-10` ends up at Discord OAuth then back.
 2. User who never ran the bot cannot pay (blocked page).
-3. User who ran `/disgrowth` can pay test-mode $10 pack; SQL shows `gold_bars` and `marks` += 500 (or 1000 if first purchase); Discord `/shop` matches.
+3. User who ran `/disgrowth` can pay test-mode $10 pack; SQL shows `gold_bars` += 500 (plus matching Bonds on first purchase); Discord `/shop` matches.
 4. Double-delivery of the same webhook does not add extra Gold Bars.
 5. Lifetime Gold Bars ≥ 2,600 → `/account` shows Patron tier 1; Discord shop “Patron **tier 1**”.
 6. Refund starter in Paddle → GL decreases, not below 0; Patron may turn off if lifetime drops below 2,600.

@@ -191,10 +191,11 @@ test('Patron tier 1 unlocks at 2,600 lifetime Gold Bars bought', () => {
   assert.equal(patronActiveFromLifetime(5250), true);
 });
 
-test('grant SQL dual-writes gold_bars and marks and never writes credits', () => {
+test('grant SQL writes gold_bars only and never writes credits or marks', () => {
   assert.match(GOLD_GRANT_SQL, /gold_bars = gold_bars \+ \$1/);
-  assert.match(GOLD_GRANT_SQL, /marks\s+= marks \+ \$1/);
+  assert.doesNotMatch(GOLD_GRANT_SQL, /\bmarks\b/);
   assert.match(GOLD_REFUND_SQL, /GREATEST\(0, gold_bars - \$1\)/);
+  assert.doesNotMatch(GOLD_REFUND_SQL, /\bmarks\b/);
   assert.match(BONDS_GRANT_SQL, /bonds = bonds \+ \$1/);
   assert.match(BONDS_REFUND_SQL, /GREATEST\(0, bonds - \$1\)/);
   assert.match(PATRON_SYNC_SQL, /subscription_active = \$1/);
