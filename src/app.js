@@ -34,7 +34,13 @@ import { getLegalDoc } from './legal.js';
 import { config } from './config.js';
 import { createDb } from './db.js';
 import { createQuoteCache, sanitizeTicker } from './ticker.js';
-import { CHART_WINDOWS, createMarketCache, loadMarketOhlc, resolveChartWindow } from './market.js';
+import {
+  DEFAULT_CHART_WINDOW,
+  createMarketCache,
+  loadMarketOhlc,
+  normalizeChartWindow,
+  resolveChartWindow,
+} from './market.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
@@ -47,7 +53,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   const market = marketCache || createMarketCache({
     loadSnapshot: async () => {
       if (!db || typeof db.listMarketQuotes !== 'function') return [];
-      return db.listMarketQuotes(resolveChartWindow('24h').start);
+      return db.listMarketQuotes(resolveChartWindow(DEFAULT_CHART_WINDOW).start);
     },
     loadOhlc: (ticker, windowKey) => loadMarketOhlc(db, ticker, windowKey),
     interval: config.NODE_ENV !== 'test',
@@ -269,8 +275,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     const snapshot = market.getSnapshot();
     const requested = sanitizeTicker(firstQueryValue(req.query.ticker));
     const ticker = requested || snapshot.quotes[0]?.ticker || '';
-    const rawWindow = firstQueryValue(req.query.window);
-    const windowKey = CHART_WINDOWS[rawWindow] ? rawWindow : '24h';
+    const windowKey = normalizeChartWindow(firstQueryValue(req.query.window));
     page(req, res, {
       title: 'Market',
       page: 'market',
@@ -288,13 +293,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   app.get('/api/market/ohlc', marketLimit, async (req, res) => {
     const ticker = sanitizeTicker(firstQueryValue(req.query.ticker));
     if (!ticker) {
-      res.set('Cache-Control', 'no-store');
+      res.set('Cache-Control', 'public, max-age=15, s-maxage=15');
       res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
       return;
     }
     const payload = await market.getOhlc(ticker, firstQueryValue(req.query.window));
     if (!payload) {
-      res.set('Cache-Control', 'no-store');
+      res.set('Cache-Control', 'public, max-age=15, s-maxage=15');
       res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
       return;
     }

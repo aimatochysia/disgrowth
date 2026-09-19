@@ -126,11 +126,11 @@ export function createDb(databaseUrl) {
       return rows[0] || null;
     },
 
-    async listMarketHistory({ assetId, grain, since, limit = 2000 } = {}) {
+    async listMarketHistory({ assetId, grain, since, limit = 120 } = {}) {
       const id = Number(assetId);
       if (!Number.isInteger(id) || id <= 0) return [];
-      const grainKey = grain === 'day' || grain === 'month' ? grain : 'tick';
-      const cap = Math.min(Math.max(Number(limit) || 2000, 1), 2000);
+      const grainKey = grain === 'month' ? 'month' : 'day';
+      const cap = Math.min(Math.max(Number(limit) || 120, 1), 400);
       const { rows } = await pool.query(MARKET_OHLC_SQL, [id, grainKey, since, cap]);
       return rows;
     },
@@ -182,10 +182,11 @@ SELECT a.ticker, a.name, a.type, a.sector,
        open_px.px AS open_price
 FROM assets a
 LEFT JOIN LATERAL (
-  SELECT COALESCE(ph.close, ph.price) AS px
+  SELECT COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) AS px
   FROM price_history ph
   WHERE ph.asset_id = a.id
     AND ph.recorded_at <= $1
+    AND COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) IS NOT NULL
   ORDER BY ph.recorded_at DESC
   LIMIT 1
 ) open_px ON true
@@ -202,11 +203,11 @@ LIMIT 1
 `.trim();
 
 export const MARKET_OHLC_SQL = `
-SELECT recorded_at, period_start, open, high, low, close, price, volume
+SELECT period_start, recorded_at, open, high, low, close, price, volume
 FROM price_history
 WHERE asset_id = $1
   AND grain = $2
-  AND recorded_at >= $3
-ORDER BY recorded_at ASC
+  AND period_start >= $3
+ORDER BY period_start ASC
 LIMIT $4
 `.trim();

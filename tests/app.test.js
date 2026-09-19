@@ -1006,8 +1006,8 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
       if (ticker !== 'FUEL') return null;
       return {
         ticker: 'FUEL',
-        window: '24h',
-        bars: [{ t: 1726665600, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
+        window: '1M',
+        bars: [{ t: 946684800, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
       };
     },
   };
@@ -1022,6 +1022,10 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.match(html, /FUEL/);
     assert.match(html, /ACME/);
     assert.match(html, /id="market-boot"/);
+    assert.match(html, /data-window="1M"/);
+    assert.match(html, /data-reset/);
+    assert.doesNotMatch(html, /data-window="6h"/);
+    assert.doesNotMatch(html, /data-window="24h"/);
     assert.match(html, /\/js\/lightweight-charts\.js/);
     assert.doesNotMatch(html, /fair_price/);
     assert.doesNotMatch(html, /Buy Fuel/);
@@ -1031,7 +1035,7 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     const json = await snap.json();
     assert.equal(json.quotes[0].ticker, 'FUEL');
     assert.doesNotMatch(JSON.stringify(json), /fair_price/);
-    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=24h`);
+    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=1M&_=cachebust`);
     assert.equal(ohlc.status, 200);
     const bars = await ohlc.json();
     assert.equal(bars.ticker, 'FUEL');
@@ -1041,5 +1045,6 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.equal(bad.status, 404);
     const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`);
     assert.equal(unknown.status, 404);
+    assert.match(unknown.headers.get('cache-control') || '', /max-age=15/);
   });
 });

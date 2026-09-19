@@ -1,220 +1,842 @@
-diff --git a/README.md b/README.md
-index 92f8f06..8a4e143 100644
---- a/README.md
-+++ b/README.md
-@@ -90,17 +90,14 @@ Older bot docs that mention Marks packs, Discord SKUs, recruit chits, or selling
- | Bonds | **BN** | `players.bonds` | Free/pass daily spend; franchise convenience SKUs in Discord | **Not sold.** Pass increases the *daily grant* the bot pays. |
- | Gold Bars | **GL** | `players.gold_bars` | Premium, bought here | **Yes — one-time packs on this site.** |
+diff --git a/public/css/app.css b/public/css/app.css
+index cf2553f..a56954f 100644
+--- a/public/css/app.css
++++ b/public/css/app.css
+@@ -1505,7 +1505,10 @@ html[data-page="market"] .wrap {
  
--**Rename in progress:** `players.marks` is a **dual-write mirror** of `gold_bars`. Every GL grant **must** set both:
-+**Gold Bars live in `players.gold_bars` only.** There is no Marks wallet and no dual-write. Every GL grant **must** set:
+ .market-windows {
+   display: flex;
++  flex-wrap: wrap;
+   gap: 0.3rem;
++  align-items: center;
++  justify-content: flex-end;
+ }
  
- ```sql
- UPDATE players
--SET gold_bars = gold_bars + :n,
--    marks = marks + :n
-+SET gold_bars = gold_bars + :n
- WHERE discord_id = :discord_id;
- ```
+ .market-window {
+@@ -1518,6 +1521,8 @@ html[data-page="market"] .wrap {
+   border: 1px solid var(--border);
+   border-radius: 999px;
+   padding: 0.2rem 0.65rem;
++  background: transparent;
++  cursor: pointer;
+ }
  
--(Use the exact SQL in §7.5 so Marks-only bot paths still see the balance.)
--
- **Conversion (Discord only, document on the store):** GL → BN at **1:1**. Never BN → GL. Never either into CR.
+ .market-window.is-on,
+@@ -1527,6 +1532,10 @@ html[data-page="market"] .wrap {
+   border-color: var(--text);
+ }
  
- **Daily Bonds (bot, not website):** claimed with `.stipend` / `/stipend` in Discord (12 BN per 24 real hours; 18 BN at Silver Privilege). The website does not grant the daily. The first Gold Bar purchase on this Store grants **matching BN** once (same count as that pack's listed GL).
-@@ -193,7 +190,7 @@ Player clicks /shop "$10 Gold" in Discord
-   → Paddle.Checkout.open overlay (one-page) with customData.discord_id + sku_key
-   → player pays on Paddle
-   → Paddle POST {{STORE_ORIGIN}}/api/webhooks/paddle
--  → verify signature, idempotent insert store_orders + purchases, UPDATE players gold_bars+marks, recompute Patron from lifetime GL
-+  → verify signature, idempotent insert store_orders + purchases, UPDATE players gold_bars, recompute Patron from lifetime GL
-   → player returns to /welcome
-   → Discord /shop and /dashboard show new GL
- ```
-@@ -382,7 +379,6 @@ The website **does not create** the `players` table. The bot already did. Websit
- | `id` | serial PK | Read |
- | `discord_id` | string, unique | Read (join key). Never update. |
- | `credits` | int | **Read only.** Never increment from the store. |
--| `marks` | int | Dual-write with GL grants/refunds |
- | `gold_bars` | int not null default 0 | Increment on GL purchase; decrement on refund clamp ≥ 0 |
- | `bonds` | int not null default 0 | **Read only** |
- | `subscription_active` | boolean not null default false | Write from lifetime GL ≥ 2,600 |
-@@ -423,7 +419,7 @@ CREATE INDEX IF NOT EXISTS store_orders_order_id_idx ON store_orders (lemon_orde
++.market-reset {
++  margin-left: 0.15rem;
++}
++
+ .market-chart-canvas {
+   height: 420px;
+   width: 100%;
+diff --git a/public/js/market.js b/public/js/market.js
+index b56f27f..08a3a35 100644
+--- a/public/js/market.js
++++ b/public/js/market.js
+@@ -4,6 +4,9 @@
+   const focus = document.getElementById('market-focus');
+   if (!bootEl || !host) return;
  
- Bot `findOrCreatePlayer`:
++  const WINDOWS = new Set(['1M', '6M', 'YTD', '5Y', 'ALL']);
++  const ALIASES = { '6h': '1M', '24h': '1M', '7d': '6M' };
++
+   let boot = {};
+   try {
+     boot = JSON.parse(bootEl.textContent || '{}');
+@@ -11,11 +14,21 @@
+     boot = {};
+   }
  
--- Inserts `discord_id`, `credits: 0`, `marks: 0`, `onboarding_step: 'not_started'`, `gold_bars: 0`, `bonds: 0`.
-+- Inserts `discord_id`, `credits: 0`, `onboarding_step: 'not_started'`, `gold_bars: 0`, `bonds: 0`.
- - Then records a ledger transaction category `starting_grant` for **5000 Credits** (increments `credits`).
++  function normalizeWindow(next) {
++    const raw = String(next || '').trim();
++    if (WINDOWS.has(raw)) return raw;
++    if (ALIASES[raw]) return ALIASES[raw];
++    const upper = raw.toUpperCase();
++    if (WINDOWS.has(upper)) return upper;
++    return '1M';
++  }
++
+   let ticker = String(boot.ticker || '');
+-  let windowKey = String(boot.window || '24h');
++  let windowKey = normalizeWindow(boot.window);
+   let chart = null;
+   let candleSeries = null;
+   let volumeSeries = null;
++  let barCount = 0;
  
- If the website inserts a row **without** that grant, the bot will find the row later and **never** pay starting Credits.
-@@ -488,8 +484,7 @@ Run in a **single transaction** after inserting `store_orders` (or: insert order
+   function cssVar(name, fallback) {
+     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+@@ -38,8 +51,12 @@
+       rightPriceScale: { borderColor: cssVar('--border', 'rgba(36, 30, 24, 0.14)') },
+       timeScale: {
+         borderColor: cssVar('--border', 'rgba(36, 30, 24, 0.14)'),
+-        timeVisible: true,
++        timeVisible: false,
+         secondsVisible: false,
++        fixLeftEdge: true,
++        fixRightEdge: true,
++        lockVisibleTimeRangeOnResize: true,
++        rightBarStaysOnScroll: true,
+       },
+       crosshair: { mode: 0 },
+       up,
+@@ -53,6 +70,7 @@
+       chart = null;
+       candleSeries = null;
+       volumeSeries = null;
++      barCount = 0;
+     }
+   }
  
- ```sql
- UPDATE players
--SET gold_bars = gold_bars + :delta,
--    marks     = marks + :delta
-+SET gold_bars = gold_bars + :delta
- WHERE id = :player_id;
- ```
+@@ -77,8 +95,8 @@
+       rightPriceScale: theme.rightPriceScale,
+       timeScale: theme.timeScale,
+       crosshair: theme.crosshair,
+-      handleScroll: { mouseWheel: true, pressedMouseMove: true },
+-      handleScale: { mouseWheel: true, pinch: true },
++      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
++      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
+     });
+     candleSeries = chart.addCandlestickSeries({
+       upColor: theme.up,
+@@ -90,12 +108,18 @@
+     volumeSeries = chart.addHistogramSeries({
+       priceFormat: { type: 'volume' },
+       priceScaleId: '',
+-      scaleMargins: { top: 0.82, bottom: 0 },
++      scaleMargins: { top: 0.78, bottom: 0 },
+     });
+-    chart.priceScale('').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
++    chart.priceScale('').applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
+     return true;
+   }
  
-@@ -499,8 +494,7 @@ WHERE id = :player_id;
++  function fitView() {
++    if (!chart || barCount < 1) return;
++    chart.timeScale().fitContent();
++    candleSeries?.priceScale().applyOptions({ autoScale: true });
++  }
++
+   function applyTheme() {
+     if (!chart) return;
+     const theme = themeOptions();
+@@ -117,7 +141,7 @@
+     document.querySelectorAll('.quote-row').forEach((row) => {
+       row.classList.toggle('is-on', row.getAttribute('data-ticker') === ticker);
+     });
+-    document.querySelectorAll('.market-window').forEach((btn) => {
++    document.querySelectorAll('.market-window[data-window]').forEach((btn) => {
+       btn.classList.toggle('is-on', btn.getAttribute('data-window') === windowKey);
+     });
+     if (focus) focus.textContent = ticker || '—';
+@@ -130,7 +154,7 @@
+       return;
+     }
+     const url = `/api/market/ohlc?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`;
+-    const res = await fetch(url, { headers: { accept: 'application/json' } });
++    const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'default' });
+     if (!res.ok) {
+       destroyChart();
+       host.replaceChildren();
+@@ -138,6 +162,11 @@
+     }
+     const payload = await res.json();
+     const bars = Array.isArray(payload.bars) ? payload.bars : [];
++    if (!bars.length) {
++      destroyChart();
++      host.replaceChildren();
++      return;
++    }
+     if (!ensureChart()) {
+       host.textContent = 'Chart unavailable.';
+       return;
+@@ -151,12 +180,13 @@
+     }));
+     const volume = bars.map((bar) => ({
+       time: bar.t,
+-      value: bar.v || 0,
+-      color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.35)' : 'rgba(179, 38, 30, 0.35)',
++      value: Number(bar.v) > 0 ? bar.v : 0,
++      color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.45)' : 'rgba(179, 38, 30, 0.45)',
+     }));
+     candleSeries.setData(candles);
+     volumeSeries.setData(volume);
+-    chart.timeScale().fitContent();
++    barCount = candles.length;
++    fitView();
+   }
  
- ```sql
- UPDATE players
--SET gold_bars = GREATEST(0, gold_bars - :delta),
--    marks     = GREATEST(0, marks - :delta)
-+SET gold_bars = GREATEST(0, gold_bars - :delta)
- WHERE id = :player_id;
- ```
+   function setTicker(next) {
+@@ -171,7 +201,7 @@
+   }
  
-@@ -753,7 +747,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
- >
- > 1. **Discord profile (OAuth `identify`).** User id (snowflake), username, display name, avatar hash. We do **not** request email in v1.
- > 2. **Session.** Encrypted cookie so we remember who is logged in.
--> 3. **Game account fields we read.** Credits, Bonds, Gold Bars, Marks (legacy mirror), subscription flags, onboarding step — to show `/account` and to apply purchases.
-+> 3. **Game account fields we read.** Credits, Bonds, Gold Bars, subscription flags, onboarding step — to show `/account` and to apply purchases.
- > 4. **Payments (via Paddle webhooks).** Event type, order/subscription/variant ids, custom `discord_id` / `sku_key`, status, renewal/end timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number.
- > 5. **Logs.** IP address, user agent, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS:90}} days unless needed for fraud.
- >
-@@ -789,7 +783,7 @@ Replace every `{{LIKE_THIS}}`. Have counsel review. These drafts assume:
- >
- > **Virtual items.** Gold Bars and Patron are digital. Gold Bars are delivered to the linked Discord id when our webhook succeeds (usually seconds). Patron follows lifetime Gold Bars bought.
- >
--> **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars (and Marks mirror) and approve a refund via Paddle. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
-+> **Gold Bars.** If you request a refund **before** Gold Bars are spent or converted to Bonds, we will try to reverse the Gold Bars and approve a refund via Paddle. If you already converted GL → BN or spent BN, we **cannot** reliably take Bonds back (other players and the city economy may already be affected). We may refuse or only refund unused GL. Wallet floors at zero — we will not put your account into negative Gold Bars.
- >
- > **Patron.** Patron follows lifetime Gold Bars bought (net of refunds). If a refund drops you below 2,600, Patron turns off. We do not sell a standalone Patron subscription. Extra Bonds already granted are not clawed back.
- >
-@@ -831,7 +825,7 @@ If you later add Plausible/GA, you must add a banner and this section **before**
- >
- > **Bonds (BN).** Daily spend wallet, granted by the game. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way.
- >
--> **Gold Bars (GL).** Premium wallet sold on the Store. Dual-recorded internally with a legacy “Marks” field. Buying GL does not buy Credits.
-+> **Gold Bars (GL).** Premium wallet sold on the Store. Buying GL does not buy Credits.
- >
- > **Patron.** A perk unlocked when lifetime Gold Bars granted on a Discord account (net of refunds) reach **2,600** (Patron tier 1). While Patron is on, the game grants extra daily Bonds and may send occasional hints. Hints are imperfect and may pause if you have been away from the Discord server. Logging into this website does not count as Discord server activity. Patron is not a Paddle subscription, not a cash product, and is not sold on its own. First-purchase doubling applies to Gold Bars only.
- >
-@@ -874,7 +868,7 @@ Automated:
- - HMAC reject / accept fixtures (raw body + secret).
- - Idempotent double `order_created`.
- - Variant mapping disagreement → no grant.
--- GL grant dual-writes `gold_bars` and `marks`.
-+- GL grant writes `gold_bars` only.
- - Refund clamp at 0.
- - Pass status matrix (active / cancelled with future ends_at / expired).
- - OAuth `state` mismatch.
-@@ -897,7 +891,7 @@ You cannot use the Discord bot’s interaction harness from this repo. Prove gra
- After this store is live, the Discord bot should:
+   function setWindow(next) {
+-    const value = next === '6h' || next === '7d' ? next : '24h';
++    const value = normalizeWindow(next);
+     if (value === windowKey) return;
+     windowKey = value;
+     markSelected();
+@@ -190,6 +220,11 @@
+   });
  
- 1. Set `STORE_CHECKOUT_GOLD_*` to `{{STORE_ORIGIN}}/buy/...` so Link buttons carry the user through login.
--2. Keep GL display from `gold_bars` (Marks dual-write).
-+2. Keep GL display from `gold_bars`.
- 3. **Not** implement a second Paddle webhook if the website already grants (avoid double credit).
+   document.querySelector('.market-windows')?.addEventListener('click', (event) => {
++    if (event.target.closest('[data-reset]')) {
++      event.preventDefault();
++      fitView();
++      return;
++    }
+     const btn = event.target.closest('[data-window]');
+     if (!btn) return;
+     event.preventDefault();
+diff --git a/src/app.js b/src/app.js
+index 46a2721..980dfeb 100644
+--- a/src/app.js
++++ b/src/app.js
+@@ -34,7 +34,13 @@ import { getLegalDoc } from './legal.js';
+ import { config } from './config.js';
+ import { createDb } from './db.js';
+ import { createQuoteCache, sanitizeTicker } from './ticker.js';
+-import { CHART_WINDOWS, createMarketCache, loadMarketOhlc, resolveChartWindow } from './market.js';
++import {
++  DEFAULT_CHART_WINDOW,
++  createMarketCache,
++  loadMarketOhlc,
++  normalizeChartWindow,
++  resolveChartWindow,
++} from './market.js';
  
- If the website cannot share Postgres, add an HMAC grant API on the bot instead — that is a bot-repo leftover, not v1 store.
-@@ -970,7 +964,7 @@ For agentic workers in the **new website repo**. Check boxes as you go.
- 
- 1. Logged-out `/buy/gold-10` ends up at Discord OAuth then back.
- 2. User who never ran the bot cannot pay (blocked page).
--3. User who ran `/disgrowth` can pay test-mode $10 pack; SQL shows `gold_bars` and `marks` += 500 (or 1000 if first purchase); Discord `/shop` matches.
-+3. User who ran `/disgrowth` can pay test-mode $10 pack; SQL shows `gold_bars` += 500 (plus matching Bonds on first purchase); Discord `/shop` matches.
- 4. Double-delivery of the same webhook does not add extra Gold Bars.
- 5. Lifetime Gold Bars ≥ 2,600 → `/account` shows Patron tier 1; Discord shop “Patron **tier 1**”.
- 6. Refund starter in Paddle → GL decreases, not below 0; Patron may turn off if lifetime drops below 2,600.
-diff --git a/RUNBOOK.md b/RUNBOOK.md
-index 90db436..5a293b0 100644
---- a/RUNBOOK.md
-+++ b/RUNBOOK.md
-@@ -49,7 +49,7 @@ SELECT discord_id, provider_event_id, used_at
- FROM store_first_purchase
- WHERE discord_id = :snowflake;
- 
--SELECT discord_id, credits, bonds, gold_bars, marks, subscription_active, subscription_expires_at
-+SELECT discord_id, credits, bonds, gold_bars, subscription_active, subscription_expires_at
- FROM players
- WHERE discord_id = :snowflake;
- ```
+ const __dirname = path.dirname(fileURLToPath(import.meta.url));
+ const rootDir = path.join(__dirname, '..');
+@@ -47,7 +53,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
+   const market = marketCache || createMarketCache({
+     loadSnapshot: async () => {
+       if (!db || typeof db.listMarketQuotes !== 'function') return [];
+-      return db.listMarketQuotes(resolveChartWindow('24h').start);
++      return db.listMarketQuotes(resolveChartWindow(DEFAULT_CHART_WINDOW).start);
+     },
+     loadOhlc: (ticker, windowKey) => loadMarketOhlc(db, ticker, windowKey),
+     interval: config.NODE_ENV !== 'test',
+@@ -269,8 +275,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
+     const snapshot = market.getSnapshot();
+     const requested = sanitizeTicker(firstQueryValue(req.query.ticker));
+     const ticker = requested || snapshot.quotes[0]?.ticker || '';
+-    const rawWindow = firstQueryValue(req.query.window);
+-    const windowKey = CHART_WINDOWS[rawWindow] ? rawWindow : '24h';
++    const windowKey = normalizeChartWindow(firstQueryValue(req.query.window));
+     page(req, res, {
+       title: 'Market',
+       page: 'market',
+@@ -288,13 +293,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
+   app.get('/api/market/ohlc', marketLimit, async (req, res) => {
+     const ticker = sanitizeTicker(firstQueryValue(req.query.ticker));
+     if (!ticker) {
+-      res.set('Cache-Control', 'no-store');
++      res.set('Cache-Control', 'public, max-age=15, s-maxage=15');
+       res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
+       return;
+     }
+     const payload = await market.getOhlc(ticker, firstQueryValue(req.query.window));
+     if (!payload) {
+-      res.set('Cache-Control', 'no-store');
++      res.set('Cache-Control', 'public, max-age=15, s-maxage=15');
+       res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
+       return;
+     }
 diff --git a/src/db.js b/src/db.js
-index 6b5d1eb..7b4a65b 100644
+index f500df8..a661017 100644
 --- a/src/db.js
 +++ b/src/db.js
-@@ -61,7 +61,7 @@ export function createDb(databaseUrl) {
-       const id = parseDiscordId(discordId);
-       if (!id) return null;
-       const { rows } = await pool.query(
--        `SELECT id, discord_id, credits, bonds, gold_bars, marks,
-+        `SELECT id, discord_id, credits, bonds, gold_bars,
-                 subscription_active, subscription_expires_at, onboarding_step
-          FROM players
-          WHERE discord_id = $1`,
-@@ -149,7 +149,6 @@ export const PLAYER_COLUMNS = [
-   'credits',
-   'bonds',
-   'gold_bars',
--  'marks',
-   'subscription_active',
-   'subscription_expires_at',
-   'onboarding_step',
-diff --git a/src/grants.js b/src/grants.js
-index 34b78a0..695298b 100644
---- a/src/grants.js
-+++ b/src/grants.js
-@@ -3,15 +3,13 @@ import { discordId as parseDiscordId } from './lib/validate.js';
+@@ -126,11 +126,11 @@ export function createDb(databaseUrl) {
+       return rows[0] || null;
+     },
  
- export const GOLD_GRANT_SQL = `
- UPDATE players
--SET gold_bars = gold_bars + $1,
--    marks     = marks + $1
-+SET gold_bars = gold_bars + $1
- WHERE id = $2
+-    async listMarketHistory({ assetId, grain, since, limit = 2000 } = {}) {
++    async listMarketHistory({ assetId, grain, since, limit = 120 } = {}) {
+       const id = Number(assetId);
+       if (!Number.isInteger(id) || id <= 0) return [];
+-      const grainKey = grain === 'day' || grain === 'month' ? grain : 'tick';
+-      const cap = Math.min(Math.max(Number(limit) || 2000, 1), 2000);
++      const grainKey = grain === 'month' ? 'month' : 'day';
++      const cap = Math.min(Math.max(Number(limit) || 120, 1), 400);
+       const { rows } = await pool.query(MARKET_OHLC_SQL, [id, grainKey, since, cap]);
+       return rows;
+     },
+@@ -182,10 +182,11 @@ SELECT a.ticker, a.name, a.type, a.sector,
+        open_px.px AS open_price
+ FROM assets a
+ LEFT JOIN LATERAL (
+-  SELECT COALESCE(ph.close, ph.price) AS px
++  SELECT COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) AS px
+   FROM price_history ph
+   WHERE ph.asset_id = a.id
+     AND ph.recorded_at <= $1
++    AND COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) IS NOT NULL
+   ORDER BY ph.recorded_at DESC
+   LIMIT 1
+ ) open_px ON true
+@@ -202,11 +203,11 @@ LIMIT 1
  `.trim();
  
- export const GOLD_REFUND_SQL = `
- UPDATE players
--SET gold_bars = GREATEST(0, gold_bars - $1),
--    marks     = GREATEST(0, marks - $1)
-+SET gold_bars = GREATEST(0, gold_bars - $1)
- WHERE id = $2
+ export const MARKET_OHLC_SQL = `
+-SELECT recorded_at, period_start, open, high, low, close, price, volume
++SELECT period_start, recorded_at, open, high, low, close, price, volume
+ FROM price_history
+ WHERE asset_id = $1
+   AND grain = $2
+-  AND recorded_at >= $3
+-ORDER BY recorded_at ASC
++  AND period_start >= $3
++ORDER BY period_start ASC
+ LIMIT $4
  `.trim();
+diff --git a/src/market.js b/src/market.js
+index d77d4da..61e1e64 100644
+--- a/src/market.js
++++ b/src/market.js
+@@ -1,20 +1,88 @@
+ import { sanitizeTicker } from './ticker.js';
  
-diff --git a/src/legal.js b/src/legal.js
-index dd17dfa..457bdae 100644
---- a/src/legal.js
-+++ b/src/legal.js
-@@ -81,7 +81,7 @@ const DOCS = {
++/** Keep in lockstep with bot `src/config/game.config.js` `time`. */
++export const GAME_TIME = {
++  realMsPerInGameDay: 60 * 60 * 1000,
++  inGameDaysPerMonth: 30,
++  inGameMonthsPerYear: 12,
++  epoch: '2026-01-01T00:00:00.000Z',
++  calendarEpoch: '2000-01-01',
++};
++
+ export const MARKET_CACHE_TTL_MS = 15_000;
+-export const MARKET_OHLC_CACHE_MAX = 32;
+-export const MARKET_BAR_CAP = 300;
++export const MARKET_OHLC_CACHE_MAX = 64;
++export const MARKET_BAR_CAP = 400;
++export const DEFAULT_CHART_WINDOW = '1M';
++export const CHART_WINDOW_KEYS = ['1M', '6M', 'YTD', '5Y', 'ALL'];
  
- 1. **Discord profile (OAuth identify + email).** User id, username, display name, avatar hash, and email when Discord provides it (used to prefill Paddle Checkout).
- 2. **Session.** An encrypted cookie so we remember who is logged in.
--3. **Game account fields we read.** Credits, Bonds, Gold Bars, an internal mirror field, and tutorial progress — to show your account page and to apply purchases.
-+3. **Game account fields we read.** Credits, Bonds, Gold Bars, and tutorial progress — to show your account page and to apply purchases.
- 4. **Payments (via Paddle webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
- 5. **Logs.** IP address, browser, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS}} days unless needed for fraud.
+ export const CHART_WINDOWS = {
+-  '6h': { key: '6h', label: '6 Hours', realMs: 6 * 60 * 60 * 1000, targetCandles: 72, grain: 'tick' },
+-  '24h': { key: '24h', label: '24 Hours', realMs: 24 * 60 * 60 * 1000, targetCandles: 96, grain: 'tick' },
+-  '7d': { key: '7d', label: '7 Days', realMs: 7 * 24 * 60 * 60 * 1000, targetCandles: 84, grain: 'day' },
++  '1M': { key: '1M', label: '1M', grain: 'day', inGameDays: 30, targetBars: 36 },
++  '6M': { key: '6M', label: '6M', grain: 'day', inGameDays: 180, targetBars: 188 },
++  YTD: { key: 'YTD', label: 'YTD', grain: 'day', ytd: true, targetBars: 368 },
++  '5Y': { key: '5Y', label: '5Y', grain: 'month', inGameMonths: 60, targetBars: 64 },
++  ALL: { key: 'ALL', label: 'ALL', grain: 'month', fromEpoch: true, targetBars: 240 },
+ };
  
-@@ -160,7 +160,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
+-export function resolveChartWindow(windowKey, now = new Date()) {
+-  const key = CHART_WINDOWS[windowKey] ? windowKey : '24h';
++const WINDOW_ALIASES = {
++  '6h': '1M',
++  '24h': '1M',
++  '7d': '6M',
++  '1m': '1M',
++  '6m': '6M',
++  ytd: 'YTD',
++  '5y': '5Y',
++  all: 'ALL',
++};
++
++export function normalizeChartWindow(windowKey) {
++  const raw = String(windowKey || '').trim();
++  if (CHART_WINDOWS[raw]) return raw;
++  const alias = WINDOW_ALIASES[raw] || WINDOW_ALIASES[raw.toLowerCase()];
++  if (alias) return alias;
++  const upper = raw.toUpperCase();
++  if (CHART_WINDOWS[upper]) return upper;
++  return DEFAULT_CHART_WINDOW;
++}
++
++export function inGameDayIndex(at, time = GAME_TIME) {
++  const epochMs = Date.parse(time.epoch);
++  const elapsed = new Date(at).getTime() - epochMs;
++  return elapsed / (Number(time.realMsPerInGameDay) || 3_600_000);
++}
++
++export function toInGameUnix(at, time = GAME_TIME) {
++  const dayIndex = inGameDayIndex(at, time);
++  const [year, month, day] = String(time.calendarEpoch || '2000-01-01')
++    .slice(0, 10)
++    .split('-')
++    .map((n) => Number(n));
++  const calendarMs = Date.UTC(year, month - 1, day) + dayIndex * 86_400_000;
++  return Math.floor(calendarMs / 1000);
++}
++
++export function resolveChartWindow(windowKey, now = new Date(), time = GAME_TIME) {
++  const key = normalizeChartWindow(windowKey);
+   const window = CHART_WINDOWS[key];
+   const end = now instanceof Date ? now : new Date(now);
+-  const start = new Date(end.getTime() - window.realMs);
++  const epochMs = Date.parse(time.epoch);
++  const dayMs = Number(time.realMsPerInGameDay) || 3_600_000;
++  const daysPerMonth = Number(time.inGameDaysPerMonth) || 30;
++  const monthsPerYear = Number(time.inGameMonthsPerYear) || 12;
++  let start;
++  if (window.fromEpoch) {
++    start = new Date(epochMs);
++  } else if (window.ytd) {
++    const dayIndex = Math.max(0, Math.floor(inGameDayIndex(end, time)));
++    const yearLength = daysPerMonth * monthsPerYear;
++    const yearStartDay = Math.floor(dayIndex / yearLength) * yearLength;
++    start = new Date(epochMs + yearStartDay * dayMs);
++  } else if (window.inGameMonths) {
++    start = new Date(end.getTime() - window.inGameMonths * daysPerMonth * dayMs);
++  } else {
++    start = new Date(end.getTime() - (window.inGameDays || 30) * dayMs);
++  }
++  if (start.getTime() < epochMs) start = new Date(epochMs);
++  if (start.getTime() > end.getTime()) start = new Date(end);
+   return { ...window, start, end };
+ }
  
- **Bonds.** Daily spend in Discord, claimed there. The Store does not sell Bonds. The first Gold Bar purchase on a Discord account grants **as many Bonds as Gold Bars in that pack**, once. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
+@@ -28,7 +96,7 @@ function changePct(price, openPrice) {
+   const now = Number(price);
+   const open = Number(openPrice);
+   if (!Number.isFinite(now) || !Number.isFinite(open) || open === 0) return '0.00';
+-  return ((now - open) / open * 100).toFixed(2);
++  return (((now - open) / open) * 100).toFixed(2);
+ }
  
--**Gold Bars.** The premium wallet sold on this Store. Dual-recorded internally with a legacy mirror field. Buying Gold Bars does not buy Credits. First-purchase doubling of Gold Bars does not apply.
-+**Gold Bars.** The premium wallet sold on this Store. Buying Gold Bars does not buy Credits. First-purchase doubling of Gold Bars does not apply.
+ function round4(value) {
+@@ -37,6 +105,11 @@ function round4(value) {
+   return Math.round(n * 10000) / 10000;
+ }
  
- **No secondary market.** You may not sell accounts, Gold Bars, or Bonds for real money. We may reclaim items obtained that way.
++function finitePositive(value) {
++  const n = Number(value);
++  return Number.isFinite(n) && n > 0 ? n : null;
++}
++
+ export function publicQuote(row) {
+   const ticker = sanitizeTicker(row?.ticker);
+   if (!ticker) return null;
+@@ -72,12 +145,13 @@ export function publicBar(row) {
+   const c = round4(row?.c);
+   const v = round4(row?.v) ?? 0;
+   if (!Number.isFinite(t) || o == null || h == null || l == null || c == null) return null;
+-  return { t, o, h, l, c, v };
++  if (o <= 0 || h <= 0 || l <= 0 || c <= 0) return null;
++  return { t, o, h, l, c, v: v < 0 ? 0 : v };
+ }
  
-diff --git a/tests/grants.test.js b/tests/grants.test.js
-index a36dbf5..28f0342 100644
---- a/tests/grants.test.js
-+++ b/tests/grants.test.js
-@@ -191,10 +191,11 @@ test('Patron tier 1 unlocks at 2,600 lifetime Gold Bars bought', () => {
-   assert.equal(patronActiveFromLifetime(5250), true);
+ export function publicOhlc(ticker, windowKey, bars) {
+   const symbol = sanitizeTicker(ticker);
+-  const window = CHART_WINDOWS[windowKey] ? windowKey : '24h';
++  const window = normalizeChartWindow(windowKey);
+   const cleaned = [];
+   for (const row of bars || []) {
+     const bar = publicBar(row);
+@@ -88,24 +162,25 @@ export function publicOhlc(ticker, windowKey, bars) {
+ }
+ 
+ function priceOf(row) {
+-  const close = Number(row.close);
+-  if (Number.isFinite(close)) return close;
+-  const price = Number(row.price);
+-  return Number.isFinite(price) ? price : null;
++  return finitePositive(row?.close) ?? finitePositive(row?.price) ?? finitePositive(row?.open);
+ }
+ 
+-export function mapOhlcRows(rows) {
++export function mapOhlcRows(rows, time = GAME_TIME) {
+   const bars = [];
+   for (const row of rows || []) {
+     const at = row.period_start || row.recorded_at;
+-    const t = Math.floor(new Date(at).getTime() / 1000);
+     const price = priceOf(row);
++    if (price == null) continue;
++    const open = finitePositive(row.open) ?? price;
++    const close = finitePositive(row.close) ?? price;
++    const high = finitePositive(row.high) ?? Math.max(open, close, price);
++    const low = finitePositive(row.low) ?? Math.min(open, close, price);
+     const bar = publicBar({
+-      t,
+-      o: row.open ?? price,
+-      h: row.high ?? price,
+-      l: row.low ?? price,
+-      c: row.close ?? price,
++      t: toInGameUnix(at, time),
++      o: open,
++      h: Math.max(high, open, close),
++      l: Math.min(low, open, close),
++      c: close,
+       v: row.volume || 0,
+     });
+     if (bar) bars.push(bar);
+@@ -145,8 +220,8 @@ export function bucketBars(rows, start, end, candleCount) {
+       bucket.high = price;
+       bucket.low = price;
+     } else {
+-      bucket.high = Math.max(bucket.high, Number(row.high) || price);
+-      bucket.low = Math.min(bucket.low, Number(row.low) || price);
++      bucket.high = Math.max(bucket.high, finitePositive(row.high) || price);
++      bucket.low = Math.min(bucket.low, finitePositive(row.low) || price);
+     }
+     bucket.close = price;
+     bucket.volume += Math.abs(Number(row.volume) || 0);
+@@ -157,7 +232,7 @@ export function bucketBars(rows, start, end, candleCount) {
+   for (const bucket of buckets) {
+     if (bucket.samples === 0) continue;
+     const bar = publicBar({
+-      t: Math.floor(bucket.start / 1000),
++      t: toInGameUnix(bucket.start),
+       o: bucket.open,
+       h: bucket.high,
+       l: bucket.low,
+@@ -177,32 +252,28 @@ export async function loadMarketOhlc(db, ticker, windowKey, now = new Date()) {
+   const asset = await db.findMarketAsset(ticker);
+   if (!asset) return null;
+   const window = resolveChartWindow(windowKey, now);
++  const limit = Math.min(MARKET_BAR_CAP, window.targetBars);
+   let rows = await db.listMarketHistory({
+     assetId: asset.id,
+     grain: window.grain,
+     since: window.start,
+-    limit: window.grain === 'day' ? MARKET_BAR_CAP : 2000,
++    limit,
+   });
+-  let bars;
+-  if (window.grain === 'day' && rows.length) {
+-    bars = mapOhlcRows(rows);
+-  } else {
+-    if (window.grain === 'day' && !rows.length) {
+-      rows = await db.listMarketHistory({
+-        assetId: asset.id,
+-        grain: 'tick',
+-        since: window.start,
+-        limit: 2000,
+-      });
+-    }
+-    bars = bucketBars(rows, window.start, window.end, window.targetCandles);
++  if (window.grain === 'month' && rows.length < 3) {
++    rows = await db.listMarketHistory({
++      assetId: asset.id,
++      grain: 'day',
++      since: window.start,
++      limit: MARKET_BAR_CAP,
++    });
+   }
+-  return publicOhlc(asset.ticker, window.key, bars);
++  return publicOhlc(asset.ticker, window.key, mapOhlcRows(rows));
+ }
+ 
+ /**
+  * In-process snapshot + OHLC. Page/API reads never stampede Postgres:
+  * visitors share one cache, coalesced inflight, last-N OHLC keys.
++ * Extra query params (`?_=ts`) never reach the cache key.
+  */
+ export function createMarketCache({
+   loadSnapshot,
+@@ -228,7 +299,7 @@ export function createMarketCache({
+     snapshotExpires = Date.now() + ttlMs;
+     const hot = snapshot.quotes.slice(0, 8);
+     for (const quote of hot) {
+-      getOhlc(quote.ticker, '24h').catch(() => {});
++      getOhlc(quote.ticker, DEFAULT_CHART_WINDOW).catch(() => {});
+     }
+   }
+ 
+@@ -258,12 +329,10 @@ export function createMarketCache({
+     const pending = Promise.resolve()
+       .then(() => loadOhlc(symbol, window.key))
+       .then((payload) => {
+-        if (!payload) return null;
+-        const cleaned = publicOhlc(payload.ticker, payload.window, payload.bars);
++        const cleaned = payload ? publicOhlc(payload.ticker, payload.window, payload.bars) : null;
+         ohlc.set(key, { expires: Date.now() + ttlMs, payload: cleaned });
+-        if (ohlc.size > MARKET_OHLC_CACHE_MAX) {
+-          const oldest = ohlc.keys().next().value;
+-          ohlc.delete(oldest);
++        while (ohlc.size > MARKET_OHLC_CACHE_MAX) {
++          ohlc.delete(ohlc.keys().next().value);
+         }
+         return cleaned;
+       })
+diff --git a/src/views/layout.js b/src/views/layout.js
+index 036015f..309eae3 100644
+--- a/src/views/layout.js
++++ b/src/views/layout.js
+@@ -17,7 +17,7 @@ function marketBootMarkup(boot) {
+   const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
+   return raw(`<script type="application/json" id="market-boot">${json}</script>
+ <script src="/js/lightweight-charts.js" defer></script>
+-<script src="/js/market.js?v=20260918" defer></script>`);
++<script src="/js/market.js?v=20260919" defer></script>`);
+ }
+ 
+ export function markSvg(className = 'mark') {
+diff --git a/src/views/market.js b/src/views/market.js
+index ffa31c4..25f3afe 100644
+--- a/src/views/market.js
++++ b/src/views/market.js
+@@ -1,4 +1,5 @@
+ import { html } from '../lib/html.js';
++import { CHART_WINDOW_KEYS, DEFAULT_CHART_WINDOW } from '../market.js';
+ 
+ function changeClass(changePct) {
+   const n = Number(changePct);
+@@ -37,10 +38,9 @@ function quoteList(title, quotes, selected) {
+   </div>`;
+ }
+ 
+-export function marketPage({ quotes = [], ticker = '', windowKey = '24h' } = {}) {
++export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART_WINDOW } = {}) {
+   const commodities = quotes.filter((quote) => quote.type === 'commodity');
+   const companies = quotes.filter((quote) => quote.type === 'company');
+-  const windows = ['6h', '24h', '7d'];
+   const tickerQ = ticker ? encodeURIComponent(ticker) : '';
+   return html`
+     <section class="page-hero">
+@@ -56,12 +56,13 @@ export function marketPage({ quotes = [], ticker = '', windowKey = '24h' } = {})
+         <div class="market-chart-head">
+           <p class="kicker" id="market-focus">${ticker || '—'}</p>
+           <div class="market-windows" role="group" aria-label="Window">
+-            ${windows.map((key) => {
++            ${CHART_WINDOW_KEYS.map((key) => {
+               const href = tickerQ
+                 ? `/market?ticker=${tickerQ}&window=${key}`
+                 : `/market?window=${key}`;
+               return html`<a class="market-window${key === windowKey ? ' is-on' : ''}" href="${href}" data-window="${key}">${key}</a>`;
+             })}
++            <button type="button" class="market-window market-reset" data-reset>Reset</button>
+           </div>
+         </div>
+         <div class="market-chart-canvas" id="market-chart" role="img" aria-label="Price chart"></div>
+diff --git a/tests/app.test.js b/tests/app.test.js
+index a9c9e9b..15914d5 100644
+--- a/tests/app.test.js
++++ b/tests/app.test.js
+@@ -1006,8 +1006,8 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async ()
+       if (ticker !== 'FUEL') return null;
+       return {
+         ticker: 'FUEL',
+-        window: '24h',
+-        bars: [{ t: 1726665600, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
++        window: '1M',
++        bars: [{ t: 946684800, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
+       };
+     },
+   };
+@@ -1022,6 +1022,10 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async ()
+     assert.match(html, /FUEL/);
+     assert.match(html, /ACME/);
+     assert.match(html, /id="market-boot"/);
++    assert.match(html, /data-window="1M"/);
++    assert.match(html, /data-reset/);
++    assert.doesNotMatch(html, /data-window="6h"/);
++    assert.doesNotMatch(html, /data-window="24h"/);
+     assert.match(html, /\/js\/lightweight-charts\.js/);
+     assert.doesNotMatch(html, /fair_price/);
+     assert.doesNotMatch(html, /Buy Fuel/);
+@@ -1031,7 +1035,7 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async ()
+     const json = await snap.json();
+     assert.equal(json.quotes[0].ticker, 'FUEL');
+     assert.doesNotMatch(JSON.stringify(json), /fair_price/);
+-    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=24h`);
++    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=1M&_=cachebust`);
+     assert.equal(ohlc.status, 200);
+     const bars = await ohlc.json();
+     assert.equal(bars.ticker, 'FUEL');
+@@ -1041,5 +1045,6 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async ()
+     assert.equal(bad.status, 404);
+     const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`);
+     assert.equal(unknown.status, 404);
++    assert.match(unknown.headers.get('cache-control') || '', /max-age=15/);
+   });
+ });
+diff --git a/tests/market.test.js b/tests/market.test.js
+index cde46af..2d5c9cd 100644
+--- a/tests/market.test.js
++++ b/tests/market.test.js
+@@ -1,5 +1,7 @@
+ import assert from 'node:assert/strict';
++import { readFileSync } from 'node:fs';
+ import { test } from 'node:test';
++import { fileURLToPath } from 'node:url';
+ import {
+   MARKET_ASSET_SQL,
+   MARKET_OHLC_SQL,
+@@ -8,21 +10,29 @@ import {
+ } from '../src/db.js';
+ import { GOLD_GRANT_SQL, GOLD_REFUND_SQL } from '../src/grants.js';
+ import {
++  DEFAULT_CHART_WINDOW,
+   bucketBars,
+   createMarketCache,
+   loadMarketOhlc,
++  mapOhlcRows,
++  normalizeChartWindow,
+   publicQuote,
+   resolveChartWindow,
++  toInGameUnix,
+ } from '../src/market.js';
+ 
+ test('market snapshot SQL reads listed prices and never fair_price', () => {
+   assert.match(MARKET_SNAPSHOT_SQL, /a\.current_price AS price/);
++  assert.match(MARKET_SNAPSHOT_SQL, /NULLIF\(ph\.close, 0\)/);
+   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price/);
+   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /discord_id/);
+   assert.doesNotMatch(MARKET_ASSET_SQL, /fair_price/);
+   assert.doesNotMatch(MARKET_OHLC_SQL, /fair_price/);
+   assert.doesNotMatch(MARKET_OHLC_SQL, /macro_regime/);
++  assert.match(MARKET_OHLC_SQL, /grain = \$2/);
++  assert.match(MARKET_OHLC_SQL, /period_start >= \$3/);
+   assert.match(MARKET_OHLC_SQL, /LIMIT \$4/);
++  assert.doesNotMatch(MARKET_OHLC_SQL, /tick/);
  });
  
--test('grant SQL dual-writes gold_bars and marks and never writes credits', () => {
-+test('grant SQL writes gold_bars only and never writes credits or marks', () => {
-   assert.match(GOLD_GRANT_SQL, /gold_bars = gold_bars \+ \$1/);
--  assert.match(GOLD_GRANT_SQL, /marks\s+= marks \+ \$1/);
-+  assert.doesNotMatch(GOLD_GRANT_SQL, /\bmarks\b/);
-   assert.match(GOLD_REFUND_SQL, /GREATEST\(0, gold_bars - \$1\)/);
-+  assert.doesNotMatch(GOLD_REFUND_SQL, /\bmarks\b/);
-   assert.match(BONDS_GRANT_SQL, /bonds = bonds \+ \$1/);
-   assert.match(BONDS_REFUND_SQL, /GREATEST\(0, bonds - \$1\)/);
-   assert.match(PATRON_SYNC_SQL, /subscription_active = \$1/);
+ test('player columns and grants no longer mention marks', () => {
+@@ -54,6 +64,59 @@ test('publicQuote drops unknown tickers and never copies fair_price', () => {
+   assert.equal(Object.hasOwn(quote, 'fair_price'), false);
+ });
+ 
++test('in-game windows map wall-clock onto the fictional calendar', () => {
++  assert.equal(DEFAULT_CHART_WINDOW, '1M');
++  assert.equal(normalizeChartWindow('24h'), '1M');
++  assert.equal(normalizeChartWindow('6h'), '1M');
++  assert.equal(normalizeChartWindow('7d'), '6M');
++  assert.equal(normalizeChartWindow('nope'), '1M');
++  assert.equal(toInGameUnix('2026-01-01T00:00:00.000Z'), 946684800);
++  assert.equal(toInGameUnix('2026-01-01T01:00:00.000Z'), 946684800 + 86400);
++  const now = new Date('2026-09-19T07:00:00.000Z');
++  const oneM = resolveChartWindow('1M', now);
++  assert.equal(oneM.key, '1M');
++  assert.equal(oneM.grain, 'day');
++  assert.equal(now.getTime() - oneM.start.getTime(), 30 * 60 * 60 * 1000);
++  const ytd = resolveChartWindow('YTD', now);
++  assert.equal(ytd.grain, 'day');
++  assert.ok(ytd.start.getTime() >= Date.parse('2026-01-01T00:00:00.000Z'));
++  assert.ok(ytd.start.getTime() < now.getTime());
++  const fiveY = resolveChartWindow('5Y', now);
++  assert.equal(fiveY.grain, 'month');
++  const all = resolveChartWindow('ALL', now);
++  assert.equal(all.start.toISOString(), '2026-01-01T00:00:00.000Z');
++});
++
++test('mapOhlcRows uses in-game unix and skips zero closes', () => {
++  const bars = mapOhlcRows([
++    {
++      period_start: '2026-01-01T00:00:00.000Z',
++      open: 0,
++      high: 0,
++      low: 0,
++      close: 0,
++      price: 100.5,
++      volume: 12,
++      fair_price: 999,
++    },
++    {
++      period_start: '2026-01-01T01:00:00.000Z',
++      open: 101,
++      high: 102,
++      low: 99,
++      close: 100,
++      price: 100,
++      volume: 8,
++    },
++  ]);
++  assert.equal(bars.length, 2);
++  assert.equal(bars[0].t, 946684800);
++  assert.equal(bars[0].c, 100.5);
++  assert.equal(bars[0].v, 12);
++  assert.equal(bars[1].t, 946771200);
++  assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
++});
++
+ test('bucketBars downsamples ticks without a fair line', () => {
+   const start = new Date('2026-09-18T00:00:00Z');
+   const end = new Date('2026-09-18T04:00:00Z');
+@@ -71,14 +134,20 @@ test('bucketBars downsamples ticks without a fair line', () => {
+   assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
+ });
+ 
+-test('market cache coalesces snapshot loads', async () => {
++test('market cache coalesces snapshot loads and 404s', async () => {
+   let loads = 0;
++  let ohlcLoads = 0;
+   const cache = createMarketCache({
+     ttlMs: 60_000,
+     loadSnapshot: async () => {
+       loads += 1;
+       return [{ ticker: 'FUEL', name: 'Fuel', type: 'commodity', price: 75, open_price: 74 }];
+     },
++    loadOhlc: async (ticker, windowKey) => {
++      ohlcLoads += 1;
++      if (ticker === 'NOPE') return null;
++      return { ticker, window: windowKey, bars: [{ t: 946684800, o: 1, h: 2, l: 1, c: 1.5, v: 4 }] };
++    },
+   });
+   const a = cache.refresh();
+   const b = cache.refresh();
+@@ -88,18 +157,32 @@ test('market cache coalesces snapshot loads', async () => {
+   assert.equal(snap.quotes[0].ticker, 'FUEL');
+   await cache.refresh();
+   assert.equal(loads, 1);
++  const fuel = await cache.getOhlc('FUEL', '24h');
++  assert.equal(fuel.window, '1M');
++  const afterFuel = ohlcLoads;
++  const missA = await cache.getOhlc('NOPE', '1M');
++  const missB = await cache.getOhlc('NOPE', '1M');
++  assert.equal(missA, null);
++  assert.equal(missB, null);
++  assert.equal(ohlcLoads, afterFuel + 1);
+   cache.stop();
+ });
+ 
+-test('loadMarketOhlc 404s unknown symbols and omits fair_price', async () => {
++test('loadMarketOhlc never scans ticks and aliases old windows', async () => {
++  const grains = [];
+   const db = {
+     async findMarketAsset(ticker) {
+-      return ticker === 'FUEL' ? { id: 1, ticker: 'FUEL' } : null;
++      return ticker === 'FUEL' ? { id: 1, ticker: 'FUEL', current_price: 75.2 } : null;
+     },
+-    async listMarketHistory() {
++    async listMarketHistory(query) {
++      grains.push(query.grain);
++      assert.notEqual(query.grain, 'tick');
++      assert.ok(query.limit <= 400);
++      if (query.grain === 'month') return [];
+       return [
+         {
+-          recorded_at: '2026-09-18T12:00:00Z',
++          period_start: '2026-09-18T06:00:00Z',
++          recorded_at: '2026-09-18T06:59:59Z',
+           price: 75.2,
+           open: 75.1,
+           high: 75.8,
+@@ -112,12 +195,25 @@ test('loadMarketOhlc 404s unknown symbols and omits fair_price', async () => {
+     },
+   };
+   const now = new Date('2026-09-18T16:00:00Z');
+-  assert.equal(await loadMarketOhlc(db, '../x', '24h', now), null);
+-  assert.equal(await loadMarketOhlc(db, 'NOPE', '24h', now), null);
++  assert.equal(await loadMarketOhlc(db, '../x', '1M', now), null);
++  assert.equal(await loadMarketOhlc(db, 'NOPE', '1M', now), null);
+   const payload = await loadMarketOhlc(db, 'FUEL', '24h', now);
+   assert.equal(payload.ticker, 'FUEL');
+-  assert.equal(payload.window, '24h');
++  assert.equal(payload.window, '1M');
+   assert.ok(payload.bars.length >= 1);
++  assert.equal(payload.bars[0].v, 120);
+   assert.doesNotMatch(JSON.stringify(payload), /fair_price/);
+-  assert.equal(resolveChartWindow('nope').key, '24h');
++  const fiveY = await loadMarketOhlc(db, 'FUEL', '5Y', now);
++  assert.equal(fiveY.window, '5Y');
++  assert.deepEqual(grains, ['day', 'month', 'day']);
++});
++
++test('market client pins the axis and exposes Reset', () => {
++  const src = readFileSync(fileURLToPath(new URL('../public/js/market.js', import.meta.url)), 'utf8');
++  assert.match(src, /fixLeftEdge: true/);
++  assert.match(src, /fixRightEdge: true/);
++  assert.match(src, /data-reset/);
++  assert.match(src, /fitContent/);
++  assert.match(src, /'1M'/);
++  assert.match(src, /'YTD'/);
+ });

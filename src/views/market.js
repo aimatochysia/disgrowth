@@ -1,4 +1,5 @@
 import { html } from '../lib/html.js';
+import { CHART_WINDOW_KEYS, DEFAULT_CHART_WINDOW } from '../market.js';
 
 function changeClass(changePct) {
   const n = Number(changePct);
@@ -37,10 +38,9 @@ function quoteList(title, quotes, selected) {
   </div>`;
 }
 
-export function marketPage({ quotes = [], ticker = '', windowKey = '24h' } = {}) {
+export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART_WINDOW } = {}) {
   const commodities = quotes.filter((quote) => quote.type === 'commodity');
   const companies = quotes.filter((quote) => quote.type === 'company');
-  const windows = ['6h', '24h', '7d'];
   const tickerQ = ticker ? encodeURIComponent(ticker) : '';
   return html`
     <section class="page-hero">
@@ -56,12 +56,13 @@ export function marketPage({ quotes = [], ticker = '', windowKey = '24h' } = {})
         <div class="market-chart-head">
           <p class="kicker" id="market-focus">${ticker || '—'}</p>
           <div class="market-windows" role="group" aria-label="Window">
-            ${windows.map((key) => {
+            ${CHART_WINDOW_KEYS.map((key) => {
               const href = tickerQ
                 ? `/market?ticker=${tickerQ}&window=${key}`
                 : `/market?window=${key}`;
               return html`<a class="market-window${key === windowKey ? ' is-on' : ''}" href="${href}" data-window="${key}">${key}</a>`;
             })}
+            <button type="button" class="market-window market-reset" data-reset>Reset</button>
           </div>
         </div>
         <div class="market-chart-canvas" id="market-chart" role="img" aria-label="Price chart"></div>

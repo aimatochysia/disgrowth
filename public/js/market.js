@@ -4,6 +4,9 @@
   const focus = document.getElementById('market-focus');
   if (!bootEl || !host) return;
 
+  const WINDOWS = new Set(['1M', '6M', 'YTD', '5Y', 'ALL']);
+  const ALIASES = { '6h': '1M', '24h': '1M', '7d': '6M' };
+
   let boot = {};
   try {
     boot = JSON.parse(bootEl.textContent || '{}');
@@ -11,11 +14,21 @@
     boot = {};
   }
 
+  function normalizeWindow(next) {
+    const raw = String(next || '').trim();
+    if (WINDOWS.has(raw)) return raw;
+    if (ALIASES[raw]) return ALIASES[raw];
+    const upper = raw.toUpperCase();
+    if (WINDOWS.has(upper)) return upper;
+    return '1M';
+  }
+
   let ticker = String(boot.ticker || '');
-  let windowKey = String(boot.window || '24h');
+  let windowKey = normalizeWindow(boot.window);
   let chart = null;
   let candleSeries = null;
   let volumeSeries = null;
+  let barCount = 0;
 
   function cssVar(name, fallback) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -38,8 +51,12 @@
       rightPriceScale: { borderColor: cssVar('--border', 'rgba(36, 30, 24, 0.14)') },
       timeScale: {
         borderColor: cssVar('--border', 'rgba(36, 30, 24, 0.14)'),
-        timeVisible: true,
+        timeVisible: false,
         secondsVisible: false,
+        fixLeftEdge: true,
+        fixRightEdge: true,
+        lockVisibleTimeRangeOnResize: true,
+        rightBarStaysOnScroll: true,
       },
       crosshair: { mode: 0 },
       up,
@@ -53,6 +70,7 @@
       chart = null;
       candleSeries = null;
       volumeSeries = null;
+      barCount = 0;
     }
   }
 
@@ -77,8 +95,8 @@
       rightPriceScale: theme.rightPriceScale,
       timeScale: theme.timeScale,
       crosshair: theme.crosshair,
-      handleScroll: { mouseWheel: true, pressedMouseMove: true },
-      handleScale: { mouseWheel: true, pinch: true },
+      handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
+      handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
     });
     candleSeries = chart.addCandlestickSeries({
       upColor: theme.up,
@@ -90,10 +108,16 @@
     volumeSeries = chart.addHistogramSeries({
       priceFormat: { type: 'volume' },
       priceScaleId: '',
-      scaleMargins: { top: 0.82, bottom: 0 },
+      scaleMargins: { top: 0.78, bottom: 0 },
     });
-    chart.priceScale('').applyOptions({ scaleMargins: { top: 0.82, bottom: 0 } });
+    chart.priceScale('').applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
     return true;
+  }
+
+  function fitView() {
+    if (!chart || barCount < 1) return;
+    chart.timeScale().fitContent();
+    candleSeries?.priceScale().applyOptions({ autoScale: true });
   }
 
   function applyTheme() {
@@ -117,7 +141,7 @@
     document.querySelectorAll('.quote-row').forEach((row) => {
       row.classList.toggle('is-on', row.getAttribute('data-ticker') === ticker);
     });
-    document.querySelectorAll('.market-window').forEach((btn) => {
+    document.querySelectorAll('.market-window[data-window]').forEach((btn) => {
       btn.classList.toggle('is-on', btn.getAttribute('data-window') === windowKey);
     });
     if (focus) focus.textContent = ticker || '—';
@@ -130,7 +154,7 @@
       return;
     }
     const url = `/api/market/ohlc?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`;
-    const res = await fetch(url, { headers: { accept: 'application/json' } });
+    const res = await fetch(url, { headers: { accept: 'application/json' }, cache: 'default' });
     if (!res.ok) {
       destroyChart();
       host.replaceChildren();
@@ -138,6 +162,11 @@
     }
     const payload = await res.json();
     const bars = Array.isArray(payload.bars) ? payload.bars : [];
+    if (!bars.length) {
+      destroyChart();
+      host.replaceChildren();
+      return;
+    }
     if (!ensureChart()) {
       host.textContent = 'Chart unavailable.';
       return;
@@ -151,12 +180,13 @@
     }));
     const volume = bars.map((bar) => ({
       time: bar.t,
-      value: bar.v || 0,
-      color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.35)' : 'rgba(179, 38, 30, 0.35)',
+      value: Number(bar.v) > 0 ? bar.v : 0,
+      color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.45)' : 'rgba(179, 38, 30, 0.45)',
     }));
     candleSeries.setData(candles);
     volumeSeries.setData(volume);
-    chart.timeScale().fitContent();
+    barCount = candles.length;
+    fitView();
   }
 
   function setTicker(next) {
@@ -171,7 +201,7 @@
   }
 
   function setWindow(next) {
-    const value = next === '6h' || next === '7d' ? next : '24h';
+    const value = normalizeWindow(next);
     if (value === windowKey) return;
     windowKey = value;
     markSelected();
@@ -190,6 +220,11 @@
   });
 
   document.querySelector('.market-windows')?.addEventListener('click', (event) => {
+    if (event.target.closest('[data-reset]')) {
+      event.preventDefault();
+      fitView();
+      return;
+    }
     const btn = event.target.closest('[data-window]');
     if (!btn) return;
     event.preventDefault();

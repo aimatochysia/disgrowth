@@ -1,20 +1,88 @@
 import { sanitizeTicker } from './ticker.js';
 
-export const MARKET_CACHE_TTL_MS = 15_000;
-export const MARKET_OHLC_CACHE_MAX = 32;
-export const MARKET_BAR_CAP = 300;
-
-export const CHART_WINDOWS = {
-  '6h': { key: '6h', label: '6 Hours', realMs: 6 * 60 * 60 * 1000, targetCandles: 72, grain: 'tick' },
-  '24h': { key: '24h', label: '24 Hours', realMs: 24 * 60 * 60 * 1000, targetCandles: 96, grain: 'tick' },
-  '7d': { key: '7d', label: '7 Days', realMs: 7 * 24 * 60 * 60 * 1000, targetCandles: 84, grain: 'day' },
+/** Keep in lockstep with bot `src/config/game.config.js` `time`. */
+export const GAME_TIME = {
+  realMsPerInGameDay: 60 * 60 * 1000,
+  inGameDaysPerMonth: 30,
+  inGameMonthsPerYear: 12,
+  epoch: '2026-01-01T00:00:00.000Z',
+  calendarEpoch: '2000-01-01',
 };
 
-export function resolveChartWindow(windowKey, now = new Date()) {
-  const key = CHART_WINDOWS[windowKey] ? windowKey : '24h';
+export const MARKET_CACHE_TTL_MS = 15_000;
+export const MARKET_OHLC_CACHE_MAX = 64;
+export const MARKET_BAR_CAP = 400;
+export const DEFAULT_CHART_WINDOW = '1M';
+export const CHART_WINDOW_KEYS = ['1M', '6M', 'YTD', '5Y', 'ALL'];
+
+export const CHART_WINDOWS = {
+  '1M': { key: '1M', label: '1M', grain: 'day', inGameDays: 30, targetBars: 36 },
+  '6M': { key: '6M', label: '6M', grain: 'day', inGameDays: 180, targetBars: 188 },
+  YTD: { key: 'YTD', label: 'YTD', grain: 'day', ytd: true, targetBars: 368 },
+  '5Y': { key: '5Y', label: '5Y', grain: 'month', inGameMonths: 60, targetBars: 64 },
+  ALL: { key: 'ALL', label: 'ALL', grain: 'month', fromEpoch: true, targetBars: 240 },
+};
+
+const WINDOW_ALIASES = {
+  '6h': '1M',
+  '24h': '1M',
+  '7d': '6M',
+  '1m': '1M',
+  '6m': '6M',
+  ytd: 'YTD',
+  '5y': '5Y',
+  all: 'ALL',
+};
+
+export function normalizeChartWindow(windowKey) {
+  const raw = String(windowKey || '').trim();
+  if (CHART_WINDOWS[raw]) return raw;
+  const alias = WINDOW_ALIASES[raw] || WINDOW_ALIASES[raw.toLowerCase()];
+  if (alias) return alias;
+  const upper = raw.toUpperCase();
+  if (CHART_WINDOWS[upper]) return upper;
+  return DEFAULT_CHART_WINDOW;
+}
+
+export function inGameDayIndex(at, time = GAME_TIME) {
+  const epochMs = Date.parse(time.epoch);
+  const elapsed = new Date(at).getTime() - epochMs;
+  return elapsed / (Number(time.realMsPerInGameDay) || 3_600_000);
+}
+
+export function toInGameUnix(at, time = GAME_TIME) {
+  const dayIndex = inGameDayIndex(at, time);
+  const [year, month, day] = String(time.calendarEpoch || '2000-01-01')
+    .slice(0, 10)
+    .split('-')
+    .map((n) => Number(n));
+  const calendarMs = Date.UTC(year, month - 1, day) + dayIndex * 86_400_000;
+  return Math.floor(calendarMs / 1000);
+}
+
+export function resolveChartWindow(windowKey, now = new Date(), time = GAME_TIME) {
+  const key = normalizeChartWindow(windowKey);
   const window = CHART_WINDOWS[key];
   const end = now instanceof Date ? now : new Date(now);
-  const start = new Date(end.getTime() - window.realMs);
+  const epochMs = Date.parse(time.epoch);
+  const dayMs = Number(time.realMsPerInGameDay) || 3_600_000;
+  const daysPerMonth = Number(time.inGameDaysPerMonth) || 30;
+  const monthsPerYear = Number(time.inGameMonthsPerYear) || 12;
+  let start;
+  if (window.fromEpoch) {
+    start = new Date(epochMs);
+  } else if (window.ytd) {
+    const dayIndex = Math.max(0, Math.floor(inGameDayIndex(end, time)));
+    const yearLength = daysPerMonth * monthsPerYear;
+    const yearStartDay = Math.floor(dayIndex / yearLength) * yearLength;
+    start = new Date(epochMs + yearStartDay * dayMs);
+  } else if (window.inGameMonths) {
+    start = new Date(end.getTime() - window.inGameMonths * daysPerMonth * dayMs);
+  } else {
+    start = new Date(end.getTime() - (window.inGameDays || 30) * dayMs);
+  }
+  if (start.getTime() < epochMs) start = new Date(epochMs);
+  if (start.getTime() > end.getTime()) start = new Date(end);
   return { ...window, start, end };
 }
 
@@ -28,13 +96,18 @@ function changePct(price, openPrice) {
   const now = Number(price);
   const open = Number(openPrice);
   if (!Number.isFinite(now) || !Number.isFinite(open) || open === 0) return '0.00';
-  return ((now - open) / open * 100).toFixed(2);
+  return (((now - open) / open) * 100).toFixed(2);
 }
 
 function round4(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
   return Math.round(n * 10000) / 10000;
+}
+
+function finitePositive(value) {
+  const n = Number(value);
+  return Number.isFinite(n) && n > 0 ? n : null;
 }
 
 export function publicQuote(row) {
@@ -72,12 +145,13 @@ export function publicBar(row) {
   const c = round4(row?.c);
   const v = round4(row?.v) ?? 0;
   if (!Number.isFinite(t) || o == null || h == null || l == null || c == null) return null;
-  return { t, o, h, l, c, v };
+  if (o <= 0 || h <= 0 || l <= 0 || c <= 0) return null;
+  return { t, o, h, l, c, v: v < 0 ? 0 : v };
 }
 
 export function publicOhlc(ticker, windowKey, bars) {
   const symbol = sanitizeTicker(ticker);
-  const window = CHART_WINDOWS[windowKey] ? windowKey : '24h';
+  const window = normalizeChartWindow(windowKey);
   const cleaned = [];
   for (const row of bars || []) {
     const bar = publicBar(row);
@@ -88,24 +162,25 @@ export function publicOhlc(ticker, windowKey, bars) {
 }
 
 function priceOf(row) {
-  const close = Number(row.close);
-  if (Number.isFinite(close)) return close;
-  const price = Number(row.price);
-  return Number.isFinite(price) ? price : null;
+  return finitePositive(row?.close) ?? finitePositive(row?.price) ?? finitePositive(row?.open);
 }
 
-export function mapOhlcRows(rows) {
+export function mapOhlcRows(rows, time = GAME_TIME) {
   const bars = [];
   for (const row of rows || []) {
     const at = row.period_start || row.recorded_at;
-    const t = Math.floor(new Date(at).getTime() / 1000);
     const price = priceOf(row);
+    if (price == null) continue;
+    const open = finitePositive(row.open) ?? price;
+    const close = finitePositive(row.close) ?? price;
+    const high = finitePositive(row.high) ?? Math.max(open, close, price);
+    const low = finitePositive(row.low) ?? Math.min(open, close, price);
     const bar = publicBar({
-      t,
-      o: row.open ?? price,
-      h: row.high ?? price,
-      l: row.low ?? price,
-      c: row.close ?? price,
+      t: toInGameUnix(at, time),
+      o: open,
+      h: Math.max(high, open, close),
+      l: Math.min(low, open, close),
+      c: close,
       v: row.volume || 0,
     });
     if (bar) bars.push(bar);
@@ -145,8 +220,8 @@ export function bucketBars(rows, start, end, candleCount) {
       bucket.high = price;
       bucket.low = price;
     } else {
-      bucket.high = Math.max(bucket.high, Number(row.high) || price);
-      bucket.low = Math.min(bucket.low, Number(row.low) || price);
+      bucket.high = Math.max(bucket.high, finitePositive(row.high) || price);
+      bucket.low = Math.min(bucket.low, finitePositive(row.low) || price);
     }
     bucket.close = price;
     bucket.volume += Math.abs(Number(row.volume) || 0);
@@ -157,7 +232,7 @@ export function bucketBars(rows, start, end, candleCount) {
   for (const bucket of buckets) {
     if (bucket.samples === 0) continue;
     const bar = publicBar({
-      t: Math.floor(bucket.start / 1000),
+      t: toInGameUnix(bucket.start),
       o: bucket.open,
       h: bucket.high,
       l: bucket.low,
@@ -177,32 +252,28 @@ export async function loadMarketOhlc(db, ticker, windowKey, now = new Date()) {
   const asset = await db.findMarketAsset(ticker);
   if (!asset) return null;
   const window = resolveChartWindow(windowKey, now);
+  const limit = Math.min(MARKET_BAR_CAP, window.targetBars);
   let rows = await db.listMarketHistory({
     assetId: asset.id,
     grain: window.grain,
     since: window.start,
-    limit: window.grain === 'day' ? MARKET_BAR_CAP : 2000,
+    limit,
   });
-  let bars;
-  if (window.grain === 'day' && rows.length) {
-    bars = mapOhlcRows(rows);
-  } else {
-    if (window.grain === 'day' && !rows.length) {
-      rows = await db.listMarketHistory({
-        assetId: asset.id,
-        grain: 'tick',
-        since: window.start,
-        limit: 2000,
-      });
-    }
-    bars = bucketBars(rows, window.start, window.end, window.targetCandles);
+  if (window.grain === 'month' && rows.length < 3) {
+    rows = await db.listMarketHistory({
+      assetId: asset.id,
+      grain: 'day',
+      since: window.start,
+      limit: MARKET_BAR_CAP,
+    });
   }
-  return publicOhlc(asset.ticker, window.key, bars);
+  return publicOhlc(asset.ticker, window.key, mapOhlcRows(rows));
 }
 
 /**
  * In-process snapshot + OHLC. Page/API reads never stampede Postgres:
  * visitors share one cache, coalesced inflight, last-N OHLC keys.
+ * Extra query params (`?_=ts`) never reach the cache key.
  */
 export function createMarketCache({
   loadSnapshot,
@@ -228,7 +299,7 @@ export function createMarketCache({
     snapshotExpires = Date.now() + ttlMs;
     const hot = snapshot.quotes.slice(0, 8);
     for (const quote of hot) {
-      getOhlc(quote.ticker, '24h').catch(() => {});
+      getOhlc(quote.ticker, DEFAULT_CHART_WINDOW).catch(() => {});
     }
   }
 
@@ -258,12 +329,10 @@ export function createMarketCache({
     const pending = Promise.resolve()
       .then(() => loadOhlc(symbol, window.key))
       .then((payload) => {
-        if (!payload) return null;
-        const cleaned = publicOhlc(payload.ticker, payload.window, payload.bars);
+        const cleaned = payload ? publicOhlc(payload.ticker, payload.window, payload.bars) : null;
         ohlc.set(key, { expires: Date.now() + ttlMs, payload: cleaned });
-        if (ohlc.size > MARKET_OHLC_CACHE_MAX) {
-          const oldest = ohlc.keys().next().value;
-          ohlc.delete(oldest);
+        while (ohlc.size > MARKET_OHLC_CACHE_MAX) {
+          ohlc.delete(ohlc.keys().next().value);
         }
         return cleaned;
       })
