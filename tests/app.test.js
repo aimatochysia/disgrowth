@@ -1007,7 +1007,7 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
       return {
         ticker: 'FUEL',
         window: '1M',
-        bars: [{ t: 946684800, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
+        bars: [{ t: 946684800, o: 75.1, h: 75.8, l: 74.9, c: 75.2 }],
       };
     },
   };
@@ -1041,6 +1041,7 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.equal(bars.ticker, 'FUEL');
     assert.equal(bars.bars[0].c, 75.2);
     assert.doesNotMatch(JSON.stringify(bars), /fair_price/);
+    assert.equal(Object.hasOwn(bars.bars[0], 'v'), false);
     const bad = await fetch(`${base}/api/market/ohlc?ticker=../x`);
     assert.equal(bad.status, 404);
     const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`);
