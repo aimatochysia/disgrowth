@@ -112,7 +112,7 @@ test('mapOhlcRows uses in-game unix and skips zero closes', () => {
   assert.equal(bars.length, 2);
   assert.equal(bars[0].t, 946684800);
   assert.equal(bars[0].c, 100.5);
-  assert.equal(Object.hasOwn(bars[0], 'v'), false);
+  assert.equal(bars[0].v, 12);
   assert.equal(bars[1].t, 946771200);
   assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
 });
@@ -130,7 +130,7 @@ test('bucketBars downsamples ticks without a fair line', () => {
   assert.equal(bars[0].o, 10);
   assert.equal(bars[0].h, 12);
   assert.equal(bars[0].c, 12);
-  assert.equal(Object.hasOwn(bars[0], 'v'), false);
+  assert.equal(bars[0].v, 5);
   assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
 });
 
@@ -159,7 +159,7 @@ test('market cache coalesces snapshot loads and 404s', async () => {
   assert.equal(loads, 1);
   const fuel = await cache.getOhlc('FUEL', '24h');
   assert.equal(fuel.window, '1M');
-  assert.equal(Object.hasOwn(fuel.bars[0], 'v'), false);
+  assert.equal(fuel.bars[0].v, 4);
   const afterFuel = ohlcLoads;
   const missA = await cache.getOhlc('NOPE', '1M');
   const missB = await cache.getOhlc('NOPE', '1M');
@@ -202,14 +202,14 @@ test('loadMarketOhlc never scans ticks and aliases old windows', async () => {
   assert.equal(payload.ticker, 'FUEL');
   assert.equal(payload.window, '1M');
   assert.ok(payload.bars.length >= 1);
-  assert.equal(Object.hasOwn(payload.bars[0], 'v'), false);
+  assert.equal(payload.bars[0].v, 120);
   assert.doesNotMatch(JSON.stringify(payload), /fair_price/);
   const fiveY = await loadMarketOhlc(db, 'FUEL', '5Y', now);
   assert.equal(fiveY.window, '5Y');
   assert.deepEqual(grains, ['day', 'month', 'day']);
 });
 
-test('market client pins the axis and never draws volume', () => {
+test('market client pins the axis and draws volume', () => {
   const src = readFileSync(fileURLToPath(new URL('../public/js/market.js', import.meta.url)), 'utf8');
   assert.match(src, /fixLeftEdge: true/);
   assert.match(src, /fixRightEdge: true/);
@@ -217,6 +217,6 @@ test('market client pins the axis and never draws volume', () => {
   assert.match(src, /fitContent/);
   assert.match(src, /'1M'/);
   assert.match(src, /'YTD'/);
-  assert.doesNotMatch(src, /addHistogramSeries/);
-  assert.doesNotMatch(src, /volumeSeries/);
+  assert.match(src, /addHistogramSeries/);
+  assert.match(src, /volumeSeries/);
 });

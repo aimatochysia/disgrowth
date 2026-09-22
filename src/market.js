@@ -143,9 +143,10 @@ export function publicBar(row) {
   const h = round4(row?.h);
   const l = round4(row?.l);
   const c = round4(row?.c);
+  const v = round4(row?.v) ?? 0;
   if (!Number.isFinite(t) || o == null || h == null || l == null || c == null) return null;
   if (o <= 0 || h <= 0 || l <= 0 || c <= 0) return null;
-  return { t, o, h, l, c };
+  return { t, o, h, l, c, v: v < 0 ? 0 : v };
 }
 
 export function publicOhlc(ticker, windowKey, bars) {
@@ -180,6 +181,7 @@ export function mapOhlcRows(rows, time = GAME_TIME) {
       h: Math.max(high, open, close),
       l: Math.min(low, open, close),
       c: close,
+      v: row.volume || 0,
     });
     if (bar) bars.push(bar);
     if (bars.length >= MARKET_BAR_CAP) break;
@@ -198,6 +200,7 @@ export function bucketBars(rows, start, end, candleCount) {
     high: null,
     low: null,
     close: null,
+    volume: 0,
     samples: 0,
   }));
 
@@ -221,6 +224,7 @@ export function bucketBars(rows, start, end, candleCount) {
       bucket.low = Math.min(bucket.low, finitePositive(row.low) || price);
     }
     bucket.close = price;
+    bucket.volume += Math.abs(Number(row.volume) || 0);
     bucket.samples += 1;
   }
 
@@ -233,6 +237,7 @@ export function bucketBars(rows, start, end, candleCount) {
       h: bucket.high,
       l: bucket.low,
       c: bucket.close,
+      v: bucket.volume,
     });
     if (bar) bars.push(bar);
     if (bars.length >= MARKET_BAR_CAP) break;

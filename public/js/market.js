@@ -27,6 +27,7 @@
   let windowKey = normalizeWindow(boot.window);
   let chart = null;
   let candleSeries = null;
+  let volumeSeries = null;
   let barCount = 0;
 
   function cssVar(name, fallback) {
@@ -68,6 +69,7 @@
       chart.remove();
       chart = null;
       candleSeries = null;
+      volumeSeries = null;
       barCount = 0;
     }
   }
@@ -103,6 +105,12 @@
       wickUpColor: theme.up,
       wickDownColor: theme.down,
     });
+    volumeSeries = chart.addHistogramSeries({
+      priceFormat: { type: 'volume' },
+      priceScaleId: '',
+      scaleMargins: { top: 0.78, bottom: 0 },
+    });
+    chart.priceScale('').applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
     return true;
   }
 
@@ -170,7 +178,13 @@
       low: bar.l,
       close: bar.c,
     }));
+    const volume = bars.map((bar) => ({
+      time: bar.t,
+      value: Number(bar.v) > 0 ? bar.v : 0,
+      color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.45)' : 'rgba(179, 38, 30, 0.45)',
+    }));
     candleSeries.setData(candles);
+    volumeSeries.setData(volume);
     barCount = candles.length;
     fitView();
   }
