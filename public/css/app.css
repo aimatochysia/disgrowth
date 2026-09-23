@@ -1,12 +1,8 @@
-/* MARKET GAME — STORE
-   Day / night atmospheric storefront. Tokens follow the game cards;
-   the scene is a separate, quieter layer so type stays readable.
-
-   Theme cascade: each layer STARTS just after the one behind it
-   (sky → hills → trees → type → boxes). They overlap; nothing waits
-   for the sky to finish. Animate registered tokens on html only —
-   also transitioning `color` on body/hero made type flash to the
-   end color, snap back, then ease. */
+/* Disgrowth store.
+   Theme colors are registered custom properties animated on <html> only,
+   staggered back to front (sky, hills, trees, text, panels). Do not add
+   color or background transitions to descendants: they fight the token
+   animation and make text flash during the day/night switch. */
 
 @property --bg { syntax: "<color>"; inherits: true; initial-value: #efe6d6; }
 @property --bg-deep { syntax: "<color>"; inherits: true; initial-value: #e4d7c2; }
@@ -103,8 +99,6 @@ body {
   font-family: "IBM Plex Sans", "Noto Sans", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.65;
-  color: var(--text);
-  background: var(--bg);
   padding-top: 28px;
 }
 
@@ -659,7 +653,6 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   cursor: pointer;
   align-items: center;
   justify-content: center;
-  transition: background-color 0.18s ease, transform 0.18s ease;
 }
 
 .nav-toggle:hover,
@@ -717,7 +710,6 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   font-size: 11px;
   letter-spacing: 0.06em;
   cursor: pointer;
-  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
 }
 
 .theme-toggle:hover,
@@ -789,40 +781,6 @@ html.theme-animated .mini-moon {
   transition: transform 0.6s ease, opacity 0.6s ease;
 }
 
-.panel,
-.legal-card,
-.legal-doc,
-.theme-toggle,
-.nav-toggle,
-.hero-copy,
-.flash,
-.wallet {
-  transition: none;
-}
-
-html.theme-animated .panel,
-html.theme-animated .legal-card,
-html.theme-animated .legal-doc,
-html.theme-animated .hero-copy,
-html.theme-animated .flash,
-html.theme-animated .site-header,
-html.theme-animated .ticker {
-  transition: none;
-}
-
-html.theme-animated .band::before {
-  transition: none;
-}
-
-html.theme-animated .sku,
-html.theme-animated .beat {
-  transition: transform 0.2s ease, border-color 0.2s ease;
-}
-
-html.theme-animated .legal-card {
-  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
-}
-
 /* ── Layout ────────────────────────────────────────────── */
 
 .wrap {
@@ -835,19 +793,14 @@ html.theme-animated .legal-card {
 
 .hero {
   position: relative;
-  min-height: 0;
-  height: auto;
-  display: block;
   padding: 0.75rem 0 0.35rem;
 }
 
 .hero-copy {
   position: relative;
   z-index: 1;
-  display: block;
   max-width: 38rem;
   width: fit-content;
-  height: auto;
   padding: 1rem 1.2rem 1.05rem;
   border-radius: 10px;
   background: color-mix(in srgb, var(--bg) 72%, transparent);
@@ -933,6 +886,7 @@ html.theme-animated .legal-card {
   border-radius: 8px;
   border: 1px solid transparent;
   text-decoration: none;
+  font: inherit;
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -981,20 +935,6 @@ html.theme-animated .legal-card {
   filter: none;
 }
 
-.text-link {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  text-decoration: none;
-  transition: color 0.18s ease, opacity 0.18s ease;
-}
-
-.text-link:hover,
-.text-link:focus-visible {
-  color: var(--text);
-  opacity: 0.88;
-}
-
 .band {
   position: relative;
   margin: 3.25rem 0 0;
@@ -1022,17 +962,6 @@ html.theme-animated .legal-card {
   margin: 0 0 1.4rem;
 }
 
-.section-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 1rem;
-  margin-bottom: 1rem;
-}
-.section-head .section-title {
-  margin: 0;
-}
-
 .panel {
   background: var(--panel-a);
   border: 1px solid var(--border);
@@ -1042,8 +971,7 @@ html.theme-animated .legal-card {
 }
 
 .wallet-grid,
-.sku-grid,
-.legal-grid {
+.sku-grid {
   display: grid;
   gap: 1rem;
 }
@@ -1070,33 +998,19 @@ html.theme-animated .legal-card {
   margin: 0;
 }
 
-.patron-note p {
-  margin: 0;
-  max-width: 40rem;
-}
-
-.close-band .lede {
-  margin-bottom: 1.1rem;
-}
-
 .sku-grid {
   grid-template-columns: repeat(2, minmax(0, 1fr));
   align-items: stretch;
 }
 
-.legal-grid {
-  grid-template-columns: repeat(2, 1fr);
-}
-
-.wallet .code,
-.sku .code {
+.wallet .code {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.12em;
 }
 
-.wallet h3,
-.sku h3 {
+.wallet h2,
+.sku-title {
   font-family: Fraunces, serif;
   font-weight: 500;
   font-size: 1.35rem;
@@ -1109,26 +1023,29 @@ html.theme-animated .legal-card {
   margin: 0 0 0.8rem;
 }
 
-.stamp {
+.wallet .stamp {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--text) !important;
-  margin: 0 !important;
+  color: var(--text);
+  margin: 0;
 }
 
-.wallet-gold .code,
-.sku-gold .code {
+.wallet-gold .code {
   color: var(--gold);
 }
 
-.balance {
+.wallet .balance {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 1.8rem;
-  color: var(--text) !important;
-  margin: 0.2rem 0 0.5rem !important;
+  color: var(--text);
+  margin: 0.2rem 0 0.5rem;
+}
+
+.account-actions {
+  margin-top: 1.25rem;
 }
 
 .sku {
@@ -1152,19 +1069,13 @@ html.theme-animated .legal-card {
   border-color: color-mix(in srgb, var(--accent) 35%, var(--border));
 }
 
+.sku-title {
+  font-size: 1.5rem;
+  margin-top: 0;
+}
+
 .sku-blurb {
   flex: 1 1 auto;
-}
-
-.sku-meta {
-  display: flex;
-  justify-content: space-between;
-  color: var(--muted);
-}
-
-.sku-grant {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  color: var(--text) !important;
 }
 
 .sku-foot {
@@ -1205,16 +1116,12 @@ html.theme-animated .legal-card {
   color: var(--muted);
 }
 
-.note ul.plain {
-  margin: 0.4rem 0 1rem;
-  padding-left: 1.1rem;
-  color: var(--muted);
-}
-
 .facts {
   display: grid;
   gap: 0.65rem;
-  margin: 0 0 1rem;
+  margin: 0 0 1.1rem;
+  padding-bottom: 1.1rem;
+  border-bottom: 1px solid var(--border);
 }
 
 .facts div {
@@ -1277,27 +1184,16 @@ html.theme-animated .legal-card {
   gap: 1rem;
 }
 
+.account-hero .display {
+  margin: 0;
+}
+
 .avatar {
   width: 64px;
   height: 64px;
   border-radius: 8px;
   border: 1px solid var(--border);
 }
-
-.pass-status {
-  margin-top: 1rem;
-  display: grid;
-  gap: 0.4rem;
-}
-
-.pass-flag {
-  font-family: Fraunces, serif;
-  font-size: 2rem;
-  margin: 0.2rem 0;
-}
-
-.pass-flag.on { color: var(--positive); }
-.pass-flag.off { color: var(--muted); }
 
 .legal-toc {
   display: flex;
@@ -1326,35 +1222,11 @@ html.theme-animated .legal-card {
   background: color-mix(in srgb, var(--text) 10%, transparent);
 }
 
-.legal-card {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  padding: 1.2rem 1.3rem;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  background: var(--panel-a);
-  text-decoration: none;
-  color: var(--text);
-  min-height: 96px;
-  transition: transform 0.18s ease, border-color 0.18s ease, background-color 0.18s ease;
-}
-
-.legal-card:hover,
-.legal-card:focus-visible {
-  border-color: var(--accent);
-  transform: translateY(-2px);
-}
-
 .legal-doc {
   background: var(--panel-a);
   border: 1px solid var(--border);
   border-radius: 8px;
-  padding: 1.5rem 1.5rem 2rem;
-}
-
-.legal-book {
-  padding-top: 0.5rem;
+  padding: 0.5rem 1.5rem 2rem;
 }
 
 .legal-chapter {
@@ -1393,21 +1265,10 @@ html.theme-animated .legal-card {
   margin: 0 0 1rem;
 }
 
-.legal-body h3 {
-  font-family: Fraunces, serif;
-  font-weight: 500;
-  font-size: 1.15rem;
-  margin: 1.25rem 0 0.5rem;
-}
-
 .muted { color: var(--muted); }
 
 .page-hero {
   padding: 1.5rem 0 0.5rem;
-}
-
-html[data-page="market"] .wrap {
-  width: min(1120px, calc(100% - 2rem));
 }
 
 .market-board {
@@ -1549,12 +1410,13 @@ html[data-page="market"] .wrap {
   z-index: 10;
   width: min(960px, calc(100% - 2rem));
   margin: 0 auto 2.5rem;
+  padding-top: 1.1rem;
+  border-top: 1px solid var(--border);
 }
 
-.footer-rule {
-  height: 1px;
-  background: var(--border);
-  margin-bottom: 1.1rem;
+html[data-page="market"] .wrap,
+html[data-page="market"] .site-footer {
+  width: min(1120px, calc(100% - 2rem));
 }
 
 .fine {
@@ -1716,7 +1578,6 @@ html[data-page="market"] .wrap {
 @media (max-width: 900px) {
   .wallet-grid,
   .sku-grid,
-  .legal-grid,
   .beat-grid,
   .market-board {
     grid-template-columns: 1fr;
@@ -1827,20 +1688,15 @@ html[data-page="market"] .wrap {
   }
 
   .hero {
-    min-height: 0;
-    height: auto;
     padding: 0.5rem 0 0.25rem;
   }
 
   .hero-copy {
     width: 100%;
     max-width: none;
-    height: auto;
     background: var(--panel-a);
-    border: 1px solid var(--border);
     border-radius: 8px;
     padding: 0.95rem 0.95rem 1rem;
-    box-shadow: var(--shadow);
   }
 
   .hero-copy .display {

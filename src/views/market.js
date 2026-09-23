@@ -45,7 +45,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
   return html`
     <section class="page-hero">
       <h1 class="display display-page">Market</h1>
-      <p class="lede narrow">Commodities and listed companies. Watch only.</p>
+      <p class="lede narrow">Prices from the city market. Trading happens in Discord.</p>
     </section>
     <section class="market-board panel">
       <div class="market-lists">
@@ -55,7 +55,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
       <div class="market-chart-pane">
         <div class="market-chart-head">
           <p class="kicker" id="market-focus">${ticker || '—'}</p>
-          <div class="market-windows" role="group" aria-label="Window">
+          <div class="market-windows" role="group" aria-label="Chart range">
             ${CHART_WINDOW_KEYS.map((key) => {
               const href = tickerQ
                 ? `/market?ticker=${tickerQ}&window=${key}`

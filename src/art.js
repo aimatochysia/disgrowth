@@ -24,7 +24,7 @@ export function detectArt(rootDir) {
 }
 
 export function artCss(found) {
-  const lines = ['/* generated from public/art — do not edit by hand */'];
+  const lines = [];
   if (found['sky-day']) {
     lines.push(`html.has-art-sky-day .layer-sky-day{background-image:url("${found['sky-day']}")}`);
   }

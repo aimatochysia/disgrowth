@@ -4,7 +4,7 @@ function fill(template, vars) {
   return template.replaceAll(/\{\{([A-Z0-9_]+)\}\}/g, (_, key) => vars[key] ?? '');
 }
 
-export function legalVars(config) {
+function legalVars(config) {
   return {
     DATE: config.LEGAL_DATE,
     OPERATOR_LEGAL_NAME: config.OPERATOR_LEGAL_NAME,
@@ -24,12 +24,11 @@ const DOCS = {
   terms: {
     slug: 'terms',
     title: 'Terms of Service',
-    kicker: 'Store agreement',
     body: `Last updated: {{DATE}}
 
 **Who we are.** These Terms are between you and **{{OPERATOR_LEGAL_NAME}}** (“Operator”, “we”). The game is offered as **Disgrowth**. Contact: {{OPERATOR_CONTACT_EMAIL}}. We do not publish a street address or country on this site.
 
-**What this site is.** This website (the “Store”) sells Gold Bars for Disgrowth. Play happens in Discord. Card payments are processed by Paddle as Merchant of Record.
+**What this site is.** This website (the “Store”) sells Gold Bars for Disgrowth. Play happens in Discord. Payments are processed by Paddle as Merchant of Record.
 
 **Agreement.** By logging in with Discord or completing a purchase you agree to these Terms, the Virtual Items Policy, the Refund Policy, the Cookie Policy, and the Privacy Policy. If you do not agree, do not log in or pay.
 
@@ -45,9 +44,9 @@ const DOCS = {
 
 **Credits.** Credits cannot be purchased on the Store and never will be under these Terms as of the last updated date.
 
-**Gold Bars.** The Store sells Gold Bars in set packs ($10, $25, $50, $100). Bonds are not sold as a pack. In-game rank follows lifetime Gold Bars bought in Discord; it is not a Store SKU.
+**Gold Bars.** The Store sells Gold Bars in set packs ($10, $25, $50, $100). Bonds are not sold as a pack. Your in-game rank follows lifetime Gold Bars bought and is not sold separately.
 
-**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account also delivers **as many Bonds as Gold Bars listed for that pack**, once. Later purchases are the listed Gold Bars only. Those Bonds do not add Gold Bars and do not count as Gold Bars bought. If that first grant is refunded, the matching Bonds gift can apply again. We can also reset this by hand if you ask support.
+**First Gold Bar purchase.** The first successful Gold Bar grant on a Discord account also delivers **as many Bonds as Gold Bars listed for that pack**, once. Later purchases are the listed Gold Bars only. Those Bonds do not add Gold Bars and do not count as Gold Bars bought. If that first grant is refunded, the matching Bonds gift can apply again. Support can also reset it on request.
 
 **Acceptable use.** Do not attack the Store, scrape with abusive rates, exploit webhooks, falsify Discord identity, launder payments, or use the game or Store for anything illegal. We may suspend Store access and ask that the linked character be suspended in Discord.
 
@@ -70,7 +69,6 @@ const DOCS = {
   privacy: {
     slug: 'privacy',
     title: 'Privacy Policy',
-    kicker: 'What we hold',
     body: `Last updated: {{DATE}}
 
 **Controller.** {{OPERATOR_LEGAL_NAME}}. Privacy contact: {{PRIVACY_EMAIL}}. We do not publish a street address or country on this site.
@@ -101,14 +99,13 @@ const DOCS = {
 
 **California.** We do not sell or share personal information as those words are used in CCPA/CPRA for cross-context advertising. This version of the Store has no advertising pixels.
 
-**Security.** HTTPS, hashed webhook secrets, restricted database credentials. No method is 100% secure.
+**Security.** HTTPS, signed payment webhooks, and restricted database credentials. No method is 100% secure.
 
 **Changes.** We will update this chapter and the “last updated” date.`,
   },
   refunds: {
     slug: 'refunds',
     title: 'Refund Policy',
-    kicker: 'After payment',
     body: `Last updated: {{DATE}}
 
 Payments are charged by **Paddle** as Merchant of Record. Chargebacks go through them; contacting us first is faster.
@@ -133,12 +130,13 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
   cookies: {
     slug: 'cookies',
     title: 'Cookie Policy',
-    kicker: 'Strictly necessary',
     body: `Last updated: {{DATE}}
 
 **Strictly necessary.** After Discord login we set an encrypted **session cookie** (httpOnly, Secure, SameSite=Lax) so we know you are you. This is required for the Store to work. It is not advertising.
 
 **OAuth.** A short-lived state cookie to prevent CSRF during Discord login.
+
+**Age check.** When you answer the age question on the shop, a cookie and local storage remember your answer for one year so we do not ask on every visit.
 
 **Day and night.** Your browser may remember the day/night preference in local storage. That is not a cookie and is not used to identify you.
 
@@ -151,7 +149,6 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
   'virtual-items': {
     slug: 'virtual-items',
     title: 'Virtual Items Policy',
-    kicker: 'Licence, not cash',
     body: `Last updated: {{DATE}}
 
 **Licence.** Gold Bars, Bonds, Credits, and other in-game value are **limited, revocable, non-exclusive, non-transferable licences** to use features of Disgrowth. They are **not** money, e-money, deposits, securities, commodities, or crypto-assets. They cannot be redeemed with us for cash.
@@ -160,7 +157,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Bonds.** Daily spend in Discord, claimed there. The Store does not sell Bonds. The first Gold Bar purchase on a Discord account grants **as many Bonds as Gold Bars in that pack**, once. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
 
-**Gold Bars.** The premium wallet sold on this Store. Buying Gold Bars does not buy Credits. First-purchase doubling of Gold Bars does not apply.
+**Gold Bars.** The premium wallet sold on this Store. Buying Gold Bars does not buy Credits. The first-purchase gift is paid in Bonds, not extra Gold Bars.
 
 **No secondary market.** You may not sell accounts, Gold Bars, or Bonds for real money. We may reclaim items obtained that way.
 
@@ -172,7 +169,7 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
   },
 };
 
-export const LEGAL_INDEX = [
+const LEGAL_INDEX = [
   DOCS.terms,
   DOCS.privacy,
   DOCS.refunds,
@@ -194,13 +191,6 @@ function renderLegalBody(text) {
   const blocks = text.trim().split(/\n\n+/);
   const parts = blocks.map((block) => {
     const lines = block.split('\n');
-    if (lines[0].startsWith('## ')) {
-      const title = inline(lines[0].slice(3).trim());
-      const rest = lines.slice(1).filter(Boolean);
-      const heading = `<h3>${title}</h3>`;
-      if (!rest.length) return heading;
-      return `${heading}<p>${rest.map((line) => inline(line)).join('<br />')}</p>`;
-    }
     if (/^\d+\.\s/.test(lines[0]) || lines.every((l) => /^\d+\.\s/.test(l) || l.startsWith(' '))) {
       const items = lines.filter(Boolean).map((line) => {
         const cleaned = line.replace(/^\d+\.\s*/, '');
@@ -237,7 +227,6 @@ export function legalBookPage(config) {
     const full = getLegalDoc(doc.slug, config);
     return html`
       <section class="legal-chapter" id="${doc.slug}">
-        <p class="kicker">${doc.kicker}</p>
         <h2>${doc.title}</h2>
         <div class="legal-body">
           ${full.html}
@@ -245,13 +234,4 @@ export function legalBookPage(config) {
       </section>
     `;
   });
-}
-
-export function legalIndexPage() {
-  return LEGAL_INDEX.map((d) => html`
-    <a class="legal-card" href="/legal#${d.slug}">
-      <span class="kicker">${d.kicker}</span>
-      <strong>${d.title}</strong>
-    </a>
-  `);
 }

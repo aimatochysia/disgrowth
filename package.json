@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "description": "MARKET GAME — STORE. Real-money store for Disgrowth, the Discord economy game.",
+  "description": "Web store for Disgrowth, the city market game played in Discord.",
   "engines": {
     "node": "24.x"
   },

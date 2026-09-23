@@ -20,7 +20,7 @@ function marketBootMarkup(boot) {
 <script src="/js/market.js?v=20260922" defer></script>`);
 }
 
-export function markSvg(className = 'mark') {
+function markSvg(className = 'mark') {
   return html`
     <svg class="${className}" viewBox="0 0 32 32" aria-hidden="true">
       <rect x="6" y="10" width="20" height="14" rx="2" fill="currentColor" />
@@ -30,12 +30,18 @@ export function markSvg(className = 'mark') {
   `;
 }
 
-function discordSvg() {
+export function discordSvg() {
   return html`
     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
       <path fill="currentColor" d="M20.32 4.37a19.8 19.8 0 0 0-4.89-1.52.07.07 0 0 0-.08.04c-.21.37-.44.86-.61 1.25a18.27 18.27 0 0 0-5.49 0 12.6 12.6 0 0 0-.61-1.25.08.08 0 0 0-.08-.04A19.74 19.74 0 0 0 3.68 4.37a.07.07 0 0 0-.03.03C.53 9.05-.32 13.58.1 18.06a.08.08 0 0 0 .03.05 19.9 19.9 0 0 0 5.99 3.03.08.08 0 0 0 .08-.03c.46-.63.87-1.3 1.23-2a.08.08 0 0 0-.04-.1 13.1 13.1 0 0 1-1.87-.89.08.08 0 0 1-.01-.13c.12-.1.25-.2.37-.29a.07.07 0 0 1 .08-.01c3.93 1.79 8.18 1.79 12.06 0a.07.07 0 0 1 .08.01c.12.1.25.2.37.29a.08.08 0 0 1-.01.13 12.3 12.3 0 0 1-1.87.89.08.08 0 0 0-.04.11c.36.7.77 1.36 1.23 1.99a.08.08 0 0 0 .08.03 19.84 19.84 0 0 0 6-3.03.08.08 0 0 0 .03-.05c.5-5.18-.84-9.67-3.55-13.66a.06.06 0 0 0-.03-.03zM8.02 15.33c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.96 2.42-2.16 2.42zm7.97 0c-1.18 0-2.16-1.08-2.16-2.42 0-1.33.96-2.42 2.16-2.42 1.21 0 2.18 1.1 2.16 2.42 0 1.34-.95 2.42-2.16 2.42z"/>
     </svg>
   `;
+}
+
+function navLink(href, label, on) {
+  return on
+    ? html`<a href="${href}" class="is-on" aria-current="page">${label}</a>`
+    : html`<a href="${href}">${label}</a>`;
 }
 
 export function layout(data) {
@@ -45,21 +51,21 @@ export function layout(data) {
     user,
     config,
     page = 'default',
-    description = 'Disgrowth store. Gold Bars for the Discord city market.',
+    description = 'Buy Gold Bars for Disgrowth, the city market game played in Discord.',
     body,
+    artClass = '',
     paddleBoot = null,
     marketBoot = null,
     tickerQuotes = FALLBACK_TICKER,
   } = data;
 
   const year = new Date().getUTCFullYear();
-  const artClass = data.artClass || '';
-  const pageTitle = title ? `${title} — Disgrowth` : 'Store — Disgrowth';
+  const pageTitle = title ? `${title} — Disgrowth` : 'Disgrowth';
   const ownerLine = config.previewLegal ? 'Disgrowth' : config.OPERATOR_LEGAL_NAME;
   const loginNext = !path || path === '/' || path === '/login' ? '/store' : path;
 
   return html`<!DOCTYPE html>
-<html lang="en" data-theme="day" data-page="${page}" class="${artClass}">
+<html lang="en" data-theme="day" data-page="${page}"${artClass ? html` class="${artClass}"` : ''}>
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -81,7 +87,7 @@ export function layout(data) {
   <a class="skip" href="#content">Skip to content</a>
   ${sceneMarkup()}
 
-  <div class="ticker" role="presentation">
+  <div class="ticker" aria-hidden="true">
     <div class="ticker-track">
       ${tickerTrack(tickerQuotes)}
     </div>
@@ -96,10 +102,10 @@ export function layout(data) {
     <div class="header-end">
       <div class="nav-cluster">
         <nav class="nav" id="site-nav" aria-label="Primary">
-          <a href="/" class="${path === '/' ? 'is-on' : ''}">Home</a>
-          <a href="/store" class="${path === '/store' || path.startsWith('/buy') ? 'is-on' : ''}">Shop</a>
-          <a href="/market" class="${path === '/market' ? 'is-on' : ''}">Market</a>
-          <a href="/legal" class="${path.startsWith('/legal') ? 'is-on' : ''}">Terms</a>
+          ${navLink('/', 'Home', path === '/')}
+          ${navLink('/store', 'Shop', path === '/store' || path.startsWith('/buy'))}
+          ${navLink('/market', 'Market', path === '/market')}
+          ${navLink('/legal', 'Legal', path.startsWith('/legal'))}
           ${user ? html`<a href="/logout">Log out</a>` : ''}
         </nav>
         <button type="button" class="nav-toggle" data-nav-toggle aria-expanded="false" aria-controls="site-nav" aria-label="Open menu">
@@ -114,7 +120,7 @@ export function layout(data) {
         <span class="theme-toggle-label" data-theme-label>Day</span>
       </button>
       ${user
-        ? html`<a class="btn btn-discord btn-account ${path === '/account' ? 'is-on' : ''}" href="/account"><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" /><span>${user.globalName || user.username}</span></a>`
+        ? html`<a class="btn btn-discord btn-account" href="/account"${path === '/account' ? raw(' aria-current="page"') : ''}><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" /><span>${user.globalName || user.username}</span></a>`
         : html`<a class="btn btn-discord" href="${loginHref(loginNext)}">${discordSvg()} Log in</a>`}
     </div>
   </header>
@@ -124,16 +130,12 @@ export function layout(data) {
   </main>
 
   <footer class="site-footer">
-    <div class="footer-rule"></div>
-    <div class="footer-row">
-      <p class="fine">© ${String(year)} ${ownerLine}. Played in Discord. Card payments by Paddle.</p>
-      <p class="fine muted">Not affiliated with Discord Inc.</p>
-      ${config.previewLegal
-        ? html`<p class="fine">Store in preview. Policies are still drafts.</p>`
-        : ''}
-    </div>
+    <p class="fine">© ${String(year)} ${ownerLine}. Payments processed by Paddle. Not affiliated with Discord Inc.</p>
+    ${config.previewLegal
+      ? html`<p class="fine">Store in preview. Policies are still drafts.</p>`
+      : ''}
     <nav class="footer-links" aria-label="Legal">
-      <a href="/support">Help</a>
+      <a href="/support">Support</a>
       <a href="/legal#terms">Terms</a>
       <a href="/legal#privacy">Privacy</a>
       <a href="/legal#refunds">Refunds</a>
@@ -152,8 +154,6 @@ export function layout(data) {
 </html>`;
 }
 
-export { discordSvg, discordAvatarUrl };
-
-export function loginHref(next = '/store') {
+function loginHref(next = '/store') {
   return `/login?next=${encodeURIComponent(next)}`;
 }

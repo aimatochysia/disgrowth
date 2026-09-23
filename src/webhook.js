@@ -3,8 +3,6 @@ import { redactPayload } from './lib/security.js';
 import { firstPurchaseBondsForGold, variantMapFromEnv } from './catalog.js';
 import { createPaddleSdk, unmarshalWebhook } from './paddle.js';
 
-/** This website owns Paddle grants. The Discord bot must not also credit Gold Bars. */
-
 export function webhookContext(config) {
   return {
     variantMap: variantMapFromEnv(config),
@@ -70,6 +68,7 @@ async function upsertPurchase(client, interpretation) {
   ]);
 }
 
+/** This store is the only Paddle grant path. The Discord bot must not also credit Gold Bars. */
 export async function handlePaddleWebhook({ rawBody, signature, config, db, log = console, paddle }) {
   if (!config.PADDLE_WEBHOOK_SECRET) {
     return { status: 503, body: { ok: false, error: 'webhook_unconfigured' } };

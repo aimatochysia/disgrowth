@@ -1,14 +1,3 @@
-const IPV4 =
-  /^(?:25[0-5]|2[0-4]\d|1?\d?\d)(?:\.(?:25[0-5]|2[0-4]\d|1?\d?\d)){3}$/;
-const IPV6 = /^[0-9a-f:]+$/i;
-
-export function isSingleIp(value) {
-  const v = String(value || '').trim();
-  if (!v || v.includes(',') || v.includes(' ')) return false;
-  if (IPV4.test(v)) return true;
-  return v.includes(':') && IPV6.test(v) && v.length <= 45;
-}
-
 export function clientIp(req) {
   // Trust Express `req.ip` after a single proxy hop. Do not read
   // CF-Connecting-IP here: a client who hits the origin directly can spoof it.

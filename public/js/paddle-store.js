@@ -14,7 +14,7 @@
   if (!token || (env !== 'production' && env !== 'sandbox')) return;
 
   const Paddle = window.Paddle;
-  // Live defaults to production. Only set sandbox — go-live checklist says omit this call on live.
+  // Paddle.js targets production by default; only sandbox needs Environment.set.
   if (env === 'sandbox') {
     Paddle.Environment.set('sandbox');
   }

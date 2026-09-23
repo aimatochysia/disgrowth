@@ -177,7 +177,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       env: config.PADDLE_ENV,
       clientToken: config.PADDLE_CLIENT_TOKEN,
       successUrl: `${config.STORE_ORIGIN}/welcome`,
-      catalog: catalogItemsFromConfig(config),
+      catalog: catalogItemsFromConfig(config).map(({ priceId }) => ({ priceId })),
     };
     if (country) boot.country = country;
     if (user?.email) boot.customerEmail = user.email;
@@ -220,6 +220,10 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }
   }
 
+  function notFound(req, res) {
+    page(req, res, { title: 'Page not found', page: 'legal', body: notFoundPage(), status: 404 });
+  }
+
   function requireSession(req, res, next) {
     const user = readSession(req, config);
     if (!user) {
@@ -251,7 +255,6 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.get('/', (req, res) => {
     page(req, res, {
-      title: 'Store',
       page: 'home',
       body: homePage({ config }),
     });
@@ -261,6 +264,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     page(req, res, {
       title: 'Shop',
       page: 'store',
+      description: 'Gold Bar packs for Disgrowth. Log in with Discord and pay with Paddle.',
       paddle: true,
       body: storePage({ items: catalogItemsFromConfig(config) }),
     });
@@ -279,7 +283,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     page(req, res, {
       title: 'Market',
       page: 'market',
-      description: 'Watch commodities and listed companies.',
+      description: 'Commodity and company prices from the Disgrowth city market.',
       marketBoot: { ticker, window: windowKey },
       body: marketPage({ quotes: snapshot.quotes, ticker, windowKey }),
     });
@@ -314,7 +318,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       return;
     }
     page(req, res, {
-      title: 'Login',
+      title: 'Log in',
       page: 'login',
       body: loginPage({
         next,
@@ -402,6 +406,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         user: req.user,
         player,
         dbReady: Boolean(db),
+        inviteUrl: config.DISCORD_COMMUNITY_INVITE,
         paddleCustomer,
         portalError: req.query.portal === 'missing' ? 'No Paddle invoices on this Discord account yet.' : req.query.portal === 'error' ? 'Could not open the invoice portal. Try again in a moment.' : '',
       }),
@@ -437,86 +442,66 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     return { ...CATALOG[skuKey], priceId: priceIdForSku(skuKey, config) };
   }
 
-  app.get('/buy/:sku', requireSession, async (req, res) => {
-    if (!isSku(req.params.sku)) {
-      page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
-      return;
-    }
+  async function loadBuyer(discordId) {
     let player = null;
     let firstPurchaseAvailable = true;
     if (db) {
       try {
-        player = await db.findPlayerByDiscordId(req.user.discordId);
+        player = await db.findPlayerByDiscordId(discordId);
         if (player && typeof db.hasUsedFirstPurchase === 'function') {
-          firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(req.user.discordId));
+          firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(discordId));
         }
       } catch (err) {
         logEvent('error', 'buy_query_failed', { err: String(err?.message || err) });
       }
     }
-    const sku = skuWithPrice(req.params.sku);
+    return { player, firstPurchaseAvailable };
+  }
+
+  function renderBuy(req, res, { sku, player, firstPurchaseAvailable, error = '', status = 200 }) {
     page(req, res, {
       title: sku.label,
       page: 'buy',
       paddle: Boolean(player),
+      status,
       body: buyPage({
         sku,
         user: req.user,
         player,
-        checkoutReady: checkoutConfigured(config, req.params.sku),
+        inviteUrl: config.DISCORD_COMMUNITY_INVITE,
+        checkoutReady: checkoutConfigured(config, sku.sku_key),
         overlayReady: Boolean(config.PADDLE_CLIENT_TOKEN),
         firstPurchaseAvailable,
-        error: '',
+        error,
       }),
     });
+  }
+
+  app.get('/buy/:sku', requireSession, async (req, res) => {
+    if (!isSku(req.params.sku)) {
+      notFound(req, res);
+      return;
+    }
+    const buyer = await loadBuyer(req.user.discordId);
+    renderBuy(req, res, { sku: skuWithPrice(req.params.sku), ...buyer });
   });
 
   app.post('/buy/:sku', requireSession, buyLimit, async (req, res) => {
     if (rejectBadOrigin(req, res)) return;
     if (!isSku(req.params.sku)) {
-      page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
+      notFound(req, res);
       return;
     }
     const sku = skuWithPrice(req.params.sku);
-    let player = null;
-    let firstPurchaseAvailable = true;
-    if (db) {
-      try {
-        player = await db.findPlayerByDiscordId(req.user.discordId);
-        if (player && typeof db.hasUsedFirstPurchase === 'function') {
-          firstPurchaseAvailable = !(await db.hasUsedFirstPurchase(req.user.discordId));
-        }
-      } catch (err) {
-        logEvent('error', 'buy_query_failed', { err: String(err?.message || err) });
-      }
-    }
-    const show = (error) =>
-      page(req, res, {
-        title: sku.label,
-        page: 'buy',
-        paddle: true,
-        status: 400,
-        body: buyPage({
-          sku,
-          user: req.user,
-          player,
-          checkoutReady: checkoutConfigured(config, sku.sku_key),
-          overlayReady: Boolean(config.PADDLE_CLIENT_TOKEN),
-          firstPurchaseAvailable,
-          error,
-        }),
-      });
+    const buyer = await loadBuyer(req.user.discordId);
+    const show = (error = '') => renderBuy(req, res, { sku, ...buyer, error, status: 400 });
 
-    if (!player) {
-      show('Run /disgrowth in Discord, then refresh.');
+    if (!buyer.player || !checkoutConfigured(config, sku.sku_key)) {
+      show();
       return;
     }
     if (!yesFlag(req.body?.age) || !yesFlag(req.body?.terms) || !yesFlag(req.body?.novalue)) {
       show('Confirm all three checkboxes to continue.');
-      return;
-    }
-    if (!checkoutConfigured(config, sku.sku_key)) {
-      show('Checkout is not configured.');
       return;
     }
     if (!config.PADDLE_API_KEY) {
@@ -546,7 +531,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   });
 
   app.get('/welcome', (req, res) => {
-    page(req, res, { title: 'Welcome', page: 'success', body: welcomePage() });
+    page(req, res, { title: 'Payment received', page: 'success', body: welcomePage() });
   });
 
   app.get('/success', (_req, res) => {
@@ -554,25 +539,33 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   });
 
   app.get('/support', (req, res) => {
-    page(req, res, { title: 'Support', page: 'legal', body: supportPage({ config }) });
+    page(req, res, {
+      title: 'Support',
+      page: 'legal',
+      description: 'Contact Disgrowth store support.',
+      body: supportPage({ config }),
+    });
   });
 
   app.get('/legal', (req, res) => {
-    page(req, res, { title: 'Legal', page: 'legal', body: legalHubPage(config) });
+    page(req, res, {
+      title: 'Legal',
+      page: 'legal',
+      description: 'Disgrowth store terms, privacy, refund, cookie, and virtual items policies.',
+      body: legalHubPage(config),
+    });
   });
 
   app.get('/legal/:slug', (req, res) => {
     const doc = getLegalDoc(req.params.slug, config);
     if (!doc) {
-      page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
+      notFound(req, res);
       return;
     }
     res.redirect(302, `/legal#${doc.slug}`);
   });
 
-  app.use((req, res) => {
-    page(req, res, { title: 'Not found', page: 'legal', body: notFoundPage(), status: 404 });
-  });
+  app.use(notFound);
 
   app.use((err, req, res, next) => {
     logEvent('error', 'request_failed', { err: String(err?.message || err) });

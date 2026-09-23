@@ -321,6 +321,7 @@ test('/buy without player row does not redirect to Paddle', async () => {
     assert.equal(res.status, 200);
     const html = await res.text();
     assert.match(html, /\/disgrowth/);
+    assert.match(html, /discord\.gg\/XMadQ9tAd/);
     assert.doesNotMatch(html, /paddle\.com/);
   });
 });
@@ -453,11 +454,13 @@ test('/buy with player shows first-purchase Bonds copy', async () => {
     });
     assert.equal(res.status, 200);
     const html = await res.text();
-    assert.match(html, /500 Gold Bars/);
-    assert.doesNotMatch(html, /1,000 Gold Bars/);
-    assert.match(html, /500 Bonds/);
-    assert.match(html, /same number of Bonds/);
+    assert.match(html, /Gold Bars — 500/);
+    assert.doesNotMatch(html, /500 Gold Bars/);
+    assert.doesNotMatch(html, /1,000 Gold Bars|Gold Bars — 1,000/);
+    assert.match(html, /First purchase/);
+    assert.match(html, /\+500 Bonds/);
     assert.doesNotMatch(html, /double the listed Gold Bars/);
+    assert.match(html, /\/legal#refunds/);
     assert.match(html, /data-paddle-overlay/);
     assert.match(html, /id="paddle-boot"/);
     assert.match(html, /Are you 18 or older/);
@@ -922,9 +925,10 @@ test('landing and legal pages render', async () => {
     assert.match(html, />Home</);
     assert.match(html, />Shop</);
     assert.match(html, />Market</);
+    assert.match(html, />Legal</);
     assert.match(html, />Terms</);
     assert.match(html, /btn-discord/);
-    assert.match(html, /In the city/);
+    assert.doesNotMatch(html, /In the city/);
     assert.match(html, /Start here/);
     assert.match(html, /Paddle/);
     assert.match(html, /data-to-top/);
@@ -958,13 +962,21 @@ test('landing and legal pages render', async () => {
     assert.match(storeHtml, /Gold Bars — 1,275/);
     assert.match(storeHtml, /Gold Bars — 2,600/);
     assert.match(storeHtml, /Gold Bars — 5,250/);
+    assert.doesNotMatch(storeHtml, /(500|1,275|2,600|5,250) Gold Bars/);
+    assert.doesNotMatch(storeHtml, /Delivered to your Discord character/);
     assert.match(storeHtml, /same number of Bonds as Gold Bars/);
     assert.doesNotMatch(storeHtml, /Unlocks Patron tier 1/);
     assert.doesNotMatch(storeHtml, /first Gold Bar purchase doubles/);
     assert.doesNotMatch(storeHtml, /Gold Bars — 1,300/);
     assert.doesNotMatch(storeHtml, /Gold Bars — 5,600/);
     assert.doesNotMatch(storeHtml, /30 days of Patron/);
-    assert.match(storeHtml, /id="paddle-boot"/);
+    const boot = JSON.parse(storeHtml.match(/<script type="application\/json" id="paddle-boot">(.*?)<\/script>/s)[1]);
+    assert.deepEqual(boot.catalog, [
+      { priceId: 'pri_gold_10' },
+      { priceId: 'pri_gold_25' },
+      { priceId: 'pri_gold_50' },
+      { priceId: 'pri_gold_100' },
+    ]);
     assert.match(storeHtml, /cdn\.paddle\.com\/paddle\/v2\/paddle\.js/);
     assert.match(storeHtml, /Are you 18 or older/);
     assert.match(storeHtml, /data-age-yes/);
@@ -974,7 +986,7 @@ test('landing and legal pages render', async () => {
     assert.doesNotMatch(storeHtml, /"country":"OTHERS"/);
     const welcome = await fetch(`${base}/welcome`);
     assert.equal(welcome.status, 200);
-    assert.match(await welcome.text(), /Welcome/);
+    assert.match(await welcome.text(), /Payment received/);
     const legacySuccess = await fetch(`${base}/success`, { redirect: 'manual' });
     assert.equal(legacySuccess.status, 302);
     assert.equal(legacySuccess.headers.get('location'), '/welcome');
@@ -1018,7 +1030,7 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, />Market</);
-    assert.match(html, /Watch only/);
+    assert.match(html, /Trading happens in Discord/);
     assert.match(html, /FUEL/);
     assert.match(html, /ACME/);
     assert.match(html, /id="market-boot"/);

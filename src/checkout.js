@@ -2,10 +2,6 @@ import { CATALOG, isSku } from './catalog.js';
 import { fetchWithTimeout, isTrustedPaddleHttpUrl } from './lib/http.js';
 import { discordId as parseDiscordId } from './lib/validate.js';
 
-export function paddleApiBase(envName) {
-  return envName === 'production' ? 'https://api.paddle.com' : 'https://sandbox-api.paddle.com';
-}
-
 export function priceIdForSku(sku, config) {
   const item = CATALOG[sku];
   if (!item) return '';
@@ -91,9 +87,4 @@ export async function createPaddleCheckoutUrl({
     if (!checkoutUrl || !unapprovedCheckoutUrl(err.detail)) throw err;
     return post(checkoutPayload({ priceId, discordId: id, skuKey, successUrl, checkoutUrl: '' }));
   }
-}
-
-/** @deprecated use priceIdForSku */
-export function variantIdForSku(sku, config) {
-  return priceIdForSku(sku, config);
 }

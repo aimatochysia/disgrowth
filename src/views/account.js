@@ -5,12 +5,14 @@ function n(value) {
   return new Intl.NumberFormat('en-US').format(value ?? 0);
 }
 
-export function accountPage({ user, player, dbReady, paddleCustomer = null, portalError = '' }) {
+export function accountPage({ user, player, dbReady, inviteUrl, paddleCustomer = null, portalError = '' }) {
+  const name = user.globalName || user.username;
+
   if (!dbReady) {
     return html`
       <section class="page-hero">
-        <h1 class="display display-page">${user.globalName || user.username}</h1>
-        <p class="lede narrow">You’re logged in. Wallets will show here once the store is connected to the game.</p>
+        <h1 class="display display-page">${name}</h1>
+        <p class="lede narrow">Wallets are unavailable right now. Try again later.</p>
       </section>
     `;
   }
@@ -18,8 +20,9 @@ export function accountPage({ user, player, dbReady, paddleCustomer = null, port
   if (!player) {
     return html`
       <section class="page-hero">
-        <h1 class="display display-page">${user.globalName || user.username}</h1>
-        <p class="lede narrow">No Disgrowth character on this Discord account yet. Run <code>/disgrowth</code> in Discord, then refresh. You can’t check out until that exists.</p>
+        <h1 class="display display-page">${name}</h1>
+        <p class="lede narrow">This Discord account has no Disgrowth character yet. Run <code>/disgrowth</code> in Discord, then refresh this page.</p>
+        <a class="btn btn-accent" href="${inviteUrl}" rel="noopener noreferrer" target="_blank">Open the Discord server</a>
       </section>
     `;
   }
@@ -30,14 +33,11 @@ export function accountPage({ user, player, dbReady, paddleCustomer = null, port
   return html`
     <section class="page-hero account-hero">
       <img class="avatar" src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="64" height="64" />
-      <div>
-        <h1 class="display display-page">${user.globalName || user.username}</h1>
-        <p class="hint">Discord character</p>
-      </div>
+      <h1 class="display display-page">${name}</h1>
     </section>
 
     ${needsTutorial
-      ? html`<p class="flash">Finish the tutorial in Discord. Daily Bonds wait until that’s done.</p>`
+      ? html`<p class="flash" role="status">Finish the tutorial in Discord to start claiming daily Bonds.</p>`
       : ''}
 
     ${portalError ? html`<p class="flash" role="alert">${portalError}</p>` : ''}
@@ -46,37 +46,30 @@ export function accountPage({ user, player, dbReady, paddleCustomer = null, port
       <div class="wallet-grid">
         <article class="panel wallet">
           <span class="code">CR</span>
-          <h3>Credits</h3>
+          <h2>Credits</h2>
           <p class="balance">${n(player.credits)}</p>
           <p class="stamp">Cannot be purchased</p>
         </article>
         <article class="panel wallet">
           <span class="code">BN</span>
-          <h3>Bonds</h3>
+          <h2>Bonds</h2>
           <p class="balance">${n(player.bonds)}</p>
           <p class="stamp">Claimed in Discord</p>
         </article>
         <article class="panel wallet wallet-gold">
           <span class="code">GL</span>
-          <h3>Gold Bars</h3>
+          <h2>Gold Bars</h2>
           <p class="balance">${n(player.gold_bars)}</p>
           <p class="stamp">Convert with /shop</p>
         </article>
       </div>
 
-      <article class="panel">
-        <p class="kicker">Store</p>
-        <p>Packs are Gold Bars. The first Gold Bar purchase on this Discord account also grants matching Bonds, once.</p>
-        <a class="btn btn-gold" href="/store">Shop Gold Bars</a>
-      </article>
-
-      <article class="panel">
-        <p class="kicker">Receipts</p>
-        <p>Invoices and receipts live in the Paddle customer portal.</p>
+      <div class="cta-row account-actions">
+        <a class="btn btn-gold" href="/store">Buy Gold Bars</a>
         ${paddleCustomer
           ? html`<form method="post" action="/account/portal"><button class="btn btn-ghost" type="submit">View invoices</button></form>`
-          : html`<p class="hint">After your first purchase, this button appears so you can open past invoices.</p>`}
-      </article>
+          : ''}
+      </div>
     </section>
   `;
 }

@@ -1,13 +1,4 @@
-/**
- * Pack sizes for launch. Operator retunes Gold amounts here and product names in Paddle.
- * Dollar prices stay on the Paddle price ids ($10 / $25 / $50 / $100).
- *
- * @typedef {object} CatalogItem
- * @property {string} name
- * @property {string} description
- * @property {string[]} features
- * @property {string} priceId
- */
+// Gold amounts are authoritative here. Prices live on the Paddle price ids ($10 / $25 / $50 / $100).
 
 /** Lifetime net Gold Bars granted (store_orders gold_grant minus refunds) to unlock Patron tier 1. */
 export const PATRON_TIER1_LIFETIME_GOLD = 2600;
@@ -20,75 +11,35 @@ export function firstPurchaseBondsForGold(gold) {
 export const CATALOG = {
   'gold-10': {
     sku_key: 'gold-10',
-    name: 'Gold Bars — 500',
     label: 'Gold Bars — 500',
     kind: 'one_time',
     gold: 500,
-    usdPlaceholder: 10,
     variantEnv: 'PADDLE_PRICE_GOLD_10',
-    ledger: 'GL-10',
-    description: '500 Gold Bars for the premium wallet.',
-    summary: '500 Gold Bars for the premium wallet.',
-    blurb: 'A first stack for when the daily Bonds are not enough. Convert them in Discord with /shop.',
-    features: [
-      '500 Gold Bars (GL)',
-      'Convert 1:1 to Bonds in Discord',
-      'First purchase on this Discord account adds 500 Bonds',
-    ],
+    blurb: 'A first stack for when daily Bonds run short.',
   },
   'gold-25': {
     sku_key: 'gold-25',
-    name: 'Gold Bars — 1,275',
     label: 'Gold Bars — 1,275',
     kind: 'one_time',
     gold: 1275,
-    usdPlaceholder: 25,
     variantEnv: 'PADDLE_PRICE_GOLD_25',
-    ledger: 'GL-25',
-    description: '1,275 Gold Bars. About 2% more bars per dollar than the $10 pack.',
-    summary: '1,275 Gold Bars. Slight bulk vs the $10 pack.',
-    blurb: 'A larger stack. About 2% more Gold Bars per dollar than the $10 pack. Convert them in Discord with /shop.',
-    features: [
-      '1,275 Gold Bars (GL)',
-      '~2% bulk vs the $10 pack',
-      'First purchase on this Discord account adds 1,275 Bonds',
-    ],
+    blurb: 'A larger stack. Includes a 2% bulk bonus.',
   },
   'gold-50': {
     sku_key: 'gold-50',
-    name: 'Gold Bars — 2,600',
     label: 'Gold Bars — 2,600',
     kind: 'one_time',
     gold: 2600,
-    usdPlaceholder: 50,
     variantEnv: 'PADDLE_PRICE_GOLD_50',
-    ledger: 'GL-50',
-    description: '2,600 Gold Bars. About 4% more bars per dollar than the $10 pack.',
-    summary: '2,600 Gold Bars. About 4% bulk vs the $10 pack.',
-    blurb: 'A serious reserve. About 4% more Gold Bars per dollar than the $10 pack.',
-    features: [
-      '2,600 Gold Bars (GL)',
-      '~4% bulk vs the $10 pack',
-      'First purchase on this Discord account adds 2,600 Bonds',
-    ],
+    blurb: 'A serious reserve. Includes a 4% bulk bonus.',
   },
   'gold-100': {
     sku_key: 'gold-100',
-    name: 'Gold Bars — 5,250',
     label: 'Gold Bars — 5,250',
     kind: 'one_time',
     gold: 5250,
-    usdPlaceholder: 100,
     variantEnv: 'PADDLE_PRICE_GOLD_100',
-    ledger: 'GL-100',
-    description: '5,250 Gold Bars. 5% more bars per dollar than the $10 pack.',
-    summary: '5,250 Gold Bars. 5% bulk vs the $10 pack.',
-    blurb: 'The largest stack we sell. 5% more Gold Bars per dollar than the $10 pack.',
-    features: [
-      '5,250 Gold Bars (GL)',
-      '5% bulk vs the $10 pack',
-      'First purchase on this Discord account adds 5,250 Bonds',
-    ],
+    blurb: 'Our largest stack. Includes a 5% bulk bonus.',
   },
 };
 
@@ -136,20 +87,10 @@ export function resolveSku({ customSku, variantId, variantMap }) {
   return { ok: true, reason: null, sku, fromCustom, fromVariant };
 }
 
-/**
- * Catalog items with live Paddle price ids filled from env.
- * @returns {CatalogItem[]}
- */
+/** @returns {{ sku: string, label: string, blurb: string, priceId: string }[]} */
 export function catalogItemsFromConfig(config) {
   return SKU_KEYS.map((sku) => {
-    const item = CATALOG[sku];
-    return {
-      name: item.name,
-      description: item.description,
-      features: item.features,
-      priceId: config[item.variantEnv] || '',
-      sku: item.sku_key,
-      gold: item.gold,
-    };
+    const { label, blurb, variantEnv } = CATALOG[sku];
+    return { sku, label, blurb, priceId: config[variantEnv] || '' };
   });
 }

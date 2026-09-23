@@ -70,13 +70,6 @@ export async function fetchIdentify(accessToken, fetchImpl = fetch) {
   return res.json();
 }
 
-export function newOAuthState(next, secret) {
-  return {
-    state: encodeOAuthState(next, secret),
-    next: safeReturnPath(next),
-  };
-}
-
 export function sessionFromDiscordUser(user, config = {}) {
   const id = discordId(user?.id);
   if (!id) {
