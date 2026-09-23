@@ -193,6 +193,7 @@
     const value = String(next || '').toUpperCase();
     if (!value || value === ticker) return;
     ticker = value;
+    persistPrefs();
     markSelected();
     destroyChart();
     loadOhlc().catch(() => {});
@@ -204,12 +205,35 @@
     const value = normalizeWindow(next);
     if (value === windowKey) return;
     windowKey = value;
+    persistPrefs();
     markSelected();
     loadOhlc().catch(() => {});
     const url = ticker
       ? `/market?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`
       : `/market?window=${encodeURIComponent(windowKey)}`;
     history.replaceState(null, '', url);
+  }
+
+  function persistPrefs() {
+    if (!window.DisgrowthVault) return;
+    window.DisgrowthVault.write({ ticker, window: windowKey }).catch(() => {});
+  }
+
+  async function restorePrefs() {
+    const vault = window.DisgrowthVault;
+    if (!vault) return;
+    try {
+      const cached = await vault.read();
+      if (!boot.fromTickerQuery && cached.ticker) ticker = cached.ticker;
+      if (!boot.fromWindowQuery && cached.window) {
+        const restored = vault.sanitizeWindow
+          ? vault.sanitizeWindow(cached.window)
+          : normalizeWindow(cached.window);
+        if (WINDOWS.has(restored)) windowKey = restored;
+      }
+    } catch {
+      /* ignore */
+    }
   }
 
   document.querySelector('.market-lists')?.addEventListener('click', (event) => {
@@ -240,6 +264,15 @@
   const themeWatch = new MutationObserver(() => applyTheme());
   themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
-  markSelected();
-  loadOhlc().catch(() => {});
+  restorePrefs()
+    .then(() => {
+      if (ticker) {
+        const url = `/market?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`;
+        history.replaceState(null, '', url);
+      }
+      persistPrefs();
+      markSelected();
+      return loadOhlc();
+    })
+    .catch(() => {});
 })();

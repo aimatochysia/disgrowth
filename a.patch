@@ -1,0 +1,411 @@
+diff --git a/public/js/market.js b/public/js/market.js
+index 08a3a35..fa563ee 100644
+--- a/public/js/market.js
++++ b/public/js/market.js
+@@ -193,6 +193,7 @@
+     const value = String(next || '').toUpperCase();
+     if (!value || value === ticker) return;
+     ticker = value;
++    persistPrefs();
+     markSelected();
+     destroyChart();
+     loadOhlc().catch(() => {});
+@@ -204,6 +205,7 @@
+     const value = normalizeWindow(next);
+     if (value === windowKey) return;
+     windowKey = value;
++    persistPrefs();
+     markSelected();
+     loadOhlc().catch(() => {});
+     const url = ticker
+@@ -212,6 +214,28 @@
+     history.replaceState(null, '', url);
+   }
+ 
++  function persistPrefs() {
++    if (!window.DisgrowthVault) return;
++    window.DisgrowthVault.write({ ticker, window: windowKey }).catch(() => {});
++  }
++
++  async function restorePrefs() {
++    const vault = window.DisgrowthVault;
++    if (!vault) return;
++    try {
++      const cached = await vault.read();
++      if (!boot.fromTickerQuery && cached.ticker) ticker = cached.ticker;
++      if (!boot.fromWindowQuery && cached.window) {
++        const restored = vault.sanitizeWindow
++          ? vault.sanitizeWindow(cached.window)
++          : normalizeWindow(cached.window);
++        if (WINDOWS.has(restored)) windowKey = restored;
++      }
++    } catch {
++      /* ignore */
++    }
++  }
++
+   document.querySelector('.market-lists')?.addEventListener('click', (event) => {
+     const row = event.target.closest('[data-ticker]');
+     if (!row) return;
+@@ -240,6 +264,15 @@
+   const themeWatch = new MutationObserver(() => applyTheme());
+   themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+ 
+-  markSelected();
+-  loadOhlc().catch(() => {});
++  restorePrefs()
++    .then(() => {
++      if (ticker) {
++        const url = `/market?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`;
++        history.replaceState(null, '', url);
++      }
++      persistPrefs();
++      markSelected();
++      return loadOhlc();
++    })
++    .catch(() => {});
+ })();
+diff --git a/public/js/vault.js b/public/js/vault.js
+new file mode 100644
+index 0000000..106250a
+--- /dev/null
++++ b/public/js/vault.js
+@@ -0,0 +1,167 @@
++(() => {
++  const VAULT_ID = 'disgrowth.vault.v1';
++  const DEVICE_ID = 'disgrowth.device.v1';
++  const WINDOWS = new Set(['1M', '6M', 'YTD', '5Y', 'ALL']);
++  const ALIASES = {
++    '6h': '1M',
++    '24h': '1M',
++    '7d': '6M',
++    '1m': '1M',
++    '6m': '6M',
++    ytd: 'YTD',
++    '5y': '5Y',
++    all: 'ALL',
++  };
++
++  function sanitizeTicker(value) {
++    const ticker = String(value || '')
++      .trim()
++      .toUpperCase();
++    return /^[A-Z0-9]{1,8}$/.test(ticker) ? ticker : '';
++  }
++
++  function sanitizeWindow(value) {
++    const key = String(value || '').trim();
++    if (!key) return '';
++    if (WINDOWS.has(key)) return key;
++    if (ALIASES[key]) return ALIASES[key];
++    const upper = key.toUpperCase();
++    if (WINDOWS.has(upper)) return upper;
++    const alias = ALIASES[key.toLowerCase()];
++    return alias || '';
++  }
++
++  function bytesToB64(bytes) {
++    let bin = '';
++    const arr = new Uint8Array(bytes);
++    for (let i = 0; i < arr.length; i += 1) bin += String.fromCharCode(arr[i]);
++    return btoa(bin).replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
++  }
++
++  function b64ToBytes(value) {
++    const pad = value.length % 4 === 0 ? '' : '='.repeat(4 - (value.length % 4));
++    const b64 = String(value).replaceAll('-', '+').replaceAll('_', '/') + pad;
++    const bin = atob(b64);
++    const out = new Uint8Array(bin.length);
++    for (let i = 0; i < bin.length; i += 1) out[i] = bin.charCodeAt(i);
++    return out;
++  }
++
++  async function deviceKey() {
++    if (!window.crypto?.subtle) return null;
++    try {
++      let packed = localStorage.getItem(DEVICE_ID);
++      if (!packed) {
++        const raw = window.crypto.getRandomValues(new Uint8Array(32));
++        packed = bytesToB64(raw);
++        localStorage.setItem(DEVICE_ID, packed);
++      }
++      return window.crypto.subtle.importKey('raw', b64ToBytes(packed), 'AES-GCM', false, [
++        'encrypt',
++        'decrypt',
++      ]);
++    } catch {
++      return null;
++    }
++  }
++
++  async function readVault() {
++    const empty = { ticker: '', window: '', login: null };
++    if (!window.crypto?.subtle) return empty;
++    try {
++      const packed = localStorage.getItem(VAULT_ID);
++      if (!packed) return empty;
++      const buf = b64ToBytes(packed);
++      if (buf.length < 29) return empty;
++      const key = await deviceKey();
++      if (!key) return empty;
++      const iv = buf.subarray(0, 12);
++      const data = buf.subarray(12);
++      const plain = await window.crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, data);
++      const parsed = JSON.parse(new TextDecoder().decode(plain));
++      if (!parsed || typeof parsed !== 'object') return empty;
++      const login =
++        parsed.login && typeof parsed.login === 'object'
++          ? {
++              username: String(parsed.login.username || '').slice(0, 64),
++              globalName: String(parsed.login.globalName || '').slice(0, 64),
++              avatar: parsed.login.avatar ? String(parsed.login.avatar).slice(0, 64) : null,
++            }
++          : null;
++      return {
++        ticker: sanitizeTicker(parsed.ticker),
++        window: sanitizeWindow(parsed.window),
++        login,
++      };
++    } catch {
++      return { ticker: '', window: '', login: null };
++    }
++  }
++
++  async function writeVault(next) {
++    if (!window.crypto?.subtle) return;
++    try {
++      const current = await readVault();
++      const payload = {
++        ticker: sanitizeTicker(next.ticker != null ? next.ticker : current.ticker),
++        window: sanitizeWindow(next.window != null ? next.window : current.window),
++        login: next.login === undefined ? current.login : next.login,
++      };
++      if (payload.login) {
++        payload.login = {
++          username: String(payload.login.username || '').slice(0, 64),
++          globalName: String(payload.login.globalName || '').slice(0, 64),
++          avatar: payload.login.avatar ? String(payload.login.avatar).slice(0, 64) : null,
++        };
++      }
++      const key = await deviceKey();
++      if (!key) return;
++      const iv = window.crypto.getRandomValues(new Uint8Array(12));
++      const encoded = new TextEncoder().encode(JSON.stringify(payload));
++      const cipher = await window.crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
++      const out = new Uint8Array(iv.byteLength + cipher.byteLength);
++      out.set(iv, 0);
++      out.set(new Uint8Array(cipher), iv.byteLength);
++      localStorage.setItem(VAULT_ID, bytesToB64(out));
++    } catch {
++      /* ignore quota / private mode */
++    }
++  }
++
++  async function syncLoginBoot() {
++    const el = document.getElementById('login-boot');
++    if (!el) return;
++    let boot = {};
++    try {
++      boot = JSON.parse(el.textContent || '{}');
++    } catch {
++      boot = {};
++    }
++    if (boot.loggedIn) {
++      await writeVault({
++        login: {
++          username: String(boot.username || '').slice(0, 64),
++          globalName: String(boot.globalName || '').slice(0, 64),
++          avatar: boot.avatar ? String(boot.avatar).slice(0, 64) : null,
++        },
++      });
++      return;
++    }
++    await writeVault({ login: null });
++  }
++
++  document.addEventListener('click', (event) => {
++    const link = event.target.closest('a[href="/logout"]');
++    if (!link) return;
++    writeVault({ login: null }).catch(() => {});
++  });
++
++  syncLoginBoot().catch(() => {});
++
++  window.DisgrowthVault = {
++    read: readVault,
++    write: writeVault,
++    sanitizeTicker,
++    sanitizeWindow,
++  };
++})();
+diff --git a/src/app.js b/src/app.js
+index e6b3493..18e9cb0 100644
+--- a/src/app.js
++++ b/src/app.js
+@@ -277,14 +277,22 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
+ 
+   app.get('/market', (req, res) => {
+     const snapshot = market.getSnapshot();
+-    const requested = sanitizeTicker(firstQueryValue(req.query.ticker));
++    const tickerQuery = firstQueryValue(req.query.ticker);
++    const windowQuery = firstQueryValue(req.query.window);
++    const requested = sanitizeTicker(tickerQuery);
+     const ticker = requested || snapshot.quotes[0]?.ticker || '';
+-    const windowKey = normalizeChartWindow(firstQueryValue(req.query.window));
++    const fromWindowQuery = Boolean(String(windowQuery || '').trim());
++    const windowKey = fromWindowQuery ? normalizeChartWindow(windowQuery) : DEFAULT_CHART_WINDOW;
+     page(req, res, {
+       title: 'Market',
+       page: 'market',
+       description: 'Commodity and company prices from the Disgrowth city market.',
+-      marketBoot: { ticker, window: windowKey },
++      marketBoot: {
++        ticker,
++        window: windowKey,
++        fromTickerQuery: Boolean(requested),
++        fromWindowQuery,
++      },
+       body: marketPage({ quotes: snapshot.quotes, ticker, windowKey }),
+     });
+   });
+diff --git a/src/prefs.js b/src/prefs.js
+new file mode 100644
+index 0000000..ca39998
+--- /dev/null
++++ b/src/prefs.js
+@@ -0,0 +1,39 @@
++import { CHART_WINDOW_KEYS } from './market.js';
++import { sanitizeTicker } from './ticker.js';
++
++const WINDOW_ALIASES = Object.freeze({
++  '6h': '1M',
++  '24h': '1M',
++  '7d': '6M',
++  '1m': '1M',
++  '6m': '6M',
++  ytd: 'YTD',
++  '5y': '5Y',
++  all: 'ALL',
++});
++
++export function sanitizeMarketTicker(raw) {
++  return sanitizeTicker(raw);
++}
++
++/** Empty string if missing or unknown — never defaults to 1M. */
++export function sanitizeMarketWindow(raw) {
++  const key = String(raw || '').trim();
++  if (!key) return '';
++  if (CHART_WINDOW_KEYS.includes(key)) return key;
++  const alias = WINDOW_ALIASES[key] || WINDOW_ALIASES[key.toLowerCase()];
++  if (alias) return alias;
++  const upper = key.toUpperCase();
++  return CHART_WINDOW_KEYS.includes(upper) ? upper : '';
++}
++
++/** Display-only login snapshot. Never includes discordId, email, or tokens. */
++export function publicLoginCache(user) {
++  if (!user) return { loggedIn: false };
++  return {
++    loggedIn: true,
++    username: String(user.username || '').slice(0, 64),
++    globalName: String(user.globalName || user.username || '').slice(0, 64),
++    avatar: user.avatar ? String(user.avatar).slice(0, 64) : null,
++  };
++}
+diff --git a/src/views/layout.js b/src/views/layout.js
+index 168cf45..9051a22 100644
+--- a/src/views/layout.js
++++ b/src/views/layout.js
+@@ -3,6 +3,7 @@ import { sceneMarkup } from './scene.js';
+ import { discordAvatarUrl } from '../session.js';
+ import { ageGate } from './age-gate.js';
+ import { FALLBACK_TICKER, tickerTrack } from '../ticker.js';
++import { publicLoginCache } from '../prefs.js';
+ 
+ function paddleBootMarkup(boot) {
+   if (!boot || !boot.clientToken || !boot.env) return '';
+@@ -17,7 +18,13 @@ function marketBootMarkup(boot) {
+   const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
+   return raw(`<script type="application/json" id="market-boot">${json}</script>
+ <script src="/js/lightweight-charts.js" defer></script>
+-<script src="/js/market.js?v=20260922" defer></script>`);
++<script src="/js/market.js?v=20260923" defer></script>`);
++}
++
++function loginBootMarkup(user) {
++  const json = JSON.stringify(publicLoginCache(user)).replaceAll('<', '\\u003c');
++  return raw(`<script type="application/json" id="login-boot">${json}</script>
++<script src="/js/vault.js?v=20260923" defer></script>`);
+ }
+ 
+ function markSvg(className = 'mark') {
+@@ -147,6 +154,7 @@ export function layout(data) {
+     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.5 5.8 11.7l1.4 1.4L11 8.3V19h2V8.3l3.8 4.8 1.4-1.4z"/></svg>
+   </a>
+   ${page === 'store' || page === 'buy' ? ageGate() : ''}
++  ${loginBootMarkup(user)}
+   ${paddleBootMarkup(paddleBoot)}
+   ${marketBootMarkup(marketBoot)}
+   <script src="/js/app.js" defer></script>
+diff --git a/tests/prefs.test.js b/tests/prefs.test.js
+new file mode 100644
+index 0000000..0d6b565
+--- /dev/null
++++ b/tests/prefs.test.js
+@@ -0,0 +1,55 @@
++import { readFileSync } from 'node:fs';
++import { fileURLToPath } from 'node:url';
++import assert from 'node:assert/strict';
++import { test } from 'node:test';
++import { publicLoginCache, sanitizeMarketTicker, sanitizeMarketWindow } from '../src/prefs.js';
++import { CHART_WINDOW_KEYS } from '../src/market.js';
++
++test('publicLoginCache never includes discordId, email, or tokens', () => {
++  assert.deepEqual(publicLoginCache(null), { loggedIn: false });
++  const out = publicLoginCache({
++    discordId: '657734100060340273',
++    email: 'a@b.c',
++    username: 'petra',
++    globalName: 'Petra',
++    avatar: 'abc123',
++    accessToken: 'secret',
++  });
++  assert.deepEqual(out, {
++    loggedIn: true,
++    username: 'petra',
++    globalName: 'Petra',
++    avatar: 'abc123',
++  });
++  assert.equal(Object.hasOwn(out, 'discordId'), false);
++  assert.equal(Object.hasOwn(out, 'email'), false);
++  assert.equal(Object.hasOwn(out, 'accessToken'), false);
++  assert.equal(JSON.stringify(out).includes('657734100060340273'), false);
++});
++
++test('sanitizeMarketWindow matches live chart keys and aliases, rejects junk', () => {
++  assert.deepEqual(CHART_WINDOW_KEYS, ['1M', '6M', 'YTD', '5Y', 'ALL']);
++  assert.equal(sanitizeMarketWindow(''), '');
++  assert.equal(sanitizeMarketWindow('nope'), '');
++  assert.equal(sanitizeMarketWindow('1;DROP'), '');
++  assert.equal(sanitizeMarketWindow('1M'), '1M');
++  assert.equal(sanitizeMarketWindow('YTD'), 'YTD');
++  assert.equal(sanitizeMarketWindow('all'), 'ALL');
++  assert.equal(sanitizeMarketWindow('24h'), '1M');
++  assert.equal(sanitizeMarketWindow('6h'), '1M');
++  assert.equal(sanitizeMarketWindow('7d'), '6M');
++  assert.equal(sanitizeMarketTicker('../x'), '');
++  assert.equal(sanitizeMarketTicker('fuel'), 'FUEL');
++  assert.equal(sanitizeMarketTicker('FUEL;DROP'), '');
++});
++
++test('client vault and market scripts keep the live window keys and omit discordId', () => {
++  const vaultSrc = readFileSync(fileURLToPath(new URL('../public/js/vault.js', import.meta.url)), 'utf8');
++  const marketSrc = readFileSync(fileURLToPath(new URL('../public/js/market.js', import.meta.url)), 'utf8');
++  assert.match(vaultSrc, /'1M', '6M', 'YTD', '5Y', 'ALL'/);
++  assert.match(vaultSrc, /AES-GCM/);
++  assert.doesNotMatch(vaultSrc, /discordId/);
++  assert.match(marketSrc, /DisgrowthVault/);
++  assert.match(marketSrc, /fromTickerQuery/);
++  assert.match(marketSrc, /fromWindowQuery/);
++});

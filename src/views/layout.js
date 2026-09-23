@@ -3,6 +3,7 @@ import { sceneMarkup } from './scene.js';
 import { discordAvatarUrl } from '../session.js';
 import { ageGate } from './age-gate.js';
 import { FALLBACK_TICKER, tickerTrack } from '../ticker.js';
+import { publicLoginCache } from '../prefs.js';
 
 function paddleBootMarkup(boot) {
   if (!boot || !boot.clientToken || !boot.env) return '';
@@ -17,7 +18,13 @@ function marketBootMarkup(boot) {
   const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
   return raw(`<script type="application/json" id="market-boot">${json}</script>
 <script src="/js/lightweight-charts.js" defer></script>
-<script src="/js/market.js?v=20260922" defer></script>`);
+<script src="/js/market.js?v=20260923" defer></script>`);
+}
+
+function loginBootMarkup(user) {
+  const json = JSON.stringify(publicLoginCache(user)).replaceAll('<', '\\u003c');
+  return raw(`<script type="application/json" id="login-boot">${json}</script>
+<script src="/js/vault.js?v=20260923" defer></script>`);
 }
 
 function markSvg(className = 'mark') {
@@ -147,6 +154,7 @@ export function layout(data) {
     <svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M12 5.5 5.8 11.7l1.4 1.4L11 8.3V19h2V8.3l3.8 4.8 1.4-1.4z"/></svg>
   </a>
   ${page === 'store' || page === 'buy' ? ageGate() : ''}
+  ${loginBootMarkup(user)}
   ${paddleBootMarkup(paddleBoot)}
   ${marketBootMarkup(marketBoot)}
   <script src="/js/app.js" defer></script>

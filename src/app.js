@@ -277,14 +277,22 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.get('/market', (req, res) => {
     const snapshot = market.getSnapshot();
-    const requested = sanitizeTicker(firstQueryValue(req.query.ticker));
+    const tickerQuery = firstQueryValue(req.query.ticker);
+    const windowQuery = firstQueryValue(req.query.window);
+    const requested = sanitizeTicker(tickerQuery);
     const ticker = requested || snapshot.quotes[0]?.ticker || '';
-    const windowKey = normalizeChartWindow(firstQueryValue(req.query.window));
+    const fromWindowQuery = Boolean(String(windowQuery || '').trim());
+    const windowKey = fromWindowQuery ? normalizeChartWindow(windowQuery) : DEFAULT_CHART_WINDOW;
     page(req, res, {
       title: 'Market',
       page: 'market',
       description: 'Commodity and company prices from the Disgrowth city market.',
-      marketBoot: { ticker, window: windowKey },
+      marketBoot: {
+        ticker,
+        window: windowKey,
+        fromTickerQuery: Boolean(requested),
+        fromWindowQuery,
+      },
       body: marketPage({ quotes: snapshot.quotes, ticker, windowKey }),
     });
   });
