@@ -47,9 +47,9 @@ export function homePage({ config }) {
       <h2 class="section-title">How buying works</h2>
       <ol class="steps">
         <li><strong>Log in with Discord</strong> so the purchase lands on your character.</li>
-        <li><strong>Confirm you’re 18+</strong> and accept the terms.</li>
-        <li><strong>Pay with Paddle.</strong> We never see your card details.</li>
-        <li><strong>Open <code>/shop</code> in Discord.</strong> Gold Bars usually arrive within seconds, plus matching Bonds on your first purchase.</li>
+        <li><strong>accept the terms</strong> and navigate to the <a href="/store">store</a></li>
+        <li><strong>Pay with Paddle.</strong> We dont store your card details.</li>
+        <li><strong>Check your account in Discord.</strong> Gold Bars usually arrive within seconds, plus extra Bonds on your first purchase.</li>
       </ol>
     </section>
 
