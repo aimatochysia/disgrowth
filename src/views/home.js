@@ -52,10 +52,5 @@ export function homePage({ config }) {
         <li><strong>Check your account in Discord.</strong> Gold Bars usually arrive within seconds, plus extra Bonds on your first purchase.</li>
       </ol>
     </section>
-
-    <section class="band">
-      <h2 class="section-title">Come play</h2>
-      ${actions}
-    </section>
   `;
 }
