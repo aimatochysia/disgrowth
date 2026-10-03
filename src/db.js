@@ -179,7 +179,8 @@ export const PLAYER_COLUMNS = [
 export const MARKET_SNAPSHOT_SQL = `
 SELECT a.ticker, a.name, a.type, a.sector,
        a.current_price AS price,
-       open_px.px AS open_price
+       open_px.px AS open_price,
+       mix.recipe_points
 FROM assets a
 LEFT JOIN LATERAL (
   SELECT COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) AS px
@@ -190,6 +191,15 @@ LEFT JOIN LATERAL (
   ORDER BY ph.recorded_at DESC
   LIMIT 1
 ) open_px ON true
+LEFT JOIN LATERAL (
+  SELECT b.recipe_points
+  FROM businesses b
+  WHERE b.listed_asset_id = a.id
+    AND b.is_public = true
+    AND COALESCE(b.company_kind, 'ops') = 'ops'
+  ORDER BY b.id
+  LIMIT 1
+) mix ON true
 WHERE a.type IN ('commodity', 'company')
 ORDER BY a.type ASC, a.ticker ASC
 LIMIT 64
