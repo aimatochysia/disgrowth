@@ -24,6 +24,9 @@ import {
 test('market snapshot SQL reads listed prices and never fair_price', () => {
   assert.match(MARKET_SNAPSHOT_SQL, /a\.current_price AS price/);
   assert.match(MARKET_SNAPSHOT_SQL, /NULLIF\(ph\.close, 0\)/);
+  assert.match(MARKET_SNAPSHOT_SQL, /recipe_points/);
+  assert.match(MARKET_SNAPSHOT_SQL, /is_public = true/);
+  assert.match(MARKET_SNAPSHOT_SQL, /company_kind/);
   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /discord_id/);
   assert.doesNotMatch(MARKET_ASSET_SQL, /fair_price/);
@@ -62,6 +65,16 @@ test('publicQuote drops unknown tickers and never copies fair_price', () => {
     changePct: '-0.40',
   });
   assert.equal(Object.hasOwn(quote, 'fair_price'), false);
+  assert.equal(Object.hasOwn(quote, 'mix'), false);
+  const company = publicQuote({
+    ticker: 'BULY',
+    name: 'Bulk Nook',
+    type: 'company',
+    price: 12,
+    open_price: 12,
+    recipe_points: { CHEM: 14, COMP: 15, RECL: 14, TXTL: 14 },
+  });
+  assert.equal(company.mix, 'COMP 15 · CHEM 14 · RECL 14 · TXTL 14');
 });
 
 test('in-game windows map wall-clock onto the fictional calendar', () => {

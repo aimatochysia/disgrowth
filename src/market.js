@@ -110,6 +110,27 @@ function finitePositive(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
+function publicMix(raw) {
+  let value = raw;
+  if (value == null || value === '') return '';
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch {
+      return '';
+    }
+  }
+  if (typeof value !== 'object' || Array.isArray(value)) return '';
+  const slices = [];
+  for (const [key, rawN] of Object.entries(value)) {
+    const code = String(key || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
+    const weight = Math.max(0, Math.floor(Number(rawN) || 0));
+    if (code && weight > 0) slices.push([code, weight]);
+  }
+  slices.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
+  return slices.map(([code, weight]) => `${code} ${weight}`).join(' · ').slice(0, 160);
+}
+
 export function publicQuote(row) {
   const ticker = sanitizeTicker(row?.ticker);
   if (!ticker) return null;
@@ -118,6 +139,7 @@ export function publicQuote(row) {
   const type = row.type === 'company' ? 'company' : 'commodity';
   const name = String(row.name || ticker).slice(0, 80);
   const sector = row.sector ? String(row.sector).slice(0, 32) : '';
+  const mix = type === 'company' ? publicMix(row.recipe_points) : '';
   return {
     ticker,
     name,
@@ -125,6 +147,7 @@ export function publicQuote(row) {
     sector,
     price,
     changePct: changePct(row.price, row.open_price),
+    ...(mix ? { mix } : {}),
   };
 }
 

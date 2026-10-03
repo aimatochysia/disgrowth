@@ -16,10 +16,12 @@ function formatChange(changePct) {
 
 function quoteRow(quote, selected) {
   const on = quote.ticker === selected ? ' is-on' : '';
+  const mixClass = quote.mix ? ' has-mix' : '';
   const href = `/market?ticker=${encodeURIComponent(quote.ticker)}`;
-  return html`<a class="quote-row${on}" href="${href}" data-ticker="${quote.ticker}">
+  const mix = quote.mix ? html`<span class="quote-mix">${quote.mix}</span>` : '';
+  return html`<a class="quote-row${on}${mixClass}" href="${href}" data-ticker="${quote.ticker}">
     <span class="quote-sym">${quote.ticker}</span>
-    <span class="quote-name">${quote.name}</span>
+    <span class="quote-name">${quote.name}${mix}</span>
     <span class="quote-px">${quote.price}</span>
     <span class="quote-chg ${changeClass(quote.changePct)}">${formatChange(quote.changePct)}</span>
   </a>`;
@@ -41,6 +43,7 @@ function quoteList(title, quotes, selected) {
 export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART_WINDOW } = {}) {
   const commodities = quotes.filter((quote) => quote.type === 'commodity');
   const companies = quotes.filter((quote) => quote.type === 'company');
+  const focus = quotes.find((quote) => quote.ticker === ticker);
   const tickerQ = ticker ? encodeURIComponent(ticker) : '';
   return html`
     <section class="page-hero">
@@ -55,6 +58,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
       <div class="market-chart-pane">
         <div class="market-chart-head">
           <p class="kicker" id="market-focus">${ticker || '—'}</p>
+          ${focus?.mix ? html`<p class="market-mix" id="market-mix">${focus.mix}</p>` : ''}
           <div class="market-windows" role="group" aria-label="Chart range">
             ${CHART_WINDOW_KEYS.map((key) => {
               const href = tickerQ

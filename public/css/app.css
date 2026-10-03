@@ -1332,6 +1332,24 @@ html.theme-animated .mini-moon {
   white-space: nowrap;
 }
 
+.quote-row.has-mix {
+  align-items: start;
+}
+
+.quote-row.has-mix .quote-name {
+  white-space: normal;
+}
+
+.quote-mix,
+.market-mix {
+  display: block;
+  margin: 0.15rem 0 0;
+  color: var(--muted);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  letter-spacing: 0.02em;
+}
+
 .quote-px {
   font-family: "IBM Plex Mono", ui-monospace, monospace;
   font-size: 0.86rem;
