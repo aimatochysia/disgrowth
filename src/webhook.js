@@ -1,4 +1,5 @@
 import { interpretWebhook, applyInterpretation } from './grants.js';
+import { notifyWebsitePayment } from './shopNotice.js';
 import { redactPayload } from './lib/security.js';
 import { firstPurchaseBondsForGold, variantMapFromEnv } from './catalog.js';
 import { createPaddleSdk, unmarshalWebhook } from './paddle.js';
@@ -275,6 +276,7 @@ export async function handlePaddleWebhook({ rawBody, signature, config, db, log 
     if (result?.duplicate) {
       return { status: 200, body: { ok: true, duplicate: true } };
     }
+    await notifyWebsitePayment({ interpretation, result, env: config, log });
     return { status: 200, body: { ok: true, ...result } };
   } catch (err) {
     log.error?.('[store] webhook failed', err);
