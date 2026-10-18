@@ -192,7 +192,7 @@ LEFT JOIN LATERAL (
   LIMIT 1
 ) open_px ON true
 LEFT JOIN LATERAL (
-  SELECT b.recipe_points
+  SELECT b.recipe_points, true AS on_exchange
   FROM businesses b
   WHERE b.listed_asset_id = a.id
     AND b.is_public = true
@@ -200,15 +200,17 @@ LEFT JOIN LATERAL (
   ORDER BY b.id
   LIMIT 1
 ) mix ON true
-WHERE a.type IN ('commodity', 'company')
+WHERE a.type = 'commodity' OR (a.type = 'company' AND mix.on_exchange)
 ORDER BY a.type ASC, a.ticker ASC
 LIMIT 64
 `.trim();
 
 export const MARKET_ASSET_SQL = `
-SELECT id, ticker, name, type, sector, current_price
-FROM assets
-WHERE ticker = $1
+SELECT a.id, a.ticker, a.name, a.type, a.sector, a.current_price
+FROM assets a
+WHERE a.ticker = $1
+  AND (a.type <> 'company'
+       OR EXISTS (SELECT 1 FROM businesses b WHERE b.listed_asset_id = a.id AND b.is_public = true))
 LIMIT 1
 `.trim();
 
