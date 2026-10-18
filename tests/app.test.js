@@ -1039,6 +1039,7 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.doesNotMatch(html, /data-window="6h"/);
     assert.doesNotMatch(html, /data-window="24h"/);
     assert.match(html, /\/js\/lightweight-charts\.js/);
+    assert.match(html, /What the city burns/);
     assert.doesNotMatch(html, /fair_price/);
     assert.doesNotMatch(html, /Buy Fuel/);
     const snap = await fetch(`${base}/api/market/snapshot`);
@@ -1060,4 +1061,11 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.equal(unknown.status, 404);
     assert.match(unknown.headers.get('cache-control') || '', /max-age=15/);
   });
+});
+
+test('every one of the eight commodities has a market page line', async () => {
+  const { COMMODITY_NOTES } = await import('../src/views/market.js');
+  assert.deepEqual(Object.keys(COMMODITY_NOTES).sort(), [
+    'CHEM', 'COMP', 'FUEL', 'MACH', 'METL', 'PRDC', 'RECL', 'TXTL',
+  ]);
 });

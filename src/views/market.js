@@ -1,6 +1,17 @@
 import { html } from '../lib/html.js';
 import { CHART_WINDOW_KEYS, DEFAULT_CHART_WINDOW } from '../market.js';
 
+export const COMMODITY_NOTES = {
+  CHEM: 'Cleaners, fertiliser and the upkeep every shop needs.',
+  COMP: 'Advanced parts: chips, boards and robotics.',
+  FUEL: 'What the city burns to move and to make things.',
+  MACH: 'Low machinery: presses, pumps and tools.',
+  METL: 'Raw resources: ore, steel and wire.',
+  PRDC: 'Produce: what the city eats.',
+  RECL: 'Recyclables. Tends to climb when the rest of the market falls.',
+  TXTL: 'Textiles: cloth, thread and finished fabric.',
+};
+
 function changeClass(changePct) {
   const n = Number(changePct);
   if (!Number.isFinite(n) || n === 0) return 'flat';
@@ -16,9 +27,10 @@ function formatChange(changePct) {
 
 function quoteRow(quote, selected) {
   const on = quote.ticker === selected ? ' is-on' : '';
-  const mixClass = quote.mix ? ' has-mix' : '';
+  const note = quote.type === 'commodity' ? COMMODITY_NOTES[quote.ticker] || '' : quote.mix || '';
+  const mixClass = note ? ' has-mix' : '';
   const href = `/market?ticker=${encodeURIComponent(quote.ticker)}`;
-  const mix = quote.mix ? html`<span class="quote-mix">${quote.mix}</span>` : '';
+  const mix = note ? html`<span class="quote-mix">${note}</span>` : '';
   return html`<a class="quote-row${on}${mixClass}" href="${href}" data-ticker="${quote.ticker}">
     <span class="quote-sym">${quote.ticker}</span>
     <span class="quote-name">${quote.name}${mix}</span>
