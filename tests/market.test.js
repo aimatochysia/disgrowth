@@ -29,6 +29,9 @@ test('market snapshot SQL reads listed prices and never fair_price', () => {
   assert.match(MARKET_SNAPSHOT_SQL, /company_kind/);
   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /discord_id/);
+  // A delisted company stays in assets for its history, so both queries ask for a public business behind it.
+  assert.match(MARKET_SNAPSHOT_SQL, /a\.type = 'company' AND mix\.on_exchange/);
+  assert.match(MARKET_ASSET_SQL, /b\.listed_asset_id = a\.id AND b\.is_public = true/);
   assert.doesNotMatch(MARKET_ASSET_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_OHLC_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_OHLC_SQL, /macro_regime/);
