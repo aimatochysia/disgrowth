@@ -7,6 +7,8 @@
   const WINDOWS = new Set(['1M', '6M', 'YTD', '5Y', 'ALL']);
   const ALIASES = { '6h': '1M', '24h': '1M', '7d': '6M' };
 
+  const agoByTime = new Map();
+  let lastTick = { time: Infinity, label: '' };
   let boot = {};
   try {
     boot = JSON.parse(bootEl.textContent || '{}');
@@ -52,6 +54,13 @@
       timeScale: {
         borderColor: cssVar('--border', 'rgba(36, 30, 24, 0.14)'),
         timeVisible: false,
+        // Bars carry their own relative label. Ticks arrive left to right, so a label equal to the previous tick's is blanked.
+        tickMarkFormatter: (time) => {
+          const label = agoByTime.get(time) || '';
+          const repeat = time > lastTick.time && label === lastTick.label;
+          lastTick = { time, label };
+          return repeat ? '' : label;
+        },
         secondsVisible: false,
         fixLeftEdge: true,
         fixRightEdge: true,
@@ -94,6 +103,7 @@
       grid: theme.grid,
       rightPriceScale: theme.rightPriceScale,
       timeScale: theme.timeScale,
+      localization: { timeFormatter: (time) => agoByTime.get(time) || '' },
       crosshair: theme.crosshair,
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
@@ -183,6 +193,8 @@
       value: Number(bar.v) > 0 ? bar.v : 0,
       color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.45)' : 'rgba(179, 38, 30, 0.45)',
     }));
+    agoByTime.clear();
+    for (const bar of bars) agoByTime.set(bar.t, bar.ago);
     candleSeries.setData(candles);
     volumeSeries.setData(volume);
     barCount = candles.length;
