@@ -6,7 +6,6 @@ export const GAME_TIME = {
   inGameDaysPerMonth: 30,
   inGameMonthsPerYear: 12,
   epoch: '2026-01-01T00:00:00.000Z',
-  calendarEpoch: '2000-01-01',
 };
 
 export const MARKET_CACHE_TTL_MS = 15_000;
@@ -50,14 +49,31 @@ export function inGameDayIndex(at, time = GAME_TIME) {
   return elapsed / (Number(time.realMsPerInGameDay) || 3_600_000);
 }
 
+/** Chart x value: seconds of in-game time since the game epoch. Only an ordinal; the page shows timeAgoLabel, never a date. */
 export function toInGameUnix(at, time = GAME_TIME) {
-  const dayIndex = inGameDayIndex(at, time);
-  const [year, month, day] = String(time.calendarEpoch || '2000-01-01')
-    .slice(0, 10)
-    .split('-')
-    .map((n) => Number(n));
-  const calendarMs = Date.UTC(year, month - 1, day) + dayIndex * 86_400_000;
-  return Math.floor(calendarMs / 1000);
+  return Math.floor(inGameDayIndex(at, time) * 86_400);
+}
+
+/**
+ * Relative VT label ("yesterday", "3 months ago") for an in-game day index, aligned to in-game day, month
+ * and year blocks. Keep in lockstep with bot `src/engine/timeLabels.js`; both test the same table.
+ */
+export function timeAgoLabel(thenDay, nowDay, grain = 'day', time = GAME_TIME) {
+  const perMonth = Number(time.inGameDaysPerMonth) || 30;
+  const perYear = Number(time.inGameMonthsPerYear) || 12;
+  const then = Math.floor(thenDay);
+  const now = Math.floor(nowDay);
+  const days = Math.max(0, now - then);
+  if (grain === 'day' && days < 14) {
+    if (days === 0) return 'today';
+    return days === 1 ? 'yesterday' : `${days} days ago`;
+  }
+  const months = Math.max(0, Math.floor(now / perMonth) - Math.floor(then / perMonth));
+  if (months === 0) return grain === 'day' ? 'this month' : 'today';
+  if (months === 1) return 'last month';
+  if (months < perYear) return `${months} months ago`;
+  const years = Math.floor(months / perYear);
+  return years === 1 ? 'last year' : `${years} years ago`;
 }
 
 export function resolveChartWindow(windowKey, now = new Date(), time = GAME_TIME) {
@@ -172,7 +188,7 @@ export function publicBar(row) {
   return { t, o, h, l, c, v: v < 0 ? 0 : v };
 }
 
-export function publicOhlc(ticker, windowKey, bars) {
+export function publicOhlc(ticker, windowKey, bars, now = new Date()) {
   const symbol = sanitizeTicker(ticker);
   const window = normalizeChartWindow(windowKey);
   const cleaned = [];
@@ -181,6 +197,10 @@ export function publicOhlc(ticker, windowKey, bars) {
     if (bar) cleaned.push(bar);
     if (cleaned.length >= MARKET_BAR_CAP) break;
   }
+  // A gap of a month or more between bars means month-grain candles.
+  const monthly = cleaned.length > 1 && cleaned[1].t - cleaned[0].t >= 25 * 86_400;
+  const nowDay = inGameDayIndex(now);
+  for (const bar of cleaned) bar.ago = timeAgoLabel(bar.t / 86_400, nowDay, monthly ? 'month' : 'day');
   return { ticker: symbol, window, bars: cleaned };
 }
 
@@ -290,7 +310,7 @@ export async function loadMarketOhlc(db, ticker, windowKey, now = new Date()) {
       limit: MARKET_BAR_CAP,
     });
   }
-  return publicOhlc(asset.ticker, window.key, mapOhlcRows(rows));
+  return publicOhlc(asset.ticker, window.key, mapOhlcRows(rows), now);
 }
 
 /**

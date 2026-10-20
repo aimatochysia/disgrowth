@@ -18,6 +18,7 @@ import {
   normalizeChartWindow,
   publicQuote,
   resolveChartWindow,
+  timeAgoLabel,
   toInGameUnix,
 } from '../src/market.js';
 
@@ -80,14 +81,14 @@ test('publicQuote drops unknown tickers and never copies fair_price', () => {
   assert.equal(company.mix, 'COMP 15 · CHEM 14 · RECL 14 · TXTL 14');
 });
 
-test('in-game windows map wall-clock onto the fictional calendar', () => {
+test('in-game windows map wall-clock onto in-game seconds', () => {
   assert.equal(DEFAULT_CHART_WINDOW, '1M');
   assert.equal(normalizeChartWindow('24h'), '1M');
   assert.equal(normalizeChartWindow('6h'), '1M');
   assert.equal(normalizeChartWindow('7d'), '6M');
   assert.equal(normalizeChartWindow('nope'), '1M');
-  assert.equal(toInGameUnix('2026-01-01T00:00:00.000Z'), 946684800);
-  assert.equal(toInGameUnix('2026-01-01T01:00:00.000Z'), 946684800 + 86400);
+  assert.equal(toInGameUnix('2026-01-01T00:00:00.000Z'), 0);
+  assert.equal(toInGameUnix('2026-01-01T01:00:00.000Z'), 86400);
   const now = new Date('2026-09-19T07:00:00.000Z');
   const oneM = resolveChartWindow('1M', now);
   assert.equal(oneM.key, '1M');
@@ -126,10 +127,10 @@ test('mapOhlcRows uses in-game unix and skips zero closes', () => {
     },
   ]);
   assert.equal(bars.length, 2);
-  assert.equal(bars[0].t, 946684800);
+  assert.equal(bars[0].t, 0);
   assert.equal(bars[0].c, 100.5);
   assert.equal(bars[0].v, 12);
-  assert.equal(bars[1].t, 946771200);
+  assert.equal(bars[1].t, 86400);
   assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
 });
 
@@ -235,4 +236,16 @@ test('market client pins the axis and draws volume', () => {
   assert.match(src, /'YTD'/);
   assert.match(src, /addHistogramSeries/);
   assert.match(src, /volumeSeries/);
+});
+
+// Lockstep with bot `src/engine/timeLabels.test.js`: same table, now mid-day at a month start (day 12000.5).
+test('timeAgoLabel ladder matches the bot', () => {
+  const now = 12000;
+  const table = [
+    [0, 'today'], [1, 'yesterday'], [2, '2 days ago'], [13, '13 days ago'],
+    [30, 'last month'], [60, '2 months ago'], [330, '11 months ago'], [360, 'last year'], [720, '2 years ago'],
+  ];
+  for (const [days, want] of table) assert.equal(timeAgoLabel(now - days, now, 'day'), want, `${days} days`);
+  assert.equal(timeAgoLabel(now, now, 'month'), 'today');
+  assert.equal(timeAgoLabel(now - 90, now, 'month'), '3 months ago');
 });
