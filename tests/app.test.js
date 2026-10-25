@@ -857,6 +857,7 @@ test('gold-50 first purchase unlocks Patron tier 1 from lifetime Gold Bars', asy
     const patron = db.statements.filter((s) => /subscription_active = \$1/.test(s.text) && /subscription_expires_at = NULL/.test(s.text));
     assert.equal(patron.length, 1);
     assert.equal(patron[0].params[0], true);
+    assert.equal(patron[0].params[2], 2600);
   });
 });
 
