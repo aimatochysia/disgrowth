@@ -43,7 +43,8 @@ WHERE id = $2
 export const PATRON_SYNC_SQL = `
 UPDATE players
 SET subscription_active = $1,
-    subscription_expires_at = NULL
+    subscription_expires_at = NULL,
+    lifetime_gold_bought = $3
 WHERE id = $2
 `.trim();
 
@@ -247,7 +248,8 @@ export async function syncPatronFromLifetime(client, { playerId, discordId }) {
   const { rows } = await client.query(LIFETIME_GOLD_SQL, [String(discordId)]);
   const lifetime = Number(rows[0]?.lifetime || 0);
   const active = patronActiveFromLifetime(lifetime);
-  await client.query(PATRON_SYNC_SQL, [active, playerId]);
+  // The bot reads the card rank from lifetime_gold_bought, so it moves with the purchase.
+  await client.query(PATRON_SYNC_SQL, [active, playerId, Math.max(0, Math.floor(lifetime))]);
   return { lifetime, active };
 }
 

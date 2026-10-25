@@ -199,6 +199,7 @@ test('grant SQL writes gold_bars only and never writes credits or marks', () => 
   assert.match(BONDS_GRANT_SQL, /bonds = bonds \+ \$1/);
   assert.match(BONDS_REFUND_SQL, /GREATEST\(0, bonds - \$1\)/);
   assert.match(PATRON_SYNC_SQL, /subscription_active = \$1/);
+  assert.match(PATRON_SYNC_SQL, /lifetime_gold_bought = \$3/);
   assert.doesNotMatch(PATRON_SYNC_SQL, /INTERVAL '1 day'/);
   assert.equal(writesCredits(GOLD_GRANT_SQL), false);
   assert.equal(writesCredits(GOLD_REFUND_SQL), false);
