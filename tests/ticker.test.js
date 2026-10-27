@@ -43,14 +43,19 @@ test('quote cache serves memory and does not stampede load', async () => {
     ttlMs: 60_000,
     load: async () => {
       loads += 1;
-      return [{ ticker: 'CHEM', price: 61.94, prev_price: 61.77 }];
+      return [{ ticker: 'PHRM', price: 61.94, prev_price: 61.77 }];
     },
   });
   const a = cache.refresh();
   const b = cache.refresh();
   await Promise.all([a, b]);
   assert.equal(loads, 1);
-  assert.equal(cache.snapshot()[0].ticker, 'CHEM');
+  assert.equal(cache.snapshot()[0].ticker, 'PHRM');
   assert.equal(loads, 1);
   cache.stop();
+});
+
+test('the old CHEM ticker maps to PHRM', async () => {
+  const { sanitizeTicker } = await import('../src/ticker.js');
+  assert.equal(sanitizeTicker('chem'), 'PHRM');
 });
