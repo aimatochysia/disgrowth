@@ -65,12 +65,18 @@
 
   const form = document.querySelector('[data-buy-form][data-paddle-overlay]');
   if (form) {
+    let busy = false;
     form.addEventListener('submit', (event) => {
+      if (busy) {
+        event.preventDefault();
+        return;
+      }
       const boxes = [...form.querySelectorAll('input[type="checkbox"][required]')];
       if (boxes.some((box) => !box.checked)) return;
       event.preventDefault();
+      busy = true;
       // On any failure, submit normally so the server shows its message or redirects to hosted checkout.
-      openCheckout(form).catch((err) => {
+      openCheckout(form).then(() => { busy = false; }).catch((err) => {
         console.error('[store] overlay checkout', err);
         form.submit();
       });
