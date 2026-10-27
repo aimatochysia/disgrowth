@@ -95,6 +95,47 @@ export function createDb(databaseUrl) {
       return rows[0] || null;
     },
 
+    async createSession(row) {
+      await pool.query(`DELETE FROM store_sessions WHERE expires_at < NOW()`);
+      await pool.query(
+        `INSERT INTO store_sessions (id_hash, discord_id, username, global_name, avatar, email, expires_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+        [row.idHash, row.discordId, row.username, row.globalName, row.avatar, row.email, row.expiresAt],
+      );
+    },
+
+    async findSession(idHash) {
+      const { rows } = await pool.query(
+        `SELECT discord_id, username, global_name, avatar, email, expires_at
+         FROM store_sessions WHERE id_hash = $1 AND expires_at > NOW()`,
+        [idHash],
+      );
+      return rows[0] || null;
+    },
+
+    async deleteSession(idHash) {
+      await pool.query(`DELETE FROM store_sessions WHERE id_hash = $1`, [idHash]);
+    },
+
+    async deleteSessionsFor(discordId) {
+      await pool.query(`DELETE FROM store_sessions WHERE discord_id = $1`, [discordId]);
+    },
+
+    async createPendingOrder({ transactionId, discordId, skuKey }) {
+      await pool.query(
+        `INSERT INTO pending_orders (transaction_id, discord_id, sku_key) VALUES ($1, $2, $3)`,
+        [transactionId, discordId, skuKey],
+      );
+    },
+
+    async findPendingOrder(transactionId) {
+      const { rows } = await pool.query(
+        `SELECT discord_id, sku_key FROM pending_orders WHERE transaction_id = $1`,
+        [transactionId],
+      );
+      return rows[0] || null;
+    },
+
     async latestTickerQuotes() {
       const { rows } = await pool.query(
         `SELECT a.ticker, a.current_price AS price, prev.price AS prev_price

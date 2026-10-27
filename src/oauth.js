@@ -1,9 +1,5 @@
-import { randomToken, safeReturnPath } from './lib/security.js';
 import { fetchWithTimeout } from './lib/http.js';
 import { discordAvatar, discordId } from './lib/validate.js';
-import { seal, unseal } from './session.js';
-
-const OAUTH_STATE_MS = 10 * 60 * 1000;
 
 export function authorizeUrl({ clientId, redirectUri, state }) {
   const url = new URL('https://discord.com/oauth2/authorize');
@@ -13,29 +9,6 @@ export function authorizeUrl({ clientId, redirectUri, state }) {
   url.searchParams.set('scope', 'identify email');
   url.searchParams.set('state', state);
   return url.toString();
-}
-
-export function encodeOAuthState(next, secret) {
-  return seal(
-    {
-      r: safeReturnPath(next),
-      n: randomToken(16),
-      t: Date.now(),
-    },
-    secret,
-  );
-}
-
-export function decodeOAuthState(state, secret) {
-  const payload = unseal(firstState(state), secret);
-  if (!payload || !payload.n || !payload.t) return null;
-  if (Date.now() - Number(payload.t) > OAUTH_STATE_MS) return null;
-  return { next: safeReturnPath(payload.r), nonce: payload.n };
-}
-
-function firstState(state) {
-  if (Array.isArray(state)) state = state[0];
-  return state == null ? '' : String(state);
 }
 
 export async function exchangeCode({ code, clientId, clientSecret, redirectUri, fetchImpl = fetch }) {

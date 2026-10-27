@@ -150,9 +150,8 @@
     await writeVault({ login: null });
   }
 
-  document.addEventListener('click', (event) => {
-    const link = event.target.closest('a[href="/logout"]');
-    if (!link) return;
+  document.addEventListener('submit', (event) => {
+    if (!event.target.matches('form[action="/logout"], form[action="/account/logout-all"]')) return;
     writeVault({ login: null }).catch(() => {});
   });
 

@@ -88,13 +88,23 @@ export async function handlePaddleWebhook({ rawBody, signature, config, db, log 
     return { status: 401, body: { ok: false, error: 'invalid_signature' } };
   }
 
-  const interpretation = interpretWebhook(payload, webhookContext(config));
-  if (!interpretation.ok) {
-    return { status: interpretation.http || 400, body: { ok: false, error: interpretation.reason } };
-  }
-
   if (!db) {
     return { status: 503, body: { ok: false, error: 'database_unconfigured' } };
+  }
+
+  let pending = null;
+  if (payload?.event_type === 'transaction.completed' && payload.data?.id) {
+    try {
+      pending = await db.findPendingOrder(String(payload.data.id));
+    } catch (err) {
+      log.error?.('[store] pending order lookup failed', err);
+      return { status: 500, body: { ok: false, error: 'processing_failed' } };
+    }
+  }
+
+  const interpretation = interpretWebhook(payload, { ...webhookContext(config), pending });
+  if (!interpretation.ok) {
+    return { status: interpretation.http || 400, body: { ok: false, error: interpretation.reason } };
   }
 
   const redacted = redactPayload(payload);

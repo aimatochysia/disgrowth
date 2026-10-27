@@ -41,15 +41,14 @@ Pages render without a database or Paddle keys. Checkout, login, and wallets tur
 | `/welcome` | Public | Post-payment confirmation (Paddle success URL) |
 | `/legal` | Public | Terms, privacy, refunds, cookies, and virtual items |
 | `/support` | Public | Contact details |
-| `/healthz` | Public | Process, database, and configuration status |
 | `POST /api/webhooks/paddle` | Paddle signature | Grants and refunds |
 
 ## How a purchase works
 
-1. The player logs in with Discord (`identify email`). The session is an encrypted, httpOnly cookie.
+1. The player logs in with Discord (`identify email`). The cookie holds only a random id; the session itself is a `store_sessions` row (hashed id), so logout and "log out everywhere" revoke it on the server.
 2. `/buy/:sku` requires an existing `players` row. The store never creates players, because the bot pays starting Credits when it creates a character.
-3. After the age and terms checkboxes, Paddle checkout opens as an overlay. Without JavaScript, the server creates the transaction and redirects to Paddle. Both paths attach `discord_id` and `sku_key` as custom data.
-4. On `transaction.completed`, the webhook verifies the signature, records the event in `store_orders` (idempotent on the Paddle event id), and adds the catalog amount to `players.gold_bars`. The first purchase on a Discord account also adds the same number of Bonds. Patron turns on once lifetime Gold Bars bought reach 2,600.
+3. After the age and terms checkboxes, the server creates the Paddle transaction for the logged-in player and stores a `pending_orders` row. The overlay opens that transaction by id; without JavaScript the server redirects to Paddle instead.
+4. On `transaction.completed`, the webhook verifies the signature, takes the Discord id and SKU from the `pending_orders` row (never from custom data; no row, no grant), records the event in `store_orders` (idempotent on the Paddle event id), and adds the catalog amount to `players.gold_bars`. The first purchase on a Discord account also adds the same number of Bonds. Patron turns on once lifetime Gold Bars bought reach 2,600.
 5. On an approved refund or chargeback (`adjustment.updated`), the grant is reversed, clamped at zero.
 
 The store never writes `players.credits`.
@@ -77,7 +76,7 @@ src/
   webhook.js      Paddle webhook handler
   grants.js       Webhook interpretation and wallet SQL
   oauth.js        Discord OAuth
-  session.js      Encrypted session and OAuth state cookies
+  session.js      Session cookie and OAuth state cookie
   market.js       Market snapshot, OHLC, and caching
   ticker.js       Header price ticker
   legal.js        Policy text

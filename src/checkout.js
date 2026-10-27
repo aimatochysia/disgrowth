@@ -1,6 +1,5 @@
-import { CATALOG, isSku } from './catalog.js';
+import { CATALOG } from './catalog.js';
 import { fetchWithTimeout, isTrustedPaddleHttpUrl } from './lib/http.js';
-import { discordId as parseDiscordId } from './lib/validate.js';
 
 export function priceIdForSku(sku, config) {
   const item = CATALOG[sku];
@@ -10,18 +9,11 @@ export function priceIdForSku(sku, config) {
 
 export function checkoutConfigured(config, sku) {
   const envOk = config.PADDLE_ENV === 'production' || config.PADDLE_ENV === 'sandbox';
-  const canCharge = Boolean(config.PADDLE_CLIENT_TOKEN || config.PADDLE_API_KEY);
-  return Boolean(envOk && canCharge && priceIdForSku(sku, config));
+  return Boolean(envOk && config.PADDLE_API_KEY && priceIdForSku(sku, config));
 }
 
-function checkoutPayload({ priceId, discordId, skuKey, successUrl, checkoutUrl }) {
-  const payload = {
-    items: [{ price_id: priceId, quantity: 1 }],
-    custom_data: {
-      discord_id: parseDiscordId(discordId),
-      sku_key: skuKey,
-    },
-  };
+function checkoutPayload({ priceId, successUrl, checkoutUrl }) {
+  const payload = { items: [{ price_id: priceId, quantity: 1 }] };
   const checkout = {};
   if (checkoutUrl) checkout.url = String(checkoutUrl);
   if (successUrl) checkout.settings = { success_url: String(successUrl) };
@@ -33,20 +25,15 @@ function unapprovedCheckoutUrl(detail) {
   return /does not contain a domain that has been approved/i.test(String(detail || ''));
 }
 
-export async function createPaddleCheckoutUrl({
+/** Creates the Paddle transaction; the caller records who it is for before handing it out. */
+export async function createPaddleTransaction({
   apiKey,
   apiBase,
   priceId,
-  discordId,
-  skuKey,
   successUrl,
   checkoutUrl,
   fetchImpl = fetch,
 }) {
-  const id = parseDiscordId(discordId);
-  if (!id || !isSku(skuKey)) {
-    throw new Error('paddle_checkout_invalid_custom_data');
-  }
   async function post(payload) {
     const base = String(apiBase || '').replace(/\/$/, '');
     if (base !== 'https://api.paddle.com' && base !== 'https://sandbox-api.paddle.com') {
@@ -71,20 +58,21 @@ export async function createPaddleCheckoutUrl({
 
     const json = await res.json();
     const url = json?.data?.checkout?.url;
-    if (!url) {
+    const id = json?.data?.id;
+    if (!url || !id) {
       throw new Error('paddle_checkout_missing_url');
     }
     if (!isTrustedPaddleHttpUrl(url, checkoutUrl || successUrl)) {
       throw new Error('paddle_checkout_untrusted_url');
     }
-    return url;
+    return { id: String(id), url };
   }
 
-  const withOrigin = checkoutPayload({ priceId, discordId: id, skuKey, successUrl, checkoutUrl });
+  const withOrigin = checkoutPayload({ priceId, successUrl, checkoutUrl });
   try {
     return await post(withOrigin);
   } catch (err) {
     if (!checkoutUrl || !unapprovedCheckoutUrl(err.detail)) throw err;
-    return post(checkoutPayload({ priceId, discordId: id, skuKey, successUrl, checkoutUrl: '' }));
+    return post(checkoutPayload({ priceId, successUrl, checkoutUrl: '' }));
   }
 }

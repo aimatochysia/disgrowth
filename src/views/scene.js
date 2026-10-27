@@ -8,6 +8,15 @@ const STARS = Array.from({ length: 42 }, (_, i) => ({
   d: ((i * 11) % 24) / 10 + 1.3,
 }));
 
+/** Per-star and per-ray rules, served with art.css so the page needs no inline style attributes. */
+export function sceneCss() {
+  const stars = STARS.map(
+    (s, i) => `.star-${i}{left:${s.l}%;top:${s.t}%;width:${s.s}px;height:${s.s}px;opacity:${s.o};--dur:${s.d}s}`,
+  );
+  const rays = Array.from({ length: 12 }, (_, i) => `.ray-${i}{transform:rotate(${i * 30}deg)}`);
+  return [...stars, ...rays].join('\n');
+}
+
 export function sceneMarkup() {
   return html`
     <div class="scene" aria-hidden="true">
@@ -18,7 +27,7 @@ export function sceneMarkup() {
 
       <div class="layer layer-stars" data-depth="0.04">
         ${STARS.map(
-          (s) => raw(`<span class="star" style="left:${s.l}%;top:${s.t}%;width:${s.s}px;height:${s.s}px;opacity:${s.o};--dur:${s.d}s"></span>`),
+          (_, i) => raw(`<span class="star star-${i}"></span>`),
         )}
       </div>
 
@@ -60,10 +69,7 @@ export function sceneMarkup() {
 }
 
 function sunRays() {
-  const rays = Array.from({ length: 12 }, (_, i) => {
-    const a = i * 30;
-    return `<span class="sun-ray" style="transform:rotate(${a}deg)"></span>`;
-  });
+  const rays = Array.from({ length: 12 }, (_, i) => `<span class="sun-ray ray-${i}"></span>`);
   return raw(`<span class="sun-rays">${rays.join('')}</span>`);
 }
 
