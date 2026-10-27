@@ -1,17 +1,8 @@
 (() => {
   const VAULT_ID = 'disgrowth.vault.v1';
   const DEVICE_ID = 'disgrowth.device.v1';
-  const WINDOWS = new Set(['1M', '6M', 'YTD', '5Y', 'ALL']);
-  const ALIASES = {
-    '6h': '1M',
-    '24h': '1M',
-    '7d': '6M',
-    '1m': '1M',
-    '6m': '6M',
-    ytd: 'YTD',
-    '5y': '5Y',
-    all: 'ALL',
-  };
+  const WINDOWS = new Set(['7D', '1M', '6M', '1Y', '5Y', 'ALL']);
+  const ALIASES = { '6h': '1M', '24h': '1M', ytd: '1Y' };
 
   function sanitizeTicker(value) {
     const ticker = String(value || '')

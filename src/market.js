@@ -1,6 +1,6 @@
 import { sanitizeTicker } from './ticker.js';
 
-/** Keep in lockstep with bot `src/config/game.config.js` `time`. */
+/** The bot writes its `time` config to engine_state.game_time at boot; setGameTime applies it. These are the fallback until then. */
 export const GAME_TIME = {
   realMsPerInGameDay: 60 * 60 * 1000,
   inGameDaysPerMonth: 30,
@@ -8,29 +8,41 @@ export const GAME_TIME = {
   epoch: '2026-01-01T00:00:00.000Z',
 };
 
+export function setGameTime(time) {
+  const next = {
+    realMsPerInGameDay: Number(time?.realMsPerInGameDay),
+    inGameDaysPerMonth: Number(time?.inGameDaysPerMonth),
+    inGameMonthsPerYear: Number(time?.inGameMonthsPerYear),
+    epoch: String(time?.epoch || ''),
+  };
+  const valid =
+    next.realMsPerInGameDay > 0 &&
+    next.inGameDaysPerMonth > 0 &&
+    next.inGameMonthsPerYear > 0 &&
+    Number.isFinite(Date.parse(next.epoch));
+  if (valid) Object.assign(GAME_TIME, next);
+}
+
 export const MARKET_CACHE_TTL_MS = 15_000;
 export const MARKET_OHLC_CACHE_MAX = 64;
 export const MARKET_BAR_CAP = 400;
 export const DEFAULT_CHART_WINDOW = '1M';
-export const CHART_WINDOW_KEYS = ['1M', '6M', 'YTD', '5Y', 'ALL'];
+export const CHART_WINDOW_KEYS = ['7D', '1M', '6M', '1Y', '5Y', 'ALL'];
 
 export const CHART_WINDOWS = {
+  '7D': { key: '7D', label: '7D', grain: 'day', inGameDays: 7, targetBars: 9 },
   '1M': { key: '1M', label: '1M', grain: 'day', inGameDays: 30, targetBars: 36 },
   '6M': { key: '6M', label: '6M', grain: 'day', inGameDays: 180, targetBars: 188 },
-  YTD: { key: 'YTD', label: 'YTD', grain: 'day', ytd: true, targetBars: 368 },
+  '1Y': { key: '1Y', label: '1Y', grain: 'day', inGameDays: 360, targetBars: 368 },
   '5Y': { key: '5Y', label: '5Y', grain: 'month', inGameMonths: 60, targetBars: 64 },
   ALL: { key: 'ALL', label: 'ALL', grain: 'month', fromEpoch: true, targetBars: 240 },
 };
 
+// Old RT keys and links still in the wild.
 const WINDOW_ALIASES = {
   '6h': '1M',
   '24h': '1M',
-  '7d': '6M',
-  '1m': '1M',
-  '6m': '6M',
-  ytd: 'YTD',
-  '5y': '5Y',
-  all: 'ALL',
+  ytd: '1Y',
 };
 
 export function normalizeChartWindow(windowKey) {
@@ -83,15 +95,9 @@ export function resolveChartWindow(windowKey, now = new Date(), time = GAME_TIME
   const epochMs = Date.parse(time.epoch);
   const dayMs = Number(time.realMsPerInGameDay) || 3_600_000;
   const daysPerMonth = Number(time.inGameDaysPerMonth) || 30;
-  const monthsPerYear = Number(time.inGameMonthsPerYear) || 12;
   let start;
   if (window.fromEpoch) {
     start = new Date(epochMs);
-  } else if (window.ytd) {
-    const dayIndex = Math.max(0, Math.floor(inGameDayIndex(end, time)));
-    const yearLength = daysPerMonth * monthsPerYear;
-    const yearStartDay = Math.floor(dayIndex / yearLength) * yearLength;
-    start = new Date(epochMs + yearStartDay * dayMs);
   } else if (window.inGameMonths) {
     start = new Date(end.getTime() - window.inGameMonths * daysPerMonth * dayMs);
   } else {
@@ -108,13 +114,6 @@ function money(value) {
   return n.toFixed(2);
 }
 
-function changePct(price, openPrice) {
-  const now = Number(price);
-  const open = Number(openPrice);
-  if (!Number.isFinite(now) || !Number.isFinite(open) || open === 0) return '0.00';
-  return (((now - open) / open) * 100).toFixed(2);
-}
-
 function round4(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return null;
@@ -126,44 +125,32 @@ function finitePositive(value) {
   return Number.isFinite(n) && n > 0 ? n : null;
 }
 
-function publicMix(raw) {
-  let value = raw;
-  if (value == null || value === '') return '';
-  if (typeof value === 'string') {
-    try {
-      value = JSON.parse(value);
-    } catch {
-      return '';
-    }
-  }
-  if (typeof value !== 'object' || Array.isArray(value)) return '';
-  const slices = [];
-  for (const [key, rawN] of Object.entries(value)) {
-    const code = String(key || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 8);
-    const weight = Math.max(0, Math.floor(Number(rawN) || 0));
-    if (code && weight > 0) slices.push([code, weight]);
-  }
-  slices.sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]));
-  return slices.map(([code, weight]) => `${code} ${weight}`).join(' · ').slice(0, 160);
-}
+const CHANGE_KEYS = [
+  ['7D', 'change_7d'],
+  ['1M', 'change_1m'],
+  ['6M', 'change_6m'],
+  ['1Y', 'change_1y'],
+];
 
+/** One asset_quotes row as the page sees it. The point split never leaves the engine, only its focus name. */
 export function publicQuote(row) {
   const ticker = sanitizeTicker(row?.ticker);
   if (!ticker) return null;
   const price = money(row.price);
   if (!price) return null;
   const type = row.type === 'company' ? 'company' : 'commodity';
-  const name = String(row.name || ticker).slice(0, 80);
-  const sector = row.sector ? String(row.sector).slice(0, 32) : '';
-  const mix = type === 'company' ? publicMix(row.recipe_points) : '';
+  const cap = type === 'company' ? Number(row.market_cap) : NaN;
+  const focus = type === 'company' && row.focus ? String(row.focus).slice(0, 48) : '';
   return {
     ticker,
-    name,
+    name: String(row.name || ticker).slice(0, 80),
     type,
-    sector,
+    sector: row.sector ? String(row.sector).slice(0, 32) : '',
     price,
-    changePct: changePct(row.price, row.open_price),
-    ...(mix ? { mix } : {}),
+    vol: Math.round(Number(row.volume) || 0),
+    changes: Object.fromEntries(CHANGE_KEYS.map(([key, column]) => [key, Number(row[column]) || 0])),
+    ...(Number.isFinite(cap) && cap > 0 ? { cap: Math.round(cap) } : {}),
+    ...(focus ? { focus } : {}),
   };
 }
 
@@ -321,6 +308,7 @@ export async function loadMarketOhlc(db, ticker, windowKey, now = new Date()) {
 export function createMarketCache({
   loadSnapshot,
   loadOhlc,
+  loadGameTime,
   ttlMs = MARKET_CACHE_TTL_MS,
   interval = false,
 } = {}) {
@@ -334,6 +322,7 @@ export function createMarketCache({
   async function pullSnapshot() {
     if (typeof loadSnapshot !== 'function') return;
     try {
+      if (typeof loadGameTime === 'function') setGameTime(await loadGameTime());
       const rows = await loadSnapshot();
       snapshot = publicSnapshot(rows);
     } catch {

@@ -1009,8 +1009,8 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
       return {
         asOf: '2026-09-18T16:00:00.000Z',
         quotes: [
-          { ticker: 'FUEL', name: 'Fuel', type: 'commodity', sector: 'logistics', price: '75.12', changePct: '-0.40' },
-          { ticker: 'ACME', name: 'Acme Co', type: 'company', sector: 'retail', price: '12.50', changePct: '25.00' },
+          { ticker: 'FUEL', name: 'Fuel', type: 'commodity', sector: 'logistics', price: '75.12', vol: 0, changes: { '7D': 0, '1M': -0.4, '6M': 0, '1Y': 0 } },
+          { ticker: 'ACME', name: 'Acme Co', type: 'company', sector: 'retail', price: '12.50', vol: 0, cap: 5000, focus: 'Agri-Harvest', changes: { '7D': 0, '1M': 25, '6M': 0, '1Y': 0 } },
         ],
       };
     },
@@ -1036,6 +1036,10 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.match(html, /ACME/);
     assert.match(html, /id="market-boot"/);
     assert.match(html, /data-window="1M"/);
+    assert.match(html, /data-window="7D"/);
+    assert.match(html, /id="market-heatmap"/);
+    assert.match(html, /id="market-search"/);
+    assert.match(html, /Agri-Harvest/);
     assert.match(html, /data-reset/);
     assert.doesNotMatch(html, /data-window="6h"/);
     assert.doesNotMatch(html, /data-window="24h"/);
