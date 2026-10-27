@@ -4,12 +4,7 @@ import { sanitizeTicker } from './ticker.js';
 const WINDOW_ALIASES = Object.freeze({
   '6h': '1M',
   '24h': '1M',
-  '7d': '6M',
-  '1m': '1M',
-  '6m': '6M',
-  ytd: 'YTD',
-  '5y': '5Y',
-  all: 'ALL',
+  ytd: '1Y',
 });
 
 export function sanitizeMarketTicker(raw) {
