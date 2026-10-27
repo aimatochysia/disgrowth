@@ -931,6 +931,7 @@ test('landing and legal pages render', async () => {
     assert.match(html, /btn-discord/);
     assert.doesNotMatch(html, /In the city/);
     assert.match(html, /Start here/);
+    assert.doesNotMatch(html, /canopy|Rent a stall|dont store/);
     assert.match(html, /Paddle/);
     assert.match(html, /data-to-top/);
     assert.doesNotMatch(html, /Are you 18 or older/);
