@@ -1067,6 +1067,6 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
 test('every one of the eight commodities has a market page line', async () => {
   const { COMMODITY_NOTES } = await import('../src/views/market.js');
   assert.deepEqual(Object.keys(COMMODITY_NOTES).sort(), [
-    'CHEM', 'COMP', 'FUEL', 'MACH', 'METL', 'PRDC', 'RECL', 'TXTL',
+    'COMP', 'FUEL', 'MACH', 'METL', 'PHRM', 'PRDC', 'RECL', 'TXTL',
   ]);
 });

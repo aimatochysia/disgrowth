@@ -76,9 +76,9 @@ test('publicQuote drops unknown tickers and never copies fair_price', () => {
     type: 'company',
     price: 12,
     open_price: 12,
-    recipe_points: { CHEM: 14, COMP: 15, RECL: 14, TXTL: 14 },
+    recipe_points: { PHRM: 14, COMP: 15, RECL: 14, TXTL: 14 },
   });
-  assert.equal(company.mix, 'COMP 15 · CHEM 14 · RECL 14 · TXTL 14');
+  assert.equal(company.mix, 'COMP 15 · PHRM 14 · RECL 14 · TXTL 14');
 });
 
 test('in-game windows map wall-clock onto in-game seconds', () => {

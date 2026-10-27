@@ -2,7 +2,7 @@ import { html } from '../lib/html.js';
 import { CHART_WINDOW_KEYS, DEFAULT_CHART_WINDOW } from '../market.js';
 
 export const COMMODITY_NOTES = {
-  CHEM: 'Cleaners, fertiliser and the upkeep every shop needs.',
+  PHRM: 'Cleaners, fertiliser and the upkeep every shop needs.',
   COMP: 'Advanced parts: chips, boards and robotics.',
   FUEL: 'What the city burns to move and to make things.',
   MACH: 'Low machinery: presses, pumps and tools.',
