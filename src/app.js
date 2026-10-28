@@ -274,6 +274,11 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       next();
       return;
     }
+    if (req.baseUrl === '/api/market') {
+      res.set('Cache-Control', 'private, no-store');
+      res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
+      return;
+    }
     notFound(req, res);
   }
   app.use(['/market', '/api/market'], marketMembersOnly);

@@ -1098,7 +1098,9 @@ test('market is a 404 for logged-out visitors and no link to it is shown', async
       const res = await fetch(`${base}${path}`);
       assert.equal(res.status, 404, path);
       assert.equal(res.headers.get('cache-control'), 'private, no-store', path);
-      assert.doesNotMatch(await res.text(), /id="market-boot"|market-heatmap/, path);
+      const body = await res.text();
+      assert.doesNotMatch(body, /id="market-boot"|market-heatmap/, path);
+      if (path.startsWith('/api/')) assert.deepEqual(JSON.parse(body), { error: 'not found' }, path);
     }
     for (const path of ['/', '/store', '/legal']) {
       const html = await (await fetch(`${base}${path}`)).text();
