@@ -156,8 +156,13 @@ export function createDb(databaseUrl) {
     },
 
     async listMarketQuotes() {
-      const { rows } = await pool.query(MARKET_SNAPSHOT_SQL);
-      return rows;
+      try {
+        return (await pool.query(MARKET_SNAPSHOT_SQL)).rows;
+      } catch (err) {
+        // shortcut: delete this fallback once the focus_tags migration has run on the live database.
+        if (err?.code !== '42703') throw err;
+        return (await pool.query(MARKET_SNAPSHOT_SQL.replace('focus_tags, ', ''))).rows;
+      }
     },
 
     /** The bot's calendar, written at its boot; null until then. */
@@ -228,7 +233,7 @@ export const PLAYER_COLUMNS = [
 ];
 
 export const MARKET_SNAPSHOT_SQL = `
-SELECT ticker, name, type, sector, price, market_cap, volume, focus,
+SELECT ticker, name, type, sector, price, market_cap, volume, focus, focus_tags,
        change_7d, change_1m, change_6m, change_1y
 FROM asset_quotes
 ORDER BY (type = 'company'), market_cap DESC NULLS LAST, ticker ASC

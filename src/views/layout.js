@@ -18,7 +18,7 @@ function marketBootMarkup(boot) {
   const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
   return raw(`<script type="application/json" id="market-boot">${json}</script>
 <script src="/js/lightweight-charts.js" defer></script>
-<script src="/js/market.js?v=20261027" defer></script>`);
+<script type="module" src="/js/market.js?v=20261028"></script>`);
 }
 
 function loginBootMarkup(user) {

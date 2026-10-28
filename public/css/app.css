@@ -1360,13 +1360,39 @@ div.hm-tile {
 
 .hm-sector {
   overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: left;
   color: var(--muted);
   font-size: 0.66rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   white-space: nowrap;
   text-overflow: ellipsis;
-  pointer-events: none;
+  cursor: pointer;
+}
+
+.hm-sector:hover,
+.hm-sector:focus-visible,
+.hm-sector.is-on {
+  color: var(--text);
+}
+
+.hm-tile.is-dim {
+  opacity: 0.4;
+}
+
+.market-chip {
+  font: inherit;
+  font-size: 0.8rem;
+  color: var(--text);
+  background: color-mix(in srgb, var(--accent) 14%, transparent);
+  border: 1px solid var(--accent);
+  border-radius: 999px;
+  padding: 0.25rem 0.7rem;
+  cursor: pointer;
 }
 
 .market-pager {

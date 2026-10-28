@@ -1,3 +1,5 @@
+import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028';
+
 (() => {
   const bootEl = document.getElementById('market-boot');
   const host = document.getElementById('market-chart');
@@ -40,7 +42,8 @@
   const active = new Set();
   const lines = new Map();
   let quotes = [];
-  const view = { q: '', type: '', sector: '', sort: 'cap', page: 0 };
+  const view = { q: '', type: '', tag: '', sort: 'cap', page: 0 };
+  const wide = window.matchMedia('(min-width: 901px)');
 
   function cssVar(name, fallback) {
     const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim();
@@ -277,14 +280,7 @@
   }
 
   function filtered() {
-    const q = view.q.trim().toLowerCase();
-    const rows = quotes.filter(
-      (quote) =>
-        (!view.type || quote.type === view.type) &&
-        (!view.sector || quote.sector === view.sector) &&
-        (!q ||
-          `${quote.ticker} ${quote.name} ${quote.focus || ''}`.toLowerCase().includes(q))
-    );
+    const rows = filterQuotes(quotes, view);
     const by = {
       cap: (a, b) => (b.cap ?? Infinity) - (a.cap ?? Infinity),
       change: (a, b) => changeOf(b) - changeOf(a),
@@ -386,8 +382,8 @@
     return `color-mix(in srgb, var(${side}) ${Math.round(18 + strength * 62)}%, var(--panel))`;
   }
 
-  function tile(rect, { ticker: symbol, change, label }) {
-    const node = el(symbol ? 'button' : 'div', 'hm-tile');
+  function tile(rect, { ticker: symbol, change, label, dim }) {
+    const node = el(symbol ? 'button' : 'div', `hm-tile${dim ? ' is-dim' : ''}`);
     node.style.cssText = `left:${rect.x}px;top:${rect.y}px;width:${Math.max(0, rect.w - 2)}px;height:${Math.max(0, rect.h - 2)}px;background:${tileColor(change)}`;
     if (symbol) {
       node.type = 'button';
@@ -399,67 +395,52 @@
     return node;
   }
 
-  const MAX_TILES = 150;
-  function renderHeatmap(rows) {
+  function tagLabel(tag) {
+    const commodity = quotes.find((quote) => quote.type === 'commodity' && quote.ticker === tag);
+    return (commodity ? commodity.name : tag).replaceAll('_', ' ');
+  }
+
+  // Businesses only, always the full set: the filter dims the map but never empties it, so a player can click out to another group.
+  function renderHeatmap() {
     const map = document.getElementById('market-heatmap');
     const { width } = map.getBoundingClientRect();
     if (!width) return;
     const height = Math.round(Math.min(380, Math.max(240, width * 0.38)));
     map.style.height = `${height}px`;
     const nodes = [];
-    const commodities = rows.filter((quote) => quote.type === 'commodity');
-    const companies = rows.filter((quote) => quote.cap > 0).sort((a, b) => b.cap - a.cap);
-    let top = 0;
-    if (commodities.length) {
-      top = companies.length ? 54 : height;
-      commodities.forEach((quote, i) =>
-        nodes.push(
-          tile(
-            { x: (i * width) / commodities.length, y: 0, w: width / commodities.length, h: top },
-            { ticker: quote.ticker, change: changeOf(quote), label: quote.ticker }
-          )
-        )
-      );
-    }
-    const groups = new Map();
-    companies.forEach((quote, i) => {
-      const key = quote.sector || 'other';
-      const group = groups.get(key) || { value: 0, kept: [], restCap: 0, restMove: 0 };
-      if (i < MAX_TILES) group.kept.push(quote);
-      else {
-        group.restCap += quote.cap;
-        group.restMove += quote.cap * changeOf(quote);
-      }
-      group.value += quote.cap;
-      groups.set(key, group);
-    });
+    const groups = heatGroups(quotes);
     const placed = squarify(
       [...groups].map(([key, group]) => ({ key, group, value: group.value })),
       0,
-      top + (top ? 2 : 0),
+      0,
       width,
-      height - top - (top ? 2 : 0)
+      height
     );
     for (const { item, x, y, w, h } of placed) {
       const head = w > 60 && h > 40 ? 15 : 0;
       if (head) {
-        const tag = el('span', 'hm-sector', item.key.replaceAll('_', ' '));
+        const tag = el('button', `hm-sector${view.tag === item.key ? ' is-on' : ''}`, tagLabel(item.key));
+        tag.type = 'button';
+        tag.dataset.tag = item.key;
         tag.style.cssText = `left:${x + 3}px;top:${y + 1}px;width:${Math.max(0, w - 6)}px`;
         nodes.push(tag);
       }
-      const inner = item.group.kept.map((quote) => ({ quote, value: quote.cap }));
-      if (item.group.restCap) inner.push({ rest: item.group, value: item.group.restCap });
+      const dim = Boolean(view.tag) && view.tag !== item.key;
+      const inner = [...item.group.kept];
+      if (item.group.rest.length) inner.push({ rest: item.group.rest, value: item.group.rest.reduce((sum, r) => sum + r.value, 0) });
       for (const t of squarify(inner, x, y + head, w, h - head)) {
         nodes.push(
           t.item.rest
             ? tile(t, {
-                change: t.item.rest.restMove / t.item.rest.restCap,
+                change: t.item.rest.reduce((sum, r) => sum + r.value * changeOf(r.quote), 0) / t.item.value,
                 label: 'other',
+                dim,
               })
             : tile(t, {
                 ticker: t.item.quote.ticker,
                 change: changeOf(t.item.quote),
                 label: t.item.quote.ticker,
+                dim,
               })
         );
       }
@@ -467,16 +448,64 @@
     map.replaceChildren(...nodes);
   }
 
+  // The search box, selects and chip all mirror `view`; every change goes through here.
+  function syncControls() {
+    const tags = tagList(quotes).sort((a, b) => tagLabel(a).localeCompare(tagLabel(b)));
+    const select = document.getElementById('market-tag');
+    if (select) {
+      select.replaceChildren(
+        ...[['', 'All focus'], ...tags.map((tag) => [tag, tagLabel(tag)])].map(([value, label]) => {
+          const option = el('option', '', label);
+          option.value = value;
+          return option;
+        })
+      );
+      select.value = view.tag;
+    }
+    const search = document.getElementById('market-search');
+    if (search) search.value = view.q;
+    const type = document.getElementById('market-type');
+    if (type) type.value = view.type;
+    const chip = document.getElementById('market-chip');
+    if (chip) {
+      chip.hidden = !view.tag;
+      chip.textContent = view.tag ? `${tagLabel(view.tag)} ×` : '';
+    }
+  }
+
+  function setTag(tag) {
+    view.tag = view.tag === tag ? '' : tag;
+    view.page = 0;
+    syncControls();
+    renderAll();
+  }
+
+  // A tile click selects the chart and brings its row into the list, dropping any filter that hides it.
+  function reveal(symbol) {
+    let rows = filtered();
+    if (!rows.some((quote) => quote.ticker === symbol)) {
+      Object.assign(view, { q: '', type: '', tag: '' });
+      syncControls();
+      rows = filtered();
+    }
+    view.page = Math.max(0, Math.floor(rows.findIndex((quote) => quote.ticker === symbol) / PAGE_SIZE));
+    renderAll();
+    if (wide.matches) {
+      document.querySelector(`.quote-row[data-ticker="${symbol}"]`)?.scrollIntoView({ block: 'nearest' });
+    }
+  }
+
   function renderAll() {
-    const rows = filtered();
-    renderList(rows);
-    renderHeatmap(rows);
+    renderList(filtered());
+    renderHeatmap();
   }
 
   async function loadSnapshot() {
     const res = await fetch('/api/market/snapshot', { headers: { accept: 'application/json' } });
     if (!res.ok) return;
     quotes = (await res.json()).quotes || [];
+    if (view.tag && !tagList(quotes).includes(view.tag)) view.tag = '';
+    syncControls();
     renderAll();
     markSelected();
   }
@@ -535,10 +564,21 @@
       if (!row) return;
       event.preventDefault();
       setTicker(row.getAttribute('data-ticker'));
+      if (!row.classList.contains('quote-row')) reveal(row.getAttribute('data-ticker'));
     })
   );
 
   document.querySelector('.market-screen')?.addEventListener('click', (event) => {
+    const group = event.target.closest('[data-tag]');
+    if (group) {
+      event.preventDefault();
+      setTag(group.getAttribute('data-tag'));
+      return;
+    }
+    if (event.target.closest('#market-chip') || (view.tag && event.target.matches('.market-screen, .market-heatmap, .market-toolbar'))) {
+      setTag(view.tag);
+      return;
+    }
     if (event.target.closest('[data-reset]')) {
       event.preventDefault();
       fitView();
@@ -566,13 +606,14 @@
   const controls = {
     'market-search': ['q', 'input'],
     'market-type': ['type', 'change'],
-    'market-sector': ['sector', 'change'],
+    'market-tag': ['tag', 'change'],
     'market-sort': ['sort', 'change'],
   };
   for (const [id, [key, type]] of Object.entries(controls)) {
     document.getElementById(id)?.addEventListener(type, (event) => {
       view[key] = event.target.value;
       view.page = 0;
+      syncControls();
       renderAll();
     });
   }
@@ -583,6 +624,7 @@
       event.preventDefault();
       document.getElementById('market-search')?.focus();
     }
+    if (event.key === 'Escape' && view.tag && event.target.tagName !== 'INPUT') setTag(view.tag);
   });
 
   const resize = new ResizeObserver(() => {
@@ -590,7 +632,7 @@
   });
   resize.observe(host);
   const heat = document.getElementById('market-heatmap');
-  if (heat) new ResizeObserver(() => quotes.length && renderHeatmap(filtered())).observe(heat);
+  if (heat) new ResizeObserver(() => quotes.length && renderHeatmap()).observe(heat);
 
   const themeWatch = new MutationObserver(() => applyTheme());
   themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });

@@ -1054,6 +1054,8 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     assert.match(html, /data-window="7D"/);
     assert.match(html, /id="market-heatmap"/);
     assert.match(html, /id="market-search"/);
+    assert.match(html, /id="market-tag"/);
+    assert.match(html, /type="module" src="\/js\/market\.js/);
     assert.match(html, /Agri-Harvest/);
     assert.match(html, /data-reset/);
     assert.doesNotMatch(html, /data-window="6h"/);
