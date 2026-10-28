@@ -1,11 +1,9 @@
 (() => {
   const root = document.documentElement;
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  const header = document.querySelector('.site-header');
   const nav = document.getElementById('site-nav');
   const navBtn = document.querySelector('[data-nav-toggle]');
   const axis = document.querySelector('.celestial-axis');
-  const COMPACT_AT = 28;
 
   function currentTheme() {
     return root.dataset.theme === 'night' ? 'night' : 'day';
@@ -62,17 +60,10 @@
     navBtn.setAttribute('aria-label', open ? 'Close menu' : 'Open menu');
   }
 
-  function syncCompact() {
-    if (!header) return;
-    const mobile = window.matchMedia('(max-width: 900px)').matches;
-    const compact = mobile || window.scrollY > COMPACT_AT;
-    header.classList.toggle('is-compact', compact);
-    if (!compact) setNavOpen(false);
-  }
-
-  syncCompact();
-  window.addEventListener('scroll', syncCompact, { passive: true });
-  window.addEventListener('resize', syncCompact);
+  // The menu only exists in portrait; close it when the layout leaves that mode.
+  window.matchMedia('(orientation: portrait) and (max-width: 1024px)').addEventListener('change', (event) => {
+    if (!event.matches) setNavOpen(false);
+  });
 
   const toTop = document.querySelector('[data-to-top]');
   function syncToTop() {
