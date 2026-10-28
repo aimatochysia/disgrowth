@@ -1,10 +1,8 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import {
-  SHOP_LOG_CHANNEL_ID,
   formatWebsiteShopNotice,
   notifyWebsitePayment,
-  readBotToken,
   usdLabel,
 } from '../src/shopNotice.js';
 
@@ -30,7 +28,7 @@ test('website payment line says whether the player was granted', () => {
   assert.match(missing, /playerId=—/);
 });
 
-test('only a gold payment is posted, and a missing token does not throw', async () => {
+test('only a gold payment is posted, and a missing webhook does not throw', async () => {
   const calls = [];
   const skipped = await notifyWebsitePayment({
     interpretation: { effect: 'ignored' },
@@ -56,7 +54,7 @@ test('only a gold payment is posted, and a missing token does not throw', async 
       currency: 'USD',
     },
     result: { applied: true, playerId: 3 },
-    env: { DISCORD_TOKEN: 'store-token', DISCORD_SHOP_LOG_CHANNEL_ID: SHOP_LOG_CHANNEL_ID },
+    env: { SHOP_LOG_WEBHOOK_URL: 'https://discord.com/api/webhooks/1/abc' },
     fetchImpl: async (url, init) => {
       calls.push({ url, body: init.body });
       return { ok: true };
@@ -64,16 +62,18 @@ test('only a gold payment is posted, and a missing token does not throw', async 
     log: { warn() {} },
   });
   assert.equal(posted.posted, true);
-  assert.match(calls[0].url, new RegExp(`/channels/${SHOP_LOG_CHANNEL_ID}/messages$`));
+  assert.equal(calls[0].url, 'https://discord.com/api/webhooks/1/abc');
   assert.match(calls[0].body, /result=granted/);
   assert.match(calls[0].body, /\[shop\] website /);
 });
 
-test('readBotToken prefers the env and does not require the bot file', () => {
-  assert.equal(readBotToken({ DISCORD_TOKEN: 'from-env' }, () => {
-    throw new Error('should not read');
-  }), 'from-env');
-  assert.equal(readBotToken({}, () => {
-    throw new Error('missing');
-  }), '');
+test('no webhook URL means nothing is posted', async () => {
+  const none = await notifyWebsitePayment({
+    interpretation: { effect: 'gold_grant' },
+    result: {},
+    env: {},
+    fetchImpl: async () => assert.fail('should not post'),
+    log: { warn() {} },
+  });
+  assert.equal(none.reason, 'no_webhook');
 });

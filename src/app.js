@@ -30,7 +30,7 @@ import { homePage } from './views/home.js';
 import { storePage } from './views/store.js';
 import { buyPage } from './views/buy.js';
 import { accountPage } from './views/account.js';
-import { marketPage } from './views/market.js';
+import { COMMODITY_NOTES, marketPage } from './views/market.js';
 import { legalHubPage, loginPage, notFoundPage, oauthContinuePage, supportPage, welcomePage } from './views/misc.js';
 import { getLegalDoc } from './legal.js';
 import { config } from './config.js';
@@ -41,7 +41,6 @@ import {
   createMarketCache,
   loadMarketOhlc,
   normalizeChartWindow,
-  resolveChartWindow,
 } from './market.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -55,8 +54,9 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   const market = marketCache || createMarketCache({
     loadSnapshot: async () => {
       if (!db || typeof db.listMarketQuotes !== 'function') return [];
-      return db.listMarketQuotes(resolveChartWindow(DEFAULT_CHART_WINDOW).start);
+      return db.listMarketQuotes();
     },
+    loadGameTime: () => (db && typeof db.getGameTime === 'function' ? db.getGameTime() : null),
     loadOhlc: (ticker, windowKey) => loadMarketOhlc(db, ticker, windowKey),
     interval: config.NODE_ENV !== 'test',
   });
@@ -288,6 +288,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         window: windowKey,
         fromTickerQuery: Boolean(requested),
         fromWindowQuery,
+        notes: COMMODITY_NOTES,
       },
       body: marketPage({ quotes: snapshot.quotes, ticker, windowKey }),
     });

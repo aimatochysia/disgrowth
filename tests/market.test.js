@@ -12,26 +12,23 @@ import { GOLD_GRANT_SQL, GOLD_REFUND_SQL } from '../src/grants.js';
 import {
   DEFAULT_CHART_WINDOW,
   bucketBars,
+  GAME_TIME,
   createMarketCache,
   loadMarketOhlc,
   mapOhlcRows,
   normalizeChartWindow,
   publicQuote,
   resolveChartWindow,
+  setGameTime,
   timeAgoLabel,
   toInGameUnix,
 } from '../src/market.js';
 
-test('market snapshot SQL reads listed prices and never fair_price', () => {
-  assert.match(MARKET_SNAPSHOT_SQL, /a\.current_price AS price/);
-  assert.match(MARKET_SNAPSHOT_SQL, /NULLIF\(ph\.close, 0\)/);
-  assert.match(MARKET_SNAPSHOT_SQL, /recipe_points/);
-  assert.match(MARKET_SNAPSHOT_SQL, /is_public = true/);
-  assert.match(MARKET_SNAPSHOT_SQL, /company_kind/);
-  assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price/);
-  assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /discord_id/);
-  // A delisted company stays in assets for its history, so both queries ask for a public business behind it.
-  assert.match(MARKET_SNAPSHOT_SQL, /a\.type = 'company' AND mix\.on_exchange/);
+test('market snapshot reads asset_quotes only, never fair_price or the point split', () => {
+  assert.match(MARKET_SNAPSHOT_SQL, /FROM asset_quotes/);
+  assert.match(MARKET_SNAPSHOT_SQL, /focus/);
+  assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price|recipe_points|discord_id/);
+  // A delisted company stays in assets for its history; the lookup asks for a public business behind it.
   assert.match(MARKET_ASSET_SQL, /b\.listed_asset_id = a\.id AND b\.is_public = true/);
   assert.doesNotMatch(MARKET_ASSET_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_OHLC_SQL, /fair_price/);
@@ -48,7 +45,7 @@ test('player columns and grants no longer mention marks', () => {
   assert.doesNotMatch(GOLD_REFUND_SQL, /\bmarks\b/);
 });
 
-test('publicQuote drops unknown tickers and never copies fair_price', () => {
+test('publicQuote drops unknown tickers and never copies fair_price or the mix', () => {
   assert.equal(publicQuote({ ticker: '../x', price: 1 }), null);
   const quote = publicQuote({
     ticker: 'fuel',
@@ -56,8 +53,15 @@ test('publicQuote drops unknown tickers and never copies fair_price', () => {
     type: 'commodity',
     sector: 'logistics',
     price: 75.12,
-    open_price: 75.42,
+    volume: 120.4,
+    change_7d: '1.5',
+    change_1m: '-0.40',
+    change_6m: '3',
+    change_1y: '9',
+    market_cap: 5000,
+    focus: 'Bio-Med',
     fair_price: 999,
+    recipe_points: { PHRM: 3 },
     discord_id: 'nope',
   });
   assert.deepEqual(quote, {
@@ -66,26 +70,38 @@ test('publicQuote drops unknown tickers and never copies fair_price', () => {
     type: 'commodity',
     sector: 'logistics',
     price: '75.12',
-    changePct: '-0.40',
+    vol: 120,
+    changes: { '7D': 1.5, '1M': -0.4, '6M': 3, '1Y': 9 },
   });
-  assert.equal(Object.hasOwn(quote, 'fair_price'), false);
-  assert.equal(Object.hasOwn(quote, 'mix'), false);
   const company = publicQuote({
     ticker: 'BULY',
     name: 'Bulk Nook',
     type: 'company',
     price: 12,
-    open_price: 12,
-    recipe_points: { CHEM: 14, COMP: 15, RECL: 14, TXTL: 14 },
+    market_cap: 1234.5,
+    focus: 'Bio-Mechanics',
+    recipe_points: { PHRM: 14, COMP: 15 },
   });
-  assert.equal(company.mix, 'COMP 15 · CHEM 14 · RECL 14 · TXTL 14');
+  assert.equal(company.focus, 'Bio-Mechanics');
+  assert.equal(company.cap, 1235);
+  assert.doesNotMatch(JSON.stringify(company), /recipe|PHRM|COMP/);
+});
+
+test('setGameTime applies the bot clock and ignores junk', () => {
+  const before = { ...GAME_TIME };
+  setGameTime({ realMsPerInGameDay: 0, inGameDaysPerMonth: 30, inGameMonthsPerYear: 12, epoch: 'nope' });
+  assert.deepEqual(GAME_TIME, before);
+  setGameTime({ ...before, realMsPerInGameDay: 1800000 });
+  assert.equal(GAME_TIME.realMsPerInGameDay, 1800000);
+  setGameTime(before);
 });
 
 test('in-game windows map wall-clock onto in-game seconds', () => {
   assert.equal(DEFAULT_CHART_WINDOW, '1M');
   assert.equal(normalizeChartWindow('24h'), '1M');
   assert.equal(normalizeChartWindow('6h'), '1M');
-  assert.equal(normalizeChartWindow('7d'), '6M');
+  assert.equal(normalizeChartWindow('7d'), '7D');
+  assert.equal(normalizeChartWindow('ytd'), '1Y');
   assert.equal(normalizeChartWindow('nope'), '1M');
   assert.equal(toInGameUnix('2026-01-01T00:00:00.000Z'), 0);
   assert.equal(toInGameUnix('2026-01-01T01:00:00.000Z'), 86400);
@@ -94,10 +110,8 @@ test('in-game windows map wall-clock onto in-game seconds', () => {
   assert.equal(oneM.key, '1M');
   assert.equal(oneM.grain, 'day');
   assert.equal(now.getTime() - oneM.start.getTime(), 30 * 60 * 60 * 1000);
-  const ytd = resolveChartWindow('YTD', now);
-  assert.equal(ytd.grain, 'day');
-  assert.ok(ytd.start.getTime() >= Date.parse('2026-01-01T00:00:00.000Z'));
-  assert.ok(ytd.start.getTime() < now.getTime());
+  assert.equal(now.getTime() - resolveChartWindow('7D', now).start.getTime(), 7 * 60 * 60 * 1000);
+  assert.equal(now.getTime() - resolveChartWindow('1Y', now).start.getTime(), 360 * 60 * 60 * 1000);
   const fiveY = resolveChartWindow('5Y', now);
   assert.equal(fiveY.grain, 'month');
   const all = resolveChartWindow('ALL', now);
@@ -233,7 +247,8 @@ test('market client pins the axis and draws volume', () => {
   assert.match(src, /data-reset/);
   assert.match(src, /fitContent/);
   assert.match(src, /'1M'/);
-  assert.match(src, /'YTD'/);
+  assert.match(src, /'1Y'/);
+  assert.match(src, /sma20/);
   assert.match(src, /addHistogramSeries/);
   assert.match(src, /volumeSeries/);
 });

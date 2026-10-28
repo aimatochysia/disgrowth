@@ -12,11 +12,12 @@ export const FALLBACK_TICKER = [
   { kind: 'label', text: 'PLAYED IN DISCORD' },
 ];
 
+// CHEM became PHRM on 2026-10-27; old links and saved vault values still say CHEM. Remove after 2026-11-26.
 export function sanitizeTicker(value) {
   const ticker = String(value || '')
     .trim()
     .toUpperCase();
-  return TICKER_RE.test(ticker) ? ticker : '';
+  return TICKER_RE.test(ticker) ? (ticker === 'CHEM' ? 'PHRM' : ticker) : '';
 }
 
 function money(value) {

@@ -155,9 +155,19 @@ export function createDb(databaseUrl) {
       return rows;
     },
 
-    async listMarketQuotes(at) {
-      const { rows } = await pool.query(MARKET_SNAPSHOT_SQL, [at || new Date()]);
+    async listMarketQuotes() {
+      const { rows } = await pool.query(MARKET_SNAPSHOT_SQL);
       return rows;
+    },
+
+    /** The bot's calendar, written at its boot; null until then. */
+    async getGameTime() {
+      const { rows } = await pool.query("SELECT value FROM engine_state WHERE key = 'game_time'");
+      try {
+        return rows[0] ? JSON.parse(rows[0].value) : null;
+      } catch {
+        return null;
+      }
     },
 
     async findMarketAsset(ticker) {
@@ -218,32 +228,11 @@ export const PLAYER_COLUMNS = [
 ];
 
 export const MARKET_SNAPSHOT_SQL = `
-SELECT a.ticker, a.name, a.type, a.sector,
-       a.current_price AS price,
-       open_px.px AS open_price,
-       mix.recipe_points
-FROM assets a
-LEFT JOIN LATERAL (
-  SELECT COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) AS px
-  FROM price_history ph
-  WHERE ph.asset_id = a.id
-    AND ph.recorded_at <= $1
-    AND COALESCE(NULLIF(ph.close, 0), NULLIF(ph.price, 0)) IS NOT NULL
-  ORDER BY ph.recorded_at DESC
-  LIMIT 1
-) open_px ON true
-LEFT JOIN LATERAL (
-  SELECT b.recipe_points, true AS on_exchange
-  FROM businesses b
-  WHERE b.listed_asset_id = a.id
-    AND b.is_public = true
-    AND COALESCE(b.company_kind, 'ops') = 'ops'
-  ORDER BY b.id
-  LIMIT 1
-) mix ON true
-WHERE a.type = 'commodity' OR (a.type = 'company' AND mix.on_exchange)
-ORDER BY a.type ASC, a.ticker ASC
-LIMIT 64
+SELECT ticker, name, type, sector, price, market_cap, volume, focus,
+       change_7d, change_1m, change_6m, change_1y
+FROM asset_quotes
+ORDER BY (type = 'company'), market_cap DESC NULLS LAST, ticker ASC
+LIMIT 5000
 `.trim();
 
 export const MARKET_ASSET_SQL = `

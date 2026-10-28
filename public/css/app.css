@@ -1282,11 +1282,101 @@ html.theme-animated .mini-moon {
   padding: 1.5rem 0 0.5rem;
 }
 
+.market-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  margin-bottom: 0.8rem;
+}
+
+.market-toolbar select,
+.market-search {
+  font: inherit;
+  font-size: 0.85rem;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.3rem 0.5rem;
+}
+
+.market-search {
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.market-toolbar .market-windows {
+  margin-left: auto;
+}
+
+.market-heatmap {
+  position: relative;
+  height: 320px;
+  margin-bottom: 1rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.hm-tile,
+.hm-sector {
+  position: absolute;
+  box-sizing: border-box;
+}
+
+.hm-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  color: var(--text);
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.72rem;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+button.hm-tile:hover,
+button.hm-tile:focus-visible {
+  outline: 2px solid var(--text);
+  outline-offset: -2px;
+}
+
+div.hm-tile {
+  cursor: default;
+  opacity: 0.8;
+}
+
+.hm-sector {
+  overflow: hidden;
+  color: var(--muted);
+  font-size: 0.66rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  pointer-events: none;
+}
+
+.market-pager {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 0.6rem;
+}
+
 .market-board {
   display: grid;
-  grid-template-columns: minmax(16rem, 22rem) minmax(0, 1fr);
+  grid-template-columns: minmax(16rem, 24rem) minmax(0, 1fr);
   gap: 1.1rem;
   align-items: start;
+}
+
+.market-screen {
   padding: 1rem 1.1rem 1.15rem;
 }
 
@@ -1612,6 +1702,10 @@ html[data-page="market"] .site-footer {
     grid-template-columns: 1fr;
   }
 
+  .market-chart-pane {
+    order: -1;
+  }
+
   .ticker {
     display: none;
   }
@@ -1822,4 +1916,71 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .buying-wallet {
   margin: 0 0 0.4rem;
   color: var(--muted);
+}
+
+.chip {
+  display: inline-block;
+  margin: 0 0 0.9rem;
+  padding: 0.2rem 0.7rem;
+  border: 1px solid var(--gold);
+  border-radius: 999px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--gold);
+}
+
+.clock p {
+  margin: 0;
+}
+
+.clock .clock-pair {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.5rem 1rem;
+  margin-bottom: 0.7rem;
+  font-family: Fraunces, serif;
+  font-size: clamp(1.4rem, 3.4vw, 2.2rem);
+  color: var(--accent);
+}
+
+.district-grid {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.district {
+  border-top: 3px solid var(--tone, var(--accent));
+}
+
+.district h3 {
+  font-family: Fraunces, serif;
+  font-weight: 500;
+  font-size: 1.15rem;
+  margin: 0 0 0.4rem;
+}
+
+.district p {
+  margin: 0;
+  color: var(--muted);
+}
+
+.district-green { --tone: #5d8a3a; }
+.district-quay { --tone: #c98a3c; }
+.district-metro { --tone: #3d8fb0; }
+.district-grand { --tone: var(--gold); }
+
+@media (max-width: 900px) {
+  .district-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 520px) {
+  .district-grid {
+    grid-template-columns: 1fr;
+  }
 }
