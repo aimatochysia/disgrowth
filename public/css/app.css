@@ -619,7 +619,18 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   gap: 0.2rem 1.1rem;
 }
 
-.nav a {
+.nav-logout {
+  display: contents;
+}
+
+.nav button {
+  font: inherit;
+  background: none;
+  border: 0;
+  cursor: pointer;
+}
+
+.nav :is(a, button) {
   color: var(--muted);
   text-decoration: none;
   font-size: 0.92rem;
@@ -635,8 +646,8 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   color: var(--text);
 }
 
-.nav a:hover,
-.nav a:focus-visible {
+.nav :is(a, button):hover,
+.nav :is(a, button):focus-visible {
   color: var(--text);
   background: color-mix(in srgb, var(--text) 10%, transparent);
   transform: translateY(-1px);
@@ -1656,7 +1667,7 @@ html[data-page="market"] .site-footer {
   visibility: visible;
 }
 
-.site-header.is-compact .nav a {
+.site-header.is-compact .nav :is(a, button) {
   min-height: 38px;
   justify-content: flex-end;
   color: var(--text);
@@ -1666,22 +1677,22 @@ html[data-page="market"] .site-footer {
   transform: translateY(-8px);
 }
 
-.site-header.is-compact .nav a:hover,
-.site-header.is-compact .nav a:focus-visible {
+.site-header.is-compact .nav :is(a, button):hover,
+.site-header.is-compact .nav :is(a, button):focus-visible {
   background: color-mix(in srgb, var(--text) 12%, transparent);
   transform: none;
 }
 
-.site-header.is-compact .nav.is-open a {
+.site-header.is-compact .nav.is-open :is(a, button) {
   opacity: 1;
   animation: navDrop 0.34s ease both;
 }
 
-.site-header.is-compact .nav.is-open a:nth-child(1) { animation-delay: 0.02s; }
-.site-header.is-compact .nav.is-open a:nth-child(2) { animation-delay: 0.07s; }
-.site-header.is-compact .nav.is-open a:nth-child(3) { animation-delay: 0.12s; }
-.site-header.is-compact .nav.is-open a:nth-child(4) { animation-delay: 0.17s; }
-.site-header.is-compact .nav.is-open a:nth-child(5) { animation-delay: 0.22s; }
+.site-header.is-compact .nav.is-open :is(a, button):nth-child(1) { animation-delay: 0.02s; }
+.site-header.is-compact .nav.is-open :is(a, button):nth-child(2) { animation-delay: 0.07s; }
+.site-header.is-compact .nav.is-open :is(a, button):nth-child(3) { animation-delay: 0.12s; }
+.site-header.is-compact .nav.is-open :is(a, button):nth-child(4) { animation-delay: 0.17s; }
+.site-header.is-compact .nav.is-open :is(a, button):nth-child(5) { animation-delay: 0.22s; }
 
 @media (max-width: 900px) {
   .wallet-grid,
@@ -1747,7 +1758,7 @@ html[data-page="market"] .site-footer {
     visibility: visible;
   }
 
-  .nav a {
+  .nav :is(a, button) {
     min-height: 38px;
     justify-content: flex-end;
     color: var(--text);
@@ -1757,22 +1768,22 @@ html[data-page="market"] .site-footer {
     transform: translateY(-8px);
   }
 
-  .nav a:hover,
-  .nav a:focus-visible {
+  .nav :is(a, button):hover,
+  .nav :is(a, button):focus-visible {
     background: color-mix(in srgb, var(--text) 12%, transparent);
     transform: none;
   }
 
-  .nav.is-open a {
+  .nav.is-open :is(a, button) {
     opacity: 1;
     animation: navDrop 0.34s ease both;
   }
 
-  .nav.is-open a:nth-child(1) { animation-delay: 0.02s; }
-  .nav.is-open a:nth-child(2) { animation-delay: 0.07s; }
-  .nav.is-open a:nth-child(3) { animation-delay: 0.12s; }
-  .nav.is-open a:nth-child(4) { animation-delay: 0.17s; }
-  .nav.is-open a:nth-child(5) { animation-delay: 0.22s; }
+  .nav.is-open :is(a, button):nth-child(1) { animation-delay: 0.02s; }
+  .nav.is-open :is(a, button):nth-child(2) { animation-delay: 0.07s; }
+  .nav.is-open :is(a, button):nth-child(3) { animation-delay: 0.12s; }
+  .nav.is-open :is(a, button):nth-child(4) { animation-delay: 0.17s; }
+  .nav.is-open :is(a, button):nth-child(5) { animation-delay: 0.22s; }
 
   .brand-sub {
     display: none;
@@ -1833,8 +1844,8 @@ html[data-page="market"] .site-footer {
     transition: none;
   }
 
-  .site-header.is-compact .nav a,
-  .nav a {
+  .site-header.is-compact .nav :is(a, button),
+  .nav :is(a, button) {
     opacity: 1 !important;
     transform: none !important;
   }
@@ -1888,6 +1899,23 @@ html[data-age-ok="no"] .age-gate-deny {
 html[data-page="store"]:not([data-age-ok="yes"]),
 html[data-page="buy"]:not([data-age-ok="yes"]) {
   overflow: hidden;
+}
+
+.buying-for {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  margin-bottom: 1rem;
+}
+
+.buying-name {
+  font-weight: 600;
+  margin: 0.1rem 0;
+}
+
+.buying-wallet {
+  margin: 0 0 0.4rem;
+  color: var(--muted);
 }
 
 .chip {

@@ -69,6 +69,7 @@ export function accountPage({ user, player, dbReady, inviteUrl, paddleCustomer =
         ${paddleCustomer
           ? html`<form method="post" action="/account/portal"><button class="btn btn-ghost" type="submit">View invoices</button></form>`
           : ''}
+        <form method="post" action="/account/logout-all"><button class="btn btn-ghost" type="submit">Log out everywhere</button></form>
       </div>
     </section>
   `;

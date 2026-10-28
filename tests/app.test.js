@@ -1,12 +1,11 @@
 import assert from 'node:assert/strict';
 import { spawn } from 'node:child_process';
-import { createHmac } from 'node:crypto';
+import { createHash, createHmac } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { test } from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createApp } from '../src/app.js';
 import { loadConfig } from '../src/config.js';
-import { seal } from '../src/session.js';
 import { createQuoteCache } from '../src/ticker.js';
 
 const rootDir = fileURLToPath(new URL('..', import.meta.url));
@@ -37,14 +36,44 @@ function paddleSignature(raw, secret, now = Date.now()) {
   return `ts=${ts};h1=${h1}`;
 }
 
-function mockDb({ player = null, seen = new Set(), grants = [] } = {}) {
+const TEST_SESSION_TOKEN = 'a'.repeat(43);
+const idHash = (token) => createHash('sha256').update(token).digest('hex');
+
+function mockDb({ player = null, seen = new Set(), grants = [], pending = {} } = {}) {
   const statements = [];
+  const sessions = new Map([
+    [idHash(TEST_SESSION_TOKEN), { discord_id: '42', username: 'ash', global_name: 'Ash', avatar: null, email: '' }],
+  ]);
+  const pendingOrders = new Map(Object.entries(pending));
   const firstPurchase = new Map();
   const orders = [];
   return {
     statements,
-    async health() {
-      return 'up';
+    sessions,
+    pendingOrders,
+    async createSession(row) {
+      sessions.set(row.idHash, {
+        discord_id: row.discordId,
+        username: row.username,
+        global_name: row.globalName,
+        avatar: row.avatar,
+        email: row.email,
+      });
+    },
+    async findSession(hash) {
+      return sessions.get(hash) || null;
+    },
+    async deleteSession(hash) {
+      sessions.delete(hash);
+    },
+    async deleteSessionsFor(discordId) {
+      for (const [hash, row] of sessions) if (row.discord_id === discordId) sessions.delete(hash);
+    },
+    async createPendingOrder({ transactionId, discordId, skuKey }) {
+      pendingOrders.set(transactionId, { discord_id: discordId, sku_key: skuKey });
+    },
+    async findPendingOrder(transactionId) {
+      return pendingOrders.get(transactionId) || null;
     },
     async findPlayerByDiscordId(id) {
       if (player && String(player.discord_id) === String(id)) return player;
@@ -157,12 +186,12 @@ async function withServer(app, fn) {
   }
 }
 
-function sessionCookie(cfg, discordId = '42') {
-  const token = seal(
-    { discordId, username: 'ash', globalName: 'Ash', avatar: null, createdAt: Date.now() },
-    cfg.SESSION_SECRET,
-  );
-  return `mg_session=${token}`;
+function sessionCookie() {
+  return `mg_session=${TEST_SESSION_TOKEN}`;
+}
+
+function cookiesFrom(res) {
+  return res.headers.getSetCookie().map((c) => c.split(';')[0]).join('; ');
 }
 
 test('src/app.js default export is an Express app', async () => {
@@ -198,13 +227,7 @@ test('homepage still renders when Vercel DATABASE_URL is localhost', async () =>
     assert.match(html, /Disgrowth/);
     const store = await fetch(`${base}/store`);
     assert.equal(store.status, 200);
-    const health = await fetch(`${base}/healthz`);
-    assert.equal(health.status, 200);
-    const json = await health.json();
-    assert.equal(json.ok, true);
-    assert.equal(json.db, 'down');
-    assert.equal(json.checkout, false);
-    assert.ok(json.missing.some((item) => /localhost/.test(item)));
+    assert.equal((await fetch(`${base}/healthz`)).status, 404);
   });
 });
 
@@ -256,18 +279,6 @@ test('src/server.js listens on Vercel with a localhost DATABASE_URL', async () =
     child.kill('SIGKILL');
     await new Promise((resolve) => child.once('exit', resolve));
   }
-});
-
-test('GET /healthz', async () => {
-  const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
-  await withServer(app, async (base) => {
-    const res = await fetch(`${base}/healthz`);
-    assert.equal(res.status, 200);
-    const json = await res.json();
-    assert.equal(json.ok, true);
-    assert.equal(json.db, 'up');
-  });
 });
 
 test('homepage ticker is a cached market strip, not a per-request query', async () => {
@@ -348,16 +359,17 @@ test('POST /buy with player creates a Paddle transaction and redirects', async (
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const calls = [];
+  const db = mockDb({ player });
   const app = createApp({
     config: cfg,
-    db: mockDb({ player }),
+    db,
     art: {},
     fetchImpl: async (url, opts) => {
       calls.push({ url: String(url), opts });
       return {
         ok: true,
         async json() {
-          return { data: { checkout: { url: 'https://sandbox-buy.paddle.com/checkout/txn_test' } } };
+          return { data: { id: 'txn_test', checkout: { url: 'https://sandbox-buy.paddle.com/checkout/txn_test' } } };
         },
         async text() {
           return '';
@@ -381,8 +393,8 @@ test('POST /buy with player creates a Paddle transaction and redirects', async (
     assert.match(calls[0].url, /sandbox-api\.paddle\.com\/transactions/);
     const sent = JSON.parse(calls[0].opts.body);
     assert.equal(sent.items[0].price_id, 'pri_gold_10');
-    assert.equal(sent.custom_data.discord_id, '42');
-    assert.equal(sent.custom_data.sku_key, 'gold-10');
+    assert.equal(sent.custom_data, undefined);
+    assert.deepEqual(db.pendingOrders.get('txn_test'), { discord_id: '42', sku_key: 'gold-10' });
     assert.equal(sent.checkout.url, 'http://127.0.0.1');
     assert.equal(sent.checkout.settings.success_url, 'http://127.0.0.1/welcome');
   });
@@ -418,7 +430,7 @@ test('POST /buy retries Paddle checkout without STORE_ORIGIN when the domain is 
       return {
         ok: true,
         async json() {
-          return { data: { checkout: { url: 'https://disgrowth.vercel.app?_ptxn=txn_fallback' } } };
+          return { data: { id: 'txn_test', checkout: { url: 'https://disgrowth.vercel.app?_ptxn=txn_fallback' } } };
         },
         async text() {
           return '';
@@ -563,7 +575,7 @@ test('oauth callback signs in from Discord state and returns to next', async () 
     assert.ok(state);
     const cb = await fetch(
       `${base}/api/auth/discord/callback?code=ok&state=${encodeURIComponent(state)}`,
-      { redirect: 'manual' },
+      { redirect: 'manual', headers: { cookie: cookiesFrom(start) } },
     );
     assert.equal(cb.status, 200);
     assert.match(cb.headers.get('set-cookie') || '', /mg_session=/);
@@ -632,7 +644,7 @@ test('POST /buy does not redirect to an untrusted checkout URL', async () => {
     fetchImpl: async () => ({
       ok: true,
       async json() {
-        return { data: { checkout: { url: 'https://evil.example/checkout' } } };
+        return { data: { id: 'txn_test', checkout: { url: 'https://evil.example/checkout' } } };
       },
       async text() {
         return '';
@@ -682,7 +694,7 @@ test('oauth callback rejects a non-numeric Discord id', async () => {
     const state = loc.searchParams.get('state');
     const cb = await fetch(
       `${base}/api/auth/discord/callback?code=ok&state=${encodeURIComponent(state)}`,
-      { redirect: 'manual' },
+      { redirect: 'manual', headers: { cookie: cookiesFrom(start) } },
     );
     assert.equal(cb.status, 302);
     assert.match(cb.headers.get('location'), /\/login\?error=oauth/);
@@ -715,14 +727,13 @@ test('legacy Lemon Squeezy webhook path is gone', async () => {
 test('idempotent double transaction.completed does not grant twice', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
-  const db = mockDb({ player });
+  const db = mockDb({ player, pending: { txn_5001: { discord_id: '42', sku_key: 'gold-10' } } });
   const app = createApp({ config: cfg, db, art: {} });
   const raw = JSON.stringify({
     event_id: 'evt_5001',
     event_type: 'transaction.completed',
     data: {
       id: 'txn_5001',
-      custom_data: { discord_id: '42', sku_key: 'gold-10' },
       items: [{ price: { id: 'pri_gold_10' } }],
     },
   });
@@ -753,7 +764,13 @@ test('idempotent double transaction.completed does not grant twice', async () =>
 test('second gold-10 purchase is catalog amount, not doubled', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
-  const db = mockDb({ player });
+  const db = mockDb({
+    player,
+    pending: {
+      txn_first: { discord_id: '42', sku_key: 'gold-10' },
+      txn_second: { discord_id: '42', sku_key: 'gold-10' },
+    },
+  });
   const app = createApp({ config: cfg, db, art: {} });
 
   await withServer(app, async (base) => {
@@ -766,7 +783,6 @@ test('second gold-10 purchase is catalog amount, not doubled', async () => {
         event_type: 'transaction.completed',
         data: {
           id: txnId,
-          custom_data: { discord_id: '42', sku_key: 'gold-10' },
           items: [{ price: { id: 'pri_gold_10' } }],
         },
       });
@@ -790,14 +806,13 @@ test('second gold-10 purchase is catalog amount, not doubled', async () => {
 test('gold-25 transaction.completed does not stack Patron days', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
-  const db = mockDb({ player });
+  const db = mockDb({ player, pending: { txn_5002: { discord_id: '42', sku_key: 'gold-25' } } });
   const app = createApp({ config: cfg, db, art: {} });
   const raw = JSON.stringify({
     event_id: 'evt_5002',
     event_type: 'transaction.completed',
     data: {
       id: 'txn_5002',
-      custom_data: { discord_id: '42', sku_key: 'gold-25' },
       items: [{ price: { id: 'pri_gold_25' } }],
     },
   });
@@ -827,7 +842,7 @@ test('gold-25 transaction.completed does not stack Patron days', async () => {
 test('gold-50 first purchase unlocks Patron tier 1 from lifetime Gold Bars', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
-  const db = mockDb({ player });
+  const db = mockDb({ player, pending: { txn_50: { discord_id: '42', sku_key: 'gold-50' } } });
   const app = createApp({ config: cfg, db, art: {} });
   const raw = JSON.stringify({
     event_id: 'evt_50',
@@ -835,7 +850,6 @@ test('gold-50 first purchase unlocks Patron tier 1 from lifetime Gold Bars', asy
     data: {
       id: 'txn_50',
       customer_id: 'ctm_50',
-      custom_data: { discord_id: '42', sku_key: 'gold-50' },
       items: [{ price: { id: 'pri_gold_50', product_id: 'pro_50' } }],
       details: { totals: { grand_total: '5000', currency_code: 'USD' } },
     },
@@ -864,14 +878,13 @@ test('gold-50 first purchase unlocks Patron tier 1 from lifetime Gold Bars', asy
 test('refund of a first purchase reverses listed gold and matching Bonds', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
-  const db = mockDb({ player });
+  const db = mockDb({ player, pending: { txn_bonus: { discord_id: '42', sku_key: 'gold-10' } } });
   const app = createApp({ config: cfg, db, art: {} });
   const paid = JSON.stringify({
     event_id: 'evt_bonus',
     event_type: 'transaction.completed',
     data: {
       id: 'txn_bonus',
-      custom_data: { discord_id: '42', sku_key: 'gold-10' },
       items: [{ price: { id: 'pri_gold_10' } }],
     },
   });
@@ -1074,4 +1087,124 @@ test('every one of the eight commodities has a market page line', async () => {
   assert.deepEqual(Object.keys(COMMODITY_NOTES).sort(), [
     'COMP', 'FUEL', 'MACH', 'METL', 'PHRM', 'PRDC', 'RECL', 'TXTL',
   ]);
+});
+
+test('overlay POST returns the server-made transaction id and records who it is for', async () => {
+  const cfg = config();
+  const db = mockDb({ player: { id: 7, discord_id: '42' } });
+  const app = createApp({
+    config: cfg,
+    db,
+    art: {},
+    fetchImpl: async () => ({
+      ok: true,
+      async json() {
+        return { data: { id: 'txn_overlay', checkout: { url: 'https://sandbox-buy.paddle.com/checkout/txn_overlay' } } };
+      },
+      async text() {
+        return '';
+      },
+    }),
+  });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/buy/gold-25`, {
+      method: 'POST',
+      headers: {
+        cookie: sessionCookie(),
+        accept: 'application/json',
+        'content-type': 'application/x-www-form-urlencoded',
+      },
+      body: 'age=yes&terms=yes&novalue=yes',
+    });
+    assert.equal(res.status, 200);
+    assert.deepEqual(await res.json(), { transactionId: 'txn_overlay' });
+    assert.deepEqual(db.pendingOrders.get('txn_overlay'), { discord_id: '42', sku_key: 'gold-25' });
+  });
+});
+
+test('webhook ignores custom_data: a transaction with no pending order grants nothing', async () => {
+  const cfg = config();
+  const db = mockDb({ player: { id: 7, discord_id: '42' } });
+  const app = createApp({ config: cfg, db, art: {} });
+  const raw = JSON.stringify({
+    event_id: 'evt_forged',
+    event_type: 'transaction.completed',
+    data: {
+      id: 'txn_forged',
+      custom_data: { discord_id: '42', sku_key: 'gold-10' },
+      items: [{ price: { id: 'pri_gold_10' } }],
+    },
+  });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/api/webhooks/paddle`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'paddle-signature': paddleSignature(raw, cfg.PADDLE_WEBHOOK_SECRET) },
+      body: raw,
+    });
+    assert.equal(res.status, 200);
+    assert.equal(db.statements.filter((s) => /gold_bars = gold_bars \+/.test(s.text)).length, 0);
+  });
+});
+
+test('oauth callback needs the state cookie from the same browser (no login CSRF)', async () => {
+  const cfg = config();
+  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  await withServer(app, async (base) => {
+    const start = await fetch(`${base}/auth/discord`, { redirect: 'manual' });
+    const state = new URL(start.headers.get('location')).searchParams.get('state');
+    const cb = await fetch(
+      `${base}/api/auth/discord/callback?code=ok&state=${encodeURIComponent(state)}`,
+      { redirect: 'manual' },
+    );
+    assert.equal(cb.status, 302);
+    assert.match(cb.headers.get('location'), /\/login\?error=oauth/);
+    assert.doesNotMatch(cb.headers.get('set-cookie') || '', /mg_session=/);
+  });
+});
+
+test('logout is POST-only and revokes the session on the server', async () => {
+  const cfg = config();
+  const db = mockDb();
+  const app = createApp({ config: cfg, db, art: {} });
+  await withServer(app, async (base) => {
+    assert.equal((await fetch(`${base}/logout`, { redirect: 'manual' })).status, 404);
+    const headers = { cookie: sessionCookie() };
+    assert.equal((await fetch(`${base}/account`, { headers, redirect: 'manual' })).status, 200);
+    const out = await fetch(`${base}/logout`, { method: 'POST', headers, redirect: 'manual' });
+    assert.equal(out.status, 302);
+    assert.match(out.headers.get('clear-site-data') || '', /cookies/);
+    const after = await fetch(`${base}/account`, { headers, redirect: 'manual' });
+    assert.equal(after.status, 302);
+    assert.match(after.headers.get('location'), /^\/login/);
+  });
+});
+
+test('log out everywhere drops every session of that player', async () => {
+  const cfg = config();
+  const db = mockDb();
+  db.sessions.set('other-device', { discord_id: '42', username: 'ash', global_name: 'Ash', avatar: null, email: '' });
+  const app = createApp({ config: cfg, db, art: {} });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/account/logout-all`, {
+      method: 'POST',
+      headers: { cookie: sessionCookie() },
+      redirect: 'manual',
+    });
+    assert.equal(res.status, 302);
+    assert.equal(db.sessions.size, 0);
+  });
+});
+
+test('pages carry no inline styles and CSP drops unsafe-inline for styles', async () => {
+  const cfg = config();
+  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  await withServer(app, async (base) => {
+    const res = await fetch(`${base}/`);
+    const html = await res.text();
+    assert.doesNotMatch(html, /\sstyle=/);
+    assert.doesNotMatch(res.headers.get('content-security-policy') || '', /style-src[^;]*unsafe-inline/);
+    const css = await (await fetch(`${base}/art.css`)).text();
+    assert.match(css, /\.star-41\{/);
+    assert.match(css, /\.ray-11\{transform:rotate\(330deg\)\}/);
+  });
 });

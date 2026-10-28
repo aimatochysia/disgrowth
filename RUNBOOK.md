@@ -85,13 +85,6 @@ WHERE discord_id = :snowflake;
 
 An order with `effect = 'error_no_player'` means someone paid without a game character. Ask them to run `/disgrowth`, then resend the event from the Paddle dashboard. Never insert a `players` row from the store; the starting Credits grant would be skipped.
 
-## Health
-
-`GET /healthz` returns `{ "ok": true, "db": "up" | "down", "oauth": bool, "checkout": bool, "missing": [] }` without secrets.
-
-- `db: "down"`: Postgres is down or `DATABASE_URL` is wrong.
-- `checkout: false`: a Paddle variable is missing or invalid. `missing` lists what failed validation. Fix the env and restart the unit.
-
 ## HTTPS and nginx
 
 `deploy/nginx/disgrowth.conf` is the origin config, using Cloudflare origin certificates at `/etc/ssl/cloudflare/disgrowth.pem` and `.key`.

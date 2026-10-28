@@ -1,5 +1,5 @@
 import crypto from 'node:crypto';
-import { sha256 } from './lib/security.js';
+import { randomToken, sha256 } from './lib/security.js';
 import { discordAvatar, discordId } from './lib/validate.js';
 
 const COOKIE_DEV = 'mg_session';
@@ -76,33 +76,58 @@ function serializeCookie(name, value, { maxAge, production, path = '/', httpOnly
   return parts.join('; ');
 }
 
-export function readSession(req, config) {
-  const cookies = parseCookies(req.headers.cookie);
-  const token = cookies[cookieName(config.production)];
-  const session = unseal(token, config.SESSION_SECRET);
-  if (!session || !discordId(session.discordId)) return null;
-  if (session.exp && Number(session.exp) < Date.now()) return null;
-  return session;
+const TOKEN_RE = /^[A-Za-z0-9_-]{43}$/;
+
+function idHash(token) {
+  return sha256(token).toString('hex');
 }
 
-export function setSessionCookie(res, session, config) {
-  const maxAge = config.SESSION_DAYS * 24 * 60 * 60;
-  const token = seal(session, config.SESSION_SECRET);
-  const prev = res.getHeader('Set-Cookie');
+export function sessionToken(req, config) {
+  const token = parseCookies(req.headers.cookie)[cookieName(config.production)];
+  return TOKEN_RE.test(token || '') ? token : '';
+}
+
+/** The cookie is only a random id; the profile lives in the database and can be revoked. */
+export async function startSession(db, res, user, config) {
+  const token = randomToken(32);
+  await db.createSession({
+    idHash: idHash(token),
+    discordId: user.discordId,
+    username: user.username,
+    globalName: user.globalName,
+    avatar: user.avatar,
+    email: user.email,
+    expiresAt: new Date(user.exp),
+  });
   const cookie = serializeCookie(cookieName(config.production), token, {
-    maxAge,
+    maxAge: config.SESSION_DAYS * 24 * 60 * 60,
     production: config.production,
   });
-  res.setHeader('Set-Cookie', appendCookie(prev, cookie));
+  res.setHeader('Set-Cookie', appendCookie(res.getHeader('Set-Cookie'), cookie));
 }
 
-export function clearSessionCookie(res, config) {
-  const prev = res.getHeader('Set-Cookie');
+export async function readSession(db, token) {
+  if (!db || !token) return null;
+  const row = await db.findSession(idHash(token));
+  if (!row || !discordId(row.discord_id)) return null;
+  return {
+    discordId: row.discord_id,
+    username: row.username,
+    globalName: row.global_name,
+    avatar: row.avatar,
+    email: row.email,
+  };
+}
+
+export async function endSession(db, res, { token, discordId: everywhere }, config) {
+  if (everywhere) await db?.deleteSessionsFor(everywhere);
+  else if (token) await db?.deleteSession(idHash(token));
   const cookie = serializeCookie(cookieName(config.production), '', {
     maxAge: 0,
     production: config.production,
   });
-  res.setHeader('Set-Cookie', appendCookie(prev, cookie));
+  res.setHeader('Set-Cookie', appendCookie(res.getHeader('Set-Cookie'), cookie));
+  res.setHeader('Clear-Site-Data', '"cache", "cookies"');
 }
 
 export function setOAuthCookie(res, payload, config) {

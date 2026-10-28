@@ -47,47 +47,39 @@
     });
   }
 
-  function openCheckout(priceId, sku) {
-    if (!priceId) return null;
-    const request = {
-      items: [{ priceId, quantity: 1 }],
-      settings: {
-        displayMode: 'overlay',
-        variant: 'one-page',
-        successUrl: boot.successUrl,
-      },
-      customData: {},
-    };
-    if (boot.discordId) request.customData.discord_id = String(boot.discordId);
-    if (sku) request.customData.sku_key = String(sku);
-    if (boot.customerEmail) request.customer = { email: String(boot.customerEmail) };
-    return Paddle.Checkout.open(request);
+  // The server creates the transaction for the logged-in player; the page only opens it by id.
+  async function openCheckout(form) {
+    const res = await fetch(form.action, {
+      method: 'POST',
+      credentials: 'same-origin',
+      headers: { Accept: 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams(new FormData(form)),
+    });
+    const { transactionId } = await res.json();
+    if (!res.ok || !transactionId) throw new Error('no_transaction');
+    Paddle.Checkout.open({
+      transactionId,
+      settings: { displayMode: 'overlay', variant: 'one-page', successUrl: boot.successUrl },
+    });
   }
 
   const form = document.querySelector('[data-buy-form][data-paddle-overlay]');
   if (form) {
-    let overlay = true;
+    let busy = false;
     form.addEventListener('submit', (event) => {
-      if (!overlay) return;
+      if (busy) {
+        event.preventDefault();
+        return;
+      }
       const boxes = [...form.querySelectorAll('input[type="checkbox"][required]')];
       if (boxes.some((box) => !box.checked)) return;
       event.preventDefault();
-      const fallback = () => {
-        overlay = false;
-        form.submit();
-      };
-      try {
-        const opened = openCheckout(form.getAttribute('data-price-id'), form.getAttribute('data-sku'));
-        if (opened && typeof opened.catch === 'function') {
-          opened.catch((err) => {
-            console.error('[store] overlay checkout', err);
-            fallback();
-          });
-        }
-      } catch (err) {
+      busy = true;
+      // On any failure, submit normally so the server shows its message or redirects to hosted checkout.
+      openCheckout(form).then(() => { busy = false; }).catch((err) => {
         console.error('[store] overlay checkout', err);
-        fallback();
-      }
+        form.submit();
+      });
     });
   }
 })();

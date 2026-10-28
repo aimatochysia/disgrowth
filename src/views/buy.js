@@ -1,5 +1,6 @@
 import { html } from '../lib/html.js';
 import { formatQty } from '../catalog.js';
+import { discordAvatarUrl } from '../session.js';
 
 export function buyPage({ sku, user, player, inviteUrl, error = '', checkoutReady, overlayReady, firstPurchaseAvailable = false }) {
   const name = user.globalName || user.username;
@@ -26,6 +27,16 @@ export function buyPage({ sku, user, player, inviteUrl, error = '', checkoutRead
     <section class="band tight">
       ${notice ? html`<p class="flash" role="${error ? 'alert' : 'status'}">${notice}</p>` : ''}
 
+      <div class="panel buying-for">
+        <img class="avatar" src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="48" height="48" />
+        <div>
+          <p class="stamp">Buying for</p>
+          <p class="buying-name">${name} <span class="code">@${user.username}</span></p>
+          <p class="buying-wallet">CR ${formatQty(player.credits)} · BN ${formatQty(player.bonds)} · GL ${formatQty(player.gold_bars)}</p>
+          <form method="post" action="/logout"><button class="btn btn-ghost" type="submit">Not you? Log out</button></form>
+        </div>
+      </div>
+
       <form
         class="panel buy-form"
         method="post"
@@ -40,7 +51,6 @@ export function buyPage({ sku, user, player, inviteUrl, error = '', checkoutRead
           ${firstPurchaseAvailable
             ? html`<div><dt>First purchase</dt><dd>+${formatQty(sku.gold)} Bonds</dd></div>`
             : ''}
-          <div><dt>Deliver to</dt><dd>${name}</dd></div>
         </dl>
         <label class="check">
           <input type="checkbox" name="age" value="yes" required />

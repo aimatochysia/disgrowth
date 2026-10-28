@@ -69,11 +69,6 @@ export function extractPriceId(data) {
   );
 }
 
-export function extractDiscordId(data) {
-  const custom = data?.custom_data || {};
-  return parseDiscordId(custom.discord_id ?? custom.discordId);
-}
-
 export function extractCustomerId(data) {
   const id = data?.customer_id || data?.customer?.id;
   if (id != null && id !== '') return String(id);
@@ -120,15 +115,15 @@ export function interpretWebhook(body, ctx) {
   const data = body?.data || {};
   const eventId = body?.event_id;
   const priceId = extractPriceId(data);
-  const custom = data.custom_data || {};
-  const discordId = extractDiscordId(data);
+  // Identity comes only from the order this server created, never from client-set custom_data.
+  const discordId = parseDiscordId(ctx.pending?.discord_id);
 
   if (!eventName || eventId == null) {
     return { ok: false, http: 400, reason: 'malformed' };
   }
 
   const resolved = resolveSku({
-    customSku: custom.sku_key,
+    customSku: ctx.pending?.sku_key,
     variantId: priceId,
     variantMap: ctx.variantMap || {},
   });
@@ -167,7 +162,7 @@ export function interpretWebhook(body, ctx) {
       apply: true,
       effect: 'customer_upsert',
       lemonOrderId: base.customerId,
-      discordId: extractDiscordId(data),
+      discordId: '',
     };
   }
 
@@ -181,7 +176,7 @@ export function interpretWebhook(body, ctx) {
       apply: false,
       effect: 'ignored',
       reason: 'sku_mismatch',
-      skuKey: custom.sku_key || null,
+      skuKey: ctx.pending?.sku_key || null,
       goldDelta: 0,
     };
   }

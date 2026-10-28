@@ -44,10 +44,9 @@ function body({
 test('transaction.completed gold-10 grants 500 from catalog, not payload amount', () => {
   const result = interpretWebhook(
     body({
-      custom: { discord_id: '99', sku_key: 'gold-10' },
       priceId: 'pri_gold_10',
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'gold-10' } },
   );
   assert.equal(result.effect, 'gold_grant');
   assert.equal(result.goldDelta, 500);
@@ -55,13 +54,22 @@ test('transaction.completed gold-10 grants 500 from catalog, not payload amount'
   assert.equal(result.apply, true);
 });
 
+test('custom_data cannot name the buyer: no pending order, no grant', () => {
+  const result = interpretWebhook(
+    body({ custom: { discord_id: '99', sku_key: 'gold-10' }, priceId: 'pri_gold_10' }),
+    { variantMap },
+  );
+  assert.equal(result.apply, false);
+  assert.equal(result.reason, 'no_discord_id');
+  assert.equal(result.goldDelta, 0);
+});
+
 test('transaction.completed gold-25 grants 1,275 Gold Bars and no stacked Patron days', () => {
   const result = interpretWebhook(
     body({
-      custom: { discord_id: '99', sku_key: 'gold-25' },
       priceId: 'pri_gold_25',
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'gold-25' } },
   );
   assert.equal(result.effect, 'gold_grant');
   assert.equal(result.goldDelta, 1275);
@@ -71,10 +79,9 @@ test('transaction.completed gold-25 grants 1,275 Gold Bars and no stacked Patron
 test('transaction.completed gold-100 grants 5,250 Gold Bars', () => {
   const result = interpretWebhook(
     body({
-      custom: { discord_id: '99', sku_key: 'gold-100' },
       priceId: 'pri_gold_100',
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'gold-100' } },
   );
   assert.equal(result.goldDelta, 5250);
 });
@@ -82,10 +89,9 @@ test('transaction.completed gold-100 grants 5,250 Gold Bars', () => {
 test('variant and custom sku disagreement does not grant', () => {
   const result = interpretWebhook(
     body({
-      custom: { discord_id: '99', sku_key: 'gold-25' },
       priceId: 'pri_gold_10',
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'gold-25' } },
   );
   assert.equal(result.effect, 'ignored');
   assert.equal(result.reason, 'sku_mismatch');
@@ -96,10 +102,9 @@ test('variant and custom sku disagreement does not grant', () => {
 test('transaction.completed for unknown pass sku is ignored', () => {
   const result = interpretWebhook(
     body({
-      custom: { discord_id: '99', sku_key: 'accountant-pass' },
       priceId: 'pri_pass',
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'accountant-pass' } },
   );
   assert.equal(result.effect, 'ignored');
   assert.equal(result.reason, 'unknown_sku');
@@ -111,10 +116,9 @@ test('approved gold refund delta is negative catalog amount', () => {
     body({
       event: 'adjustment.updated',
       extra: { action: 'refund', status: 'approved', transaction_id: 'txn_9' },
-      custom: { discord_id: '99', sku_key: 'gold-25' },
       priceId: 'pri_gold_25',
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'gold-25' } },
   );
   assert.equal(result.effect, 'gold_refund');
   assert.equal(result.goldDelta, -1275);
@@ -141,9 +145,8 @@ test('pending adjustment is ignored', () => {
     body({
       event: 'adjustment.updated',
       extra: { action: 'refund', status: 'pending_approval', transaction_id: 'txn_9' },
-      custom: { discord_id: '99', sku_key: 'gold-10' },
     }),
-    { variantMap },
+    { variantMap, pending: { discord_id: '99', sku_key: 'gold-10' } },
   );
   assert.equal(result.effect, 'ignored');
   assert.equal(result.reason, 'adjustment_pending');
@@ -173,7 +176,7 @@ test('customer.created upserts without granting Gold Bars', () => {
     {
       event_id: 'evt_ctm',
       event_type: 'customer.created',
-      data: { id: 'ctm_1', email: 'a@b.c', custom_data: { discord_id: '99' } },
+      data: { id: 'ctm_1', email: 'a@b.c' },
     },
     { variantMap },
   );

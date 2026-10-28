@@ -5,10 +5,11 @@ import helmet from 'helmet';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { CATALOG, catalogItemsFromConfig, isSku } from './catalog.js';
 import { artCss, artHtmlClass, detectArt } from './art.js';
-import { checkoutConfigured, createPaddleCheckoutUrl, priceIdForSku } from './checkout.js';
-import { authorizeUrl, decodeOAuthState, encodeOAuthState, exchangeCode, fetchIdentify, sessionFromDiscordUser } from './oauth.js';
+import { sceneCss } from './views/scene.js';
+import { checkoutConfigured, createPaddleTransaction, priceIdForSku } from './checkout.js';
+import { authorizeUrl, exchangeCode, fetchIdentify, sessionFromDiscordUser } from './oauth.js';
 import { render } from './lib/html.js';
-import { firstQueryValue, safeReturnPath } from './lib/security.js';
+import { firstQueryValue, randomToken, safeReturnPath } from './lib/security.js';
 import { clientIp, csrfOriginOk, isTrustedPaddleHttpUrl } from './lib/http.js';
 import { logEvent } from './lib/log.js';
 import { yesFlag } from './lib/validate.js';
@@ -16,11 +17,12 @@ import { countryFromRequest } from './country.js';
 import { createCustomerPortalUrl, createPaddleSdk } from './paddle.js';
 import {
   clearOAuthCookie,
-  clearSessionCookie,
+  endSession,
   readOAuthCookie,
   readSession,
+  sessionToken,
   setOAuthCookie,
-  setSessionCookie,
+  startSession,
 } from './session.js';
 import { handlePaddleWebhook } from './webhook.js';
 import { layout } from './views/layout.js';
@@ -72,7 +74,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         directives: {
           defaultSrc: ["'self'"],
           scriptSrc: ["'self'", 'https://cdn.paddle.com', 'https://sandbox-cdn.paddle.com'],
-          styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com', 'https://cdn.paddle.com'],
+          styleSrc: ["'self'", 'https://fonts.googleapis.com', 'https://cdn.paddle.com'],
           fontSrc: ["'self'", 'https://fonts.gstatic.com'],
           imgSrc: ["'self'", 'https://cdn.discordapp.com', 'https://checkout-service.paddle.com', 'data:'],
           connectSrc: [
@@ -112,7 +114,6 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   function skipCheap(req) {
     if (config.NODE_ENV === 'test') return true;
-    if (req.path === '/healthz') return true;
     return /\.(css|js|map|png|svg|ico|webp|woff2?|txt)$/i.test(req.path);
   }
 
@@ -165,11 +166,22 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }),
   );
 
-  app.get('/art.css', (_req, res) => {
-    res.type('css').send(artCss(art));
+  app.use(async (req, _res, next) => {
+    req.sessionToken = sessionToken(req, config);
+    try {
+      req.user = await readSession(db, req.sessionToken);
+    } catch (err) {
+      logEvent('error', 'session_lookup_failed', { err: String(err?.message || err) });
+      req.user = null;
+    }
+    next();
   });
 
-  function buildPaddleBoot(req, user) {
+  app.get('/art.css', (_req, res) => {
+    res.type('css').send(`${artCss(art)}\n${sceneCss()}`);
+  });
+
+  function buildPaddleBoot(req) {
     if (!config.PADDLE_CLIENT_TOKEN) return null;
     if (config.PADDLE_ENV !== 'production' && config.PADDLE_ENV !== 'sandbox') return null;
     const country = countryFromRequest(req);
@@ -180,15 +192,13 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       catalog: catalogItemsFromConfig(config).map(({ priceId }) => ({ priceId })),
     };
     if (country) boot.country = country;
-    if (user?.email) boot.customerEmail = user.email;
-    if (user?.discordId) boot.discordId = user.discordId;
     return boot;
   }
 
   function page(req, res, { title, page: pageName, description, body, status = 200, paddle = false, marketBoot = null }) {
     try {
-      const user = readSession(req, config);
-      if (user) {
+      const user = req.user;
+      if (user || req.sessionToken) {
         res.set('Cache-Control', 'private, no-store');
       } else {
         res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=15');
@@ -205,7 +215,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
             description,
             body,
             artClass,
-            paddleBoot: paddle ? buildPaddleBoot(req, user) : null,
+            paddleBoot: paddle ? buildPaddleBoot(req) : null,
             marketBoot,
             tickerQuotes: quotes.snapshot(),
           }),
@@ -225,13 +235,11 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   }
 
   function requireSession(req, res, next) {
-    const user = readSession(req, config);
-    if (!user) {
+    if (!req.user) {
       const here = safeReturnPath(req.originalUrl.split('?')[0]);
       res.redirect(302, `/login?next=${encodeURIComponent(here)}`);
       return;
     }
-    req.user = user;
     next();
   }
 
@@ -240,18 +248,6 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     res.status(403).type('html').set('Cache-Control', 'no-store').send('Forbidden.');
     return true;
   }
-
-  app.get('/healthz', async (_req, res) => {
-    const dbStatus = db ? await db.health() : 'down';
-    res.set('Cache-Control', 'no-store');
-    res.status(200).json({
-      ok: true,
-      db: dbStatus,
-      oauth: Boolean(config.oauthReady),
-      checkout: Boolean(config.checkoutReady),
-      missing: config.bootErrors || [],
-    });
-  });
 
   app.get('/', (req, res) => {
     page(req, res, {
@@ -321,8 +317,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.get('/login', authLimit, (req, res) => {
     const next = safeReturnPath(req.query.next);
-    const user = readSession(req, config);
-    if (user) {
+    if (req.user) {
       res.redirect(302, next);
       return;
     }
@@ -339,8 +334,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
 
   app.get('/auth/discord', authLimit, (req, res) => {
     const next = safeReturnPath(req.query.next);
-    const user = readSession(req, config);
-    if (user) {
+    if (req.user) {
       res.redirect(302, next);
       return;
     }
@@ -348,7 +342,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       res.redirect(302, '/login?error=oauth');
       return;
     }
-    const state = encodeOAuthState(next, config.SESSION_SECRET);
+    const state = randomToken(24);
     setOAuthCookie(res, { state, next }, config);
     res.redirect(302, authorizeUrl({
       clientId: config.DISCORD_CLIENT_ID,
@@ -363,8 +357,8 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     const code = firstQueryValue(req.query.code);
     const state = firstQueryValue(req.query.state);
     const discordError = firstQueryValue(req.query.error);
-    const pending = decodeOAuthState(state, config.SESSION_SECRET)
-      || (pendingCookie && pendingCookie.state === state ? pendingCookie : null);
+    // The state must match the cookie this browser got at /auth/discord (cleared above, so single use).
+    const pending = pendingCookie && state && pendingCookie.state === state ? pendingCookie : null;
     if (discordError || !pending || !code) {
       res.redirect(302, '/login?error=oauth');
       return;
@@ -378,7 +372,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         fetchImpl,
       });
       const profile = await fetchIdentify(token.access_token, fetchImpl);
-      setSessionCookie(res, sessionFromDiscordUser(profile, config), config);
+      await startSession(db, res, sessionFromDiscordUser(profile, config), config);
       const next = safeReturnPath(pending.next);
       res.status(200).type('html').set('Cache-Control', 'no-store').send(oauthContinuePage(next));
     } catch (err) {
@@ -387,13 +381,19 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }
   });
 
-  function logout(req, res) {
-    clearSessionCookie(res, config);
+  async function logout(req, res) {
+    if (rejectBadOrigin(req, res)) return;
+    await endSession(db, res, { token: req.sessionToken }, config);
     res.redirect(302, '/');
   }
-  app.get('/logout', logout);
   app.post('/logout', logout);
   app.post('/api/auth/logout', logout);
+
+  app.post('/account/logout-all', requireSession, async (req, res) => {
+    if (rejectBadOrigin(req, res)) return;
+    await endSession(db, res, { discordId: req.user.discordId }, config);
+    res.redirect(302, '/');
+  });
 
   app.get('/account', requireSession, async (req, res) => {
     let player = null;
@@ -503,7 +503,11 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     }
     const sku = skuWithPrice(req.params.sku);
     const buyer = await loadBuyer(req.user.discordId);
-    const show = (error = '') => renderBuy(req, res, { sku, ...buyer, error, status: 400 });
+    // The overlay script posts with Accept: application/json and opens Paddle with the returned transaction id.
+    const wantsJson = req.get('accept') === 'application/json';
+    const show = (error = '') => (wantsJson
+      ? res.status(400).json({ error: error || 'Checkout is not available right now.' })
+      : renderBuy(req, res, { sku, ...buyer, error, status: 400 }));
 
     if (!buyer.player || !checkoutConfigured(config, sku.sku_key)) {
       show();
@@ -513,26 +517,29 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
       show('Confirm all three checkboxes to continue.');
       return;
     }
-    if (!config.PADDLE_API_KEY) {
-      show('Turn on JavaScript to open checkout.');
-      return;
-    }
     try {
-      const url = await createPaddleCheckoutUrl({
+      const txn = await createPaddleTransaction({
         apiKey: config.PADDLE_API_KEY,
         apiBase: config.PADDLE_API_BASE,
         priceId: priceIdForSku(sku.sku_key, config),
-        discordId: req.user.discordId,
-        skuKey: sku.sku_key,
         successUrl: `${config.STORE_ORIGIN}/welcome`,
         checkoutUrl: config.STORE_ORIGIN,
         fetchImpl,
       });
-      if (!isTrustedPaddleHttpUrl(url, config.STORE_ORIGIN)) {
+      if (!isTrustedPaddleHttpUrl(txn.url, config.STORE_ORIGIN)) {
         show('Checkout could not be started. Try again in a moment.');
         return;
       }
-      res.redirect(302, url);
+      await db.createPendingOrder({
+        transactionId: txn.id,
+        discordId: req.user.discordId,
+        skuKey: sku.sku_key,
+      });
+      if (wantsJson) {
+        res.json({ transactionId: txn.id });
+        return;
+      }
+      res.redirect(302, txn.url);
     } catch (err) {
       logEvent('error', 'paddle_checkout_failed', { err: String(err?.message || err) });
       show('Checkout could not be started. Try again in a moment.');
