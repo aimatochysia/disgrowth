@@ -30,7 +30,7 @@ import { homePage } from './views/home.js';
 import { storePage } from './views/store.js';
 import { buyPage } from './views/buy.js';
 import { accountPage } from './views/account.js';
-import { COMMODITY_NOTES, marketPage } from './views/market.js';
+import { COMMODITY_NOTES, marketPage, tickerPage } from './views/market.js';
 import { legalHubPage, loginPage, notFoundPage, oauthContinuePage, supportPage, welcomePage } from './views/misc.js';
 import { getLegalDoc } from './legal.js';
 import { config } from './config.js';
@@ -307,6 +307,23 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
         notes: COMMODITY_NOTES,
       },
       body: marketPage({ quotes: snapshot.quotes, ticker, windowKey }),
+    });
+  });
+
+  app.get('/market/:ticker', (req, res) => {
+    const symbol = sanitizeTicker(req.params.ticker);
+    const quote = market.getSnapshot().quotes.find((q) => q.ticker === symbol);
+    if (!quote) {
+      notFound(req, res);
+      return;
+    }
+    const windowKey = normalizeChartWindow(firstQueryValue(req.query.window));
+    page(req, res, {
+      title: quote.name,
+      page: 'market',
+      description: `${quote.name} price chart from the Disgrowth city market.`,
+      marketBoot: { ticker: quote.ticker, window: windowKey, fromTickerQuery: true, fromWindowQuery: true, solo: true, notes: COMMODITY_NOTES },
+      body: tickerPage({ quote, windowKey }),
     });
   });
 
