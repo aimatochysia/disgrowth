@@ -1,4 +1,5 @@
 import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028';
+import { evaluate } from './market-formula.js?v=20261029';
 
 (() => {
   const bootEl = document.getElementById('market-boot');
@@ -12,7 +13,9 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
   const PAGE_SIZE = 50;
   // Percent move that paints a heatmap tile at full colour, per window.
   const HEAT_SCALE = { '7D': 5, '1M': 10, '6M': 25, '1Y': 40 };
-  const INDICATORS = { sma20: ['sma', 20], ema20: ['ema', 20], ema50: ['ema', 50] };
+  const FORMULAS_KEY = 'disgrowth.formulas.v1';
+  const MAX_FORMULAS = 5;
+  const LINE_COLORS = ['--accent', '--gold', '--muted', '--positive', '--negative'];
 
   const agoByTime = new Map();
   let lastTick = { time: Infinity, label: '' };
@@ -39,8 +42,8 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
   let volumeSeries = null;
   let barCount = 0;
   let lastBars = [];
-  const active = new Set();
-  const lines = new Map();
+  let formulas = [];
+  const lines = [];
   let quotes = [];
   const view = { q: '', type: '', tag: '', sort: 'cap', page: 0 };
   const wide = window.matchMedia('(min-width: 901px)');
@@ -93,7 +96,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
       candleSeries = null;
       volumeSeries = null;
       barCount = 0;
-      lines.clear();
+      lines.length = 0;
     }
   }
 
@@ -175,51 +178,74 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     }
   }
 
-  // ---- indicators: a fixed whitelist computed here from the bars, never user code
-  function movingAverage(kind, period, bars) {
-    const out = [];
-    let prev = null;
-    let sum = 0;
-    bars.forEach((bar, i) => {
-      sum += bar.c;
-      if (i >= period) sum -= bars[i - period].c;
-      if (kind === 'sma') {
-        if (i >= period - 1) out.push({ time: bar.t, value: sum / period });
-        return;
-      }
-      prev = prev == null ? bar.c : bar.c * (2 / (period + 1)) + prev * (1 - 2 / (period + 1));
-      if (i >= period - 1) out.push({ time: bar.t, value: prev });
-    });
-    return out;
+  // ---- formulas: typed by the player, run here on the bars, kept in this browser only
+  function loadFormulas() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(FORMULAS_KEY) || '[]');
+      formulas = Array.isArray(saved) ? saved.filter((f) => typeof f === 'string').slice(0, MAX_FORMULAS) : [];
+    } catch {
+      formulas = [];
+    }
   }
 
-  function drawIndicators() {
+  function saveFormulas() {
+    try {
+      localStorage.setItem(FORMULAS_KEY, JSON.stringify(formulas));
+    } catch {
+      /* private mode: the lines last until the page closes */
+    }
+  }
+
+  function renderFormulaChips() {
+    const host = document.getElementById('market-formulas');
+    if (!host) return;
+    host.replaceChildren(
+      ...formulas.map((formula, i) => {
+        const chip = el('button', 'market-chip', `${formula} ×`);
+        chip.type = 'button';
+        chip.dataset.formula = String(i);
+        chip.style.borderColor = cssVar(LINE_COLORS[i % LINE_COLORS.length], '#888');
+        return chip;
+      })
+    );
+  }
+
+  function drawFormulas() {
     if (!chart) return;
-    for (const [key, series] of lines) {
-      if (!active.has(key)) {
-        chart.removeSeries(series);
-        lines.delete(key);
+    for (const series of lines.splice(0)) chart.removeSeries(series);
+    formulas.forEach((formula, i) => {
+      let data;
+      try {
+        data = evaluate(formula, lastBars);
+      } catch {
+        return;
       }
-    }
-    for (const key of active) {
-      const [kind, period] = INDICATORS[key];
-      if (!lines.has(key)) {
-        lines.set(
-          key,
-          chart.addLineSeries({
-            color: key === 'ema50' ? cssVar('--muted', '#8a8279') : cssVar('--accent', '#b5651d'),
-            lineWidth: key === 'sma20' ? 1 : 2,
-            lineStyle: kind === 'sma' ? 2 : 0,
-            priceLineVisible: false,
-            lastValueVisible: false,
-          })
-        );
-      }
-      lines.get(key).setData(movingAverage(kind, period, lastBars));
-    }
-    document.querySelectorAll('[data-ind]').forEach((btn) => {
-      btn.classList.toggle('is-on', active.has(btn.getAttribute('data-ind')));
+      const series = chart.addLineSeries({
+        color: cssVar(LINE_COLORS[i % LINE_COLORS.length], '#888'),
+        lineWidth: 2,
+        priceLineVisible: false,
+        lastValueVisible: false,
+      });
+      series.setData(data);
+      lines.push(series);
     });
+  }
+
+  function addFormula(source) {
+    const note = document.getElementById('market-formula-note');
+    try {
+      evaluate(source, lastBars.length ? lastBars : [{ t: 0, o: 1, h: 1, l: 1, c: 1, v: 1 }]);
+    } catch (err) {
+      if (note) note.textContent = err.message;
+      return false;
+    }
+    if (note) note.textContent = '';
+    if (formulas.length >= MAX_FORMULAS) formulas.shift();
+    formulas.push(source.trim());
+    saveFormulas();
+    renderFormulaChips();
+    drawFormulas();
+    return true;
   }
 
   async function loadOhlc() {
@@ -264,7 +290,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     volumeSeries.setData(volume);
     barCount = candles.length;
     lastBars = bars;
-    drawIndicators();
+    drawFormulas();
     fitView();
   }
 
@@ -306,7 +332,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     host.replaceChildren(
       ...slice.map((quote) => {
         const row = el('a', `quote-row${quote.ticker === ticker ? ' is-on' : ''}`);
-        row.href = `/market?ticker=${encodeURIComponent(quote.ticker)}`;
+        row.href = `/market/${encodeURIComponent(quote.ticker)}`;
         row.dataset.ticker = quote.ticker;
         const name = el('span', 'quote-name', quote.name);
         const detail = quote.focus || quote.sector;
@@ -405,7 +431,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     const map = document.getElementById('market-heatmap');
     const { width } = map.getBoundingClientRect();
     if (!width) return;
-    const height = Math.round(Math.min(380, Math.max(240, width * 0.38)));
+    const height = Math.round(width);
     map.style.height = `${height}px`;
     const nodes = [];
     const groups = heatGroups(quotes);
@@ -496,6 +522,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
   }
 
   function renderAll() {
+    if (!document.getElementById('market-rows')) return;
     renderList(filtered());
     renderHeatmap();
   }
@@ -510,6 +537,13 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     markSelected();
   }
 
+  // The page's own address: /market/FUEL on its own page, ?ticker= on the list page.
+  function pageUrl() {
+    const w = `window=${encodeURIComponent(windowKey)}`;
+    if (boot.solo) return `/market/${encodeURIComponent(ticker)}?${w}`;
+    return ticker ? `/market?ticker=${encodeURIComponent(ticker)}&${w}` : `/market?${w}`;
+  }
+
   function setTicker(next) {
     const value = String(next || '').toUpperCase();
     if (!value || value === ticker) return;
@@ -518,8 +552,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     markSelected();
     destroyChart();
     loadOhlc().catch(() => {});
-    const url = `/market?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`;
-    history.replaceState(null, '', url);
+    history.replaceState(null, '', pageUrl());
   }
 
   function setWindow(next) {
@@ -530,10 +563,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     markSelected();
     renderAll();
     loadOhlc().catch(() => {});
-    const url = ticker
-      ? `/market?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`
-      : `/market?window=${encodeURIComponent(windowKey)}`;
-    history.replaceState(null, '', url);
+    history.replaceState(null, '', pageUrl());
   }
 
   function persistPrefs() {
@@ -579,19 +609,15 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
       setTag(view.tag);
       return;
     }
-    if (event.target.closest('[data-reset]')) {
-      event.preventDefault();
-      fitView();
+    const chip = event.target.closest('[data-formula]');
+    if (chip) {
+      formulas.splice(Number(chip.dataset.formula), 1);
+      saveFormulas();
+      renderFormulaChips();
+      drawFormulas();
       return;
     }
-    const ind = event.target.closest('[data-ind]');
-    if (ind) {
-      const key = ind.getAttribute('data-ind');
-      if (!active.delete(key)) active.add(key);
-      drawIndicators();
-      return;
-    }
-    const pager = event.target.closest('[data-page]');
+    const pager = event.target.closest('button[data-page]');
     if (pager) {
       view.page = Math.max(0, view.page + Number(pager.getAttribute('data-page')));
       renderList(filtered());
@@ -601,6 +627,14 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
     if (!btn) return;
     event.preventDefault();
     setWindow(btn.getAttribute('data-window'));
+  });
+
+  loadFormulas();
+  renderFormulaChips();
+  document.getElementById('market-formula-form')?.addEventListener('submit', (event) => {
+    event.preventDefault();
+    const input = document.getElementById('market-formula');
+    if (input.value.trim() && addFormula(input.value)) input.value = '';
   });
 
   const controls = {
@@ -639,10 +673,7 @@ import { filterQuotes, heatGroups, tagList } from './market-filter.js?v=20261028
 
   restorePrefs()
     .then(() => {
-      if (ticker) {
-        const url = `/market?ticker=${encodeURIComponent(ticker)}&window=${encodeURIComponent(windowKey)}`;
-        history.replaceState(null, '', url);
-      }
+      if (ticker) history.replaceState(null, '', pageUrl());
       persistPrefs();
       markSelected();
       loadSnapshot().catch(() => {});

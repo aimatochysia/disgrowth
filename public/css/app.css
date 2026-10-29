@@ -1238,8 +1238,9 @@ html.theme-animated .mini-moon {
 
 .market-heatmap {
   position: relative;
-  height: 320px;
-  margin-bottom: 1rem;
+  width: min(100%, 560px);
+  aspect-ratio: 1;
+  margin: 0 auto 1rem;
   overflow: hidden;
   border: 1px solid var(--border);
   border-radius: 8px;
@@ -1464,8 +1465,27 @@ div.hm-tile {
   border-color: var(--text);
 }
 
-.market-reset {
-  margin-left: 0.15rem;
+.market-chart-canvas.is-tall {
+  height: 70vh;
+  min-height: 360px;
+}
+
+.market-formula {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.7rem;
+}
+
+.market-formulas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin: 0.4rem 0;
+}
+
+.market-solo-windows {
+  justify-content: flex-start;
+  margin-bottom: 0.8rem;
 }
 
 .market-chart-canvas {

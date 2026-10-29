@@ -244,11 +244,12 @@ test('market client pins the axis and draws volume', () => {
   const src = readFileSync(fileURLToPath(new URL('../public/js/market.js', import.meta.url)), 'utf8');
   assert.match(src, /fixLeftEdge: true/);
   assert.match(src, /fixRightEdge: true/);
-  assert.match(src, /data-reset/);
+  assert.doesNotMatch(src, /data-reset|data-ind|sma20/);
+  assert.match(src, /market-formula\.js/);
+  assert.doesNotMatch(src, /method: 'POST'|sendBeacon|XMLHttpRequest/);
   assert.match(src, /fitContent/);
   assert.match(src, /'1M'/);
   assert.match(src, /'1Y'/);
-  assert.match(src, /sma20/);
   assert.match(src, /addHistogramSeries/);
   assert.match(src, /volumeSeries/);
   assert.match(src, /market-filter\.js/);
@@ -319,4 +320,17 @@ test('heatmap groups: businesses only, one group per tag, cap split across tags,
   const folded = heatGroups(quotes, 1);
   assert.deepEqual(folded.get('MACH').kept.map((i) => i.quote.ticker), ['AAA']);
   assert.deepEqual(folded.get('MACH').rest.map((i) => i.quote.ticker), ['BBB']);
+});
+
+test('chart formulas: parsed here, never eval, bad input throws a short message', async () => {
+  const { evaluate } = await import('../public/js/market-formula.js');
+  const bars = [1, 2, 3, 4, 5].map((c, t) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 }));
+  assert.deepEqual(evaluate('sma(close, 2)', bars).map((p) => p.value), [1.5, 2.5, 3.5, 4.5]);
+  assert.deepEqual(evaluate('hi(high, 3) - lo(low, 3)', bars).map((p) => p.value), [4, 4, 4]);
+  assert.deepEqual(evaluate('-close * 2 + 1', bars).map((p) => p.value), [-1, -3, -5, -7, -9]);
+  assert.equal(evaluate('ema(close, 1)', bars).at(-1).value, 5);
+  assert.equal(evaluate('close / 0', bars).length, 0);
+  for (const bad of ['', 'x'.repeat(121), 'process.exit()', 'foo(1)', 'sma(close)', 'sma(close, close)', 'close +', 'sma(close, 2) )', '('.repeat(12) + 'close' + ')'.repeat(12)]) {
+    assert.throws(() => evaluate(bad, bars), Error, bad);
+  }
 });

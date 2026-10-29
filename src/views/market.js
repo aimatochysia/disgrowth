@@ -48,6 +48,51 @@ function quoteRow(quote, selected, windowKey) {
   </a>`;
 }
 
+function windowLinks(base, tickerQ, windowKey) {
+  return CHART_WINDOW_KEYS.map((key) => {
+    const href = tickerQ ? `${base}?ticker=${tickerQ}&window=${key}` : `${base}?window=${key}`;
+    return html`<a class="market-window${key === windowKey ? ' is-on' : ''}" href="${href}" data-window="${key}">${key}</a>`;
+  });
+}
+
+// Formulas are typed here and run in the browser only (public/js/market-formula.js); nothing is posted.
+function chartPane({ ticker, focus, solo = false }) {
+  return html`<div class="market-chart-pane">
+    <div class="market-chart-head">
+      <div>
+        <p class="kicker" id="market-focus">${ticker || '—'}</p>
+        <p class="market-mix" id="market-sub">${focus?.focus || ''}</p>
+      </div>
+      ${solo || !ticker ? '' : html`<a class="market-window" href="/market/${ticker}">Full page</a>`}
+    </div>
+    <div class="market-chart-canvas${solo ? ' is-tall' : ''}" id="market-chart" role="img" aria-label="Price chart"></div>
+    <form class="market-formula" id="market-formula-form" autocomplete="off">
+      <input class="market-search" id="market-formula" type="text" maxlength="120" placeholder="Add a line: sma(close, 20), ema(close, 12) - ema(close, 26)" aria-label="Chart formula" />
+      <button type="submit" class="market-window">Add</button>
+    </form>
+    <p class="muted" id="market-formula-note" role="status"></p>
+    <div class="market-formulas" id="market-formulas"></div>
+    <p class="hint">Lines use close, open, high, low, volume with sma, ema, hi, lo and abs. They stay in this browser and are never sent anywhere.</p>
+  </div>`;
+}
+
+export function tickerPage({ quote, windowKey = DEFAULT_CHART_WINDOW } = {}) {
+  const change = quote.changes?.[windowKey === '5Y' || windowKey === 'ALL' ? '1Y' : windowKey];
+  return html`
+    <section class="page-hero">
+      <p class="kicker"><a href="/market">← Market</a></p>
+      <h1 class="display display-page">${quote.name} <span class="muted">${quote.ticker}</span></h1>
+      <p class="lede narrow">${quote.price} CR${change != null ? html` <span class="quote-chg ${changeClass(change)}">${formatChange(change)}</span>` : ''}${quote.focus ? html` · ${quote.focus}` : ''}</p>
+    </section>
+    <section class="market-screen panel">
+      <div class="market-windows market-solo-windows" role="group" aria-label="Window">
+        ${windowLinks(`/market/${quote.ticker}`, '', windowKey)}
+      </div>
+      ${chartPane({ ticker: quote.ticker, focus: quote, solo: true })}
+    </section>
+  `;
+}
+
 export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART_WINDOW } = {}) {
   const focus = quotes.find((quote) => quote.ticker === ticker);
   const tickerQ = ticker ? encodeURIComponent(ticker) : '';
@@ -72,12 +117,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
           ${SORTS.map(([key, label]) => html`<option value="${key}">${label}</option>`)}
         </select>
         <div class="market-windows" role="group" aria-label="Window">
-          ${CHART_WINDOW_KEYS.map((key) => {
-            const href = tickerQ
-              ? `/market?ticker=${tickerQ}&window=${key}`
-              : `/market?window=${key}`;
-            return html`<a class="market-window${key === windowKey ? ' is-on' : ''}" href="${href}" data-window="${key}">${key}</a>`;
-          })}
+          ${windowLinks('/market', tickerQ, windowKey)}
         </div>
       </div>
       <div class="market-heatmap" id="market-heatmap" aria-label="Market heatmap"></div>
@@ -93,21 +133,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
             <button type="button" class="market-window" data-page="1">Next</button>
           </div>
         </div>
-        <div class="market-chart-pane">
-          <div class="market-chart-head">
-            <div>
-              <p class="kicker" id="market-focus">${ticker || '—'}</p>
-              <p class="market-mix" id="market-sub">${focus?.focus || ''}</p>
-            </div>
-            <div class="market-windows" role="group" aria-label="Indicators">
-              <button type="button" class="market-window" data-ind="sma20">SMA 20</button>
-              <button type="button" class="market-window" data-ind="ema20">EMA 20</button>
-              <button type="button" class="market-window" data-ind="ema50">EMA 50</button>
-              <button type="button" class="market-window market-reset" data-reset>Reset</button>
-            </div>
-          </div>
-          <div class="market-chart-canvas" id="market-chart" role="img" aria-label="Price chart"></div>
-        </div>
+        ${chartPane({ ticker, focus })}
       </div>
     </section>
   `;
