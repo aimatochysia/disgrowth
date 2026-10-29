@@ -111,7 +111,7 @@ export function layout(data) {
         <nav class="nav" id="site-nav" aria-label="Primary">
           ${navLink('/', 'Home', path === '/')}
           ${navLink('/store', 'Shop', path === '/store' || path.startsWith('/buy'))}
-          ${navLink('/market', 'Market', path === '/market')}
+          ${user ? navLink('/market', 'Market', path === '/market') : ''}
           ${navLink('/legal', 'Legal', path.startsWith('/legal'))}
           ${user ? html`<form class="nav-logout" method="post" action="/logout"><button type="submit">Log out</button></form>` : ''}
         </nav>

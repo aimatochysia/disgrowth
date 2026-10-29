@@ -24,6 +24,7 @@
 
 :root,
 html[data-theme="day"] {
+  color-scheme: light;
   --bg: #efe6d6;
   --bg-deep: #e4d7c2;
   --panel: #f7f1e6;
@@ -53,6 +54,7 @@ html[data-theme="day"] {
 }
 
 html[data-theme="night"] {
+  color-scheme: dark;
   --bg: #0d1117;
   --bg-deep: #080c10;
   --panel: #161b22;
@@ -1301,6 +1303,11 @@ html.theme-animated .mini-moon {
   padding: 0.3rem 0.5rem;
 }
 
+.market-toolbar select option {
+  color: var(--text);
+  background: var(--panel);
+}
+
 .market-search {
   flex: 1 1 14rem;
   min-width: 0;
@@ -1630,70 +1637,6 @@ html[data-page="market"] .site-footer {
   to { opacity: 1; transform: translateY(0); }
 }
 
-.site-header.is-compact .nav-toggle {
-  display: inline-flex;
-}
-
-.site-header.is-compact .theme-toggle-label {
-  display: none;
-}
-
-.site-header.is-compact .theme-toggle {
-  width: 44px;
-  padding: 0;
-  justify-content: center;
-}
-
-.site-header.is-compact .nav {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  z-index: 60;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 0.05rem;
-  width: max-content;
-  max-width: min(16rem, calc(100vw - 2rem));
-  padding: 0;
-  border: none;
-  background: none;
-  pointer-events: none;
-  visibility: hidden;
-}
-
-.site-header.is-compact .nav.is-open {
-  pointer-events: auto;
-  visibility: visible;
-}
-
-.site-header.is-compact .nav :is(a, button) {
-  min-height: 38px;
-  justify-content: flex-end;
-  color: var(--text);
-  font-size: 1.05rem;
-  padding: 0.2rem 0.7rem;
-  opacity: 0;
-  transform: translateY(-8px);
-}
-
-.site-header.is-compact .nav :is(a, button):hover,
-.site-header.is-compact .nav :is(a, button):focus-visible {
-  background: color-mix(in srgb, var(--text) 12%, transparent);
-  transform: none;
-}
-
-.site-header.is-compact .nav.is-open :is(a, button) {
-  opacity: 1;
-  animation: navDrop 0.34s ease both;
-}
-
-.site-header.is-compact .nav.is-open :is(a, button):nth-child(1) { animation-delay: 0.02s; }
-.site-header.is-compact .nav.is-open :is(a, button):nth-child(2) { animation-delay: 0.07s; }
-.site-header.is-compact .nav.is-open :is(a, button):nth-child(3) { animation-delay: 0.12s; }
-.site-header.is-compact .nav.is-open :is(a, button):nth-child(4) { animation-delay: 0.17s; }
-.site-header.is-compact .nav.is-open :is(a, button):nth-child(5) { animation-delay: 0.22s; }
-
 @media (max-width: 900px) {
   .wallet-grid,
   .sku-grid,
@@ -1721,10 +1664,6 @@ html[data-page="market"] .site-footer {
     padding: 0.4rem 1rem;
   }
 
-  .nav-toggle {
-    display: inline-flex;
-  }
-
   .theme-toggle-label {
     display: none;
   }
@@ -1734,56 +1673,6 @@ html[data-page="market"] .site-footer {
     padding: 0;
     justify-content: center;
   }
-
-  .nav {
-    position: absolute;
-    top: calc(100% + 8px);
-    right: 0;
-    z-index: 60;
-    display: flex;
-    flex-direction: column;
-    align-items: flex-end;
-    gap: 0.05rem;
-    width: max-content;
-    max-width: min(16rem, calc(100vw - 2rem));
-    padding: 0;
-    border: none;
-    background: none;
-    pointer-events: none;
-    visibility: hidden;
-  }
-
-  .nav.is-open {
-    pointer-events: auto;
-    visibility: visible;
-  }
-
-  .nav :is(a, button) {
-    min-height: 38px;
-    justify-content: flex-end;
-    color: var(--text);
-    font-size: 1.05rem;
-    padding: 0.2rem 0.7rem;
-    opacity: 0;
-    transform: translateY(-8px);
-  }
-
-  .nav :is(a, button):hover,
-  .nav :is(a, button):focus-visible {
-    background: color-mix(in srgb, var(--text) 12%, transparent);
-    transform: none;
-  }
-
-  .nav.is-open :is(a, button) {
-    opacity: 1;
-    animation: navDrop 0.34s ease both;
-  }
-
-  .nav.is-open :is(a, button):nth-child(1) { animation-delay: 0.02s; }
-  .nav.is-open :is(a, button):nth-child(2) { animation-delay: 0.07s; }
-  .nav.is-open :is(a, button):nth-child(3) { animation-delay: 0.12s; }
-  .nav.is-open :is(a, button):nth-child(4) { animation-delay: 0.17s; }
-  .nav.is-open :is(a, button):nth-child(5) { animation-delay: 0.22s; }
 
   .brand-sub {
     display: none;
@@ -1832,6 +1721,90 @@ html[data-page="market"] .site-footer {
   .layer-near { height: 14%; opacity: 0.65; }
 }
 
+/* Hamburger only in portrait. Landscape keeps the full nav and shrinks to fit. */
+@media (orientation: portrait) and (max-width: 1024px) {
+  .nav-toggle {
+    display: inline-flex;
+  }
+
+  .nav {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    z-index: 60;
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.05rem;
+    width: max-content;
+    min-width: 10rem;
+    max-width: min(16rem, calc(100vw - 2rem));
+    padding: 0.35rem;
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    background: var(--panel);
+    box-shadow: var(--shadow);
+    pointer-events: none;
+    visibility: hidden;
+  }
+
+  .nav.is-open {
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  .nav :is(a, button) {
+    min-height: 40px;
+    justify-content: flex-end;
+    color: var(--text);
+    font-size: 1.05rem;
+    padding: 0.2rem 0.7rem;
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+
+  .nav :is(a, button):hover,
+  .nav :is(a, button):focus-visible {
+    background: color-mix(in srgb, var(--text) 12%, transparent);
+    transform: none;
+  }
+
+  .nav.is-open :is(a, button) {
+    opacity: 1;
+    animation: navDrop 0.34s ease both;
+  }
+
+  .nav.is-open :is(a, button):nth-child(1) { animation-delay: 0.02s; }
+  .nav.is-open :is(a, button):nth-child(2) { animation-delay: 0.07s; }
+  .nav.is-open :is(a, button):nth-child(3) { animation-delay: 0.12s; }
+  .nav.is-open :is(a, button):nth-child(4) { animation-delay: 0.17s; }
+  .nav.is-open :is(a, button):nth-child(5) { animation-delay: 0.22s; }
+}
+
+@media (orientation: landscape) and (max-width: 1024px) {
+  .site-header {
+    padding-inline: 0.75rem;
+  }
+
+  .header-end {
+    gap: 0.25rem;
+  }
+
+  .nav {
+    gap: 0 0.1rem;
+    flex-wrap: nowrap;
+  }
+
+  .nav :is(a, button) {
+    font-size: 0.85rem;
+    padding: 0 0.4rem;
+  }
+
+  .brand-sub {
+    display: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -1844,7 +1817,6 @@ html[data-page="market"] .site-footer {
     transition: none;
   }
 
-  .site-header.is-compact .nav :is(a, button),
   .nav :is(a, button) {
     opacity: 1 !important;
     transform: none !important;

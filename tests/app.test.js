@@ -938,7 +938,7 @@ test('landing and legal pages render', async () => {
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
     assert.match(html, />Home</);
     assert.match(html, />Shop</);
-    assert.match(html, />Market</);
+    assert.doesNotMatch(html, />Market</);
     assert.match(html, />Legal</);
     assert.match(html, />Terms</);
     assert.match(html, /btn-discord/);
@@ -1017,7 +1017,7 @@ test('live overlay omits Environment.set so Paddle.js defaults to production', (
   assert.match(src, /formattedTotals/);
 });
 
-test('GET /market is watch-only and GET /api/market hides fair_price', async () => {
+test('GET /market is watch-only for members and GET /api/market hides fair_price', async () => {
   const marketCache = {
     getSnapshot() {
       return {
@@ -1040,8 +1040,9 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
   };
   const cfg = config();
   const app = createApp({ config: cfg, db: mockDb(), art: {}, marketCache });
+  const headers = { cookie: sessionCookie() };
   await withServer(app, async (base) => {
-    const page = await fetch(`${base}/market`);
+    const page = await fetch(`${base}/market`, { headers });
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, />Market</);
@@ -1061,24 +1062,53 @@ test('GET /market is watch-only and GET /api/market hides fair_price', async () 
     assert.match(html, /What the city burns/);
     assert.doesNotMatch(html, /fair_price/);
     assert.doesNotMatch(html, /Buy Fuel/);
-    const snap = await fetch(`${base}/api/market/snapshot`);
+    const snap = await fetch(`${base}/api/market/snapshot`, { headers });
     assert.equal(snap.status, 200);
-    assert.match(snap.headers.get('cache-control') || '', /s-maxage=15/);
+    assert.equal(snap.headers.get('cache-control'), 'private, no-store');
+    assert.equal(page.headers.get('cache-control'), 'private, no-store');
     const json = await snap.json();
     assert.equal(json.quotes[0].ticker, 'FUEL');
     assert.doesNotMatch(JSON.stringify(json), /fair_price/);
-    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=1M&_=cachebust`);
+    const ohlc = await fetch(`${base}/api/market/ohlc?ticker=FUEL&window=1M&_=cachebust`, { headers });
     assert.equal(ohlc.status, 200);
     const bars = await ohlc.json();
     assert.equal(bars.ticker, 'FUEL');
     assert.equal(bars.bars[0].c, 75.2);
     assert.doesNotMatch(JSON.stringify(bars), /fair_price/);
     assert.equal(bars.bars[0].v, 120);
-    const bad = await fetch(`${base}/api/market/ohlc?ticker=../x`);
+    const bad = await fetch(`${base}/api/market/ohlc?ticker=../x`, { headers });
     assert.equal(bad.status, 404);
-    const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`);
+    const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`, { headers });
     assert.equal(unknown.status, 404);
-    assert.match(unknown.headers.get('cache-control') || '', /max-age=15/);
+    assert.equal(unknown.headers.get('cache-control'), 'private, no-store');
+  });
+});
+
+test('market is a 404 for logged-out visitors and no link to it is shown', async () => {
+  const marketCache = {
+    getSnapshot: () => ({ asOf: null, quotes: [] }),
+    async refresh() {},
+    async getOhlc() {
+      return { ticker: 'FUEL', window: '1M', bars: [] };
+    },
+  };
+  const app = createApp({ config: config(), db: mockDb(), art: {}, marketCache });
+  await withServer(app, async (base) => {
+    for (const path of ['/market', '/market?ticker=FUEL', '/api/market/snapshot', '/api/market/ohlc?ticker=FUEL']) {
+      const res = await fetch(`${base}${path}`);
+      assert.equal(res.status, 404, path);
+      assert.equal(res.headers.get('cache-control'), 'private, no-store', path);
+      const body = await res.text();
+      assert.doesNotMatch(body, /id="market-boot"|market-heatmap/, path);
+      if (path.startsWith('/api/')) assert.deepEqual(JSON.parse(body), { error: 'not found' }, path);
+    }
+    for (const path of ['/', '/store', '/legal']) {
+      const html = await (await fetch(`${base}${path}`)).text();
+      assert.doesNotMatch(html, /href="\/market"/, path);
+      assert.doesNotMatch(html, /See the market/, path);
+    }
+    const member = await (await fetch(`${base}/`, { headers: { cookie: sessionCookie() } })).text();
+    assert.match(member, /href="\/market"/);
   });
 });
 

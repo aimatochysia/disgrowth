@@ -198,7 +198,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   function page(req, res, { title, page: pageName, description, body, status = 200, paddle = false, marketBoot = null }) {
     try {
       const user = req.user;
-      if (user || req.sessionToken) {
+      if (user || req.sessionToken || res.locals.noStore) {
         res.set('Cache-Control', 'private, no-store');
       } else {
         res.set('Cache-Control', 'public, max-age=15, stale-while-revalidate=15');
@@ -252,7 +252,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   app.get('/', (req, res) => {
     page(req, res, {
       page: 'home',
-      body: homePage({ config }),
+      body: homePage({ config, user: req.user }),
     });
   });
 
@@ -266,8 +266,24 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     });
   });
 
+  // The market is members-only: anonymous visitors get the normal 404, and nothing here may sit in a shared cache.
+  function marketMembersOnly(req, res, next) {
+    res.locals.noStore = true;
+    if (req.user) {
+      res.set('Cache-Control', 'private, no-store');
+      next();
+      return;
+    }
+    if (req.baseUrl === '/api/market') {
+      res.set('Cache-Control', 'private, no-store');
+      res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
+      return;
+    }
+    notFound(req, res);
+  }
+  app.use(['/market', '/api/market'], marketMembersOnly);
+
   function sendMarketJson(res, body, status = 200) {
-    res.set('Cache-Control', 'public, max-age=15, s-maxage=15, stale-while-revalidate=45');
     res.status(status).type('json').send(JSON.stringify(body));
   }
 
@@ -302,13 +318,11 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   app.get('/api/market/ohlc', marketLimit, async (req, res) => {
     const ticker = sanitizeTicker(firstQueryValue(req.query.ticker));
     if (!ticker) {
-      res.set('Cache-Control', 'public, max-age=15, s-maxage=15');
       res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
       return;
     }
     const payload = await market.getOhlc(ticker, firstQueryValue(req.query.window));
     if (!payload) {
-      res.set('Cache-Control', 'public, max-age=15, s-maxage=15');
       res.status(404).type('json').send(JSON.stringify({ error: 'not found' }));
       return;
     }

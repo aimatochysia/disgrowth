@@ -13,7 +13,7 @@ const DISTRICTS = [
   ['grand', 'Grand Boulevard', 'Marble, brass and the steepest rents in town. The market barely flinches.'],
 ];
 
-export function homePage({ config }) {
+export function homePage({ config, user }) {
   return html`
     <section class="hero">
       <div class="hero-copy">
@@ -27,7 +27,7 @@ export function homePage({ config }) {
         </p>
         <div class="cta-row">
           <a class="btn btn-accent" href="${config.DISCORD_COMMUNITY_INVITE}" rel="noopener noreferrer" target="_blank">Join the community</a>
-          <a class="btn btn-ghost" href="/market">See the market</a>
+          ${user ? html`<a class="btn btn-ghost" href="/market">See the market</a>` : ''}
         </div>
       </div>
     </section>
