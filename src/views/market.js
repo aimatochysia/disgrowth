@@ -51,7 +51,6 @@ function quoteRow(quote, selected, windowKey) {
 export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART_WINDOW } = {}) {
   const focus = quotes.find((quote) => quote.ticker === ticker);
   const tickerQ = ticker ? encodeURIComponent(ticker) : '';
-  const sectors = [...new Set(quotes.map((quote) => quote.sector).filter(Boolean))].sort();
   return html`
     <section class="page-hero">
       <h1 class="display display-page">Market</h1>
@@ -65,10 +64,10 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
           <option value="commodity">Commodities</option>
           <option value="company">Companies</option>
         </select>
-        <select id="market-sector" aria-label="Sector">
-          <option value="">All sectors</option>
-          ${sectors.map((sector) => html`<option value="${sector}">${sector}</option>`)}
+        <select id="market-tag" aria-label="Focus">
+          <option value="">All focus</option>
         </select>
+        <button type="button" class="market-chip" id="market-chip" aria-label="Clear the focus filter" hidden></button>
         <select id="market-sort" aria-label="Sort by">
           ${SORTS.map(([key, label]) => html`<option value="${key}">${label}</option>`)}
         </select>
