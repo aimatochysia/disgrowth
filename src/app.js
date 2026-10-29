@@ -4,7 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { CATALOG, catalogItemsFromConfig, isSku } from './catalog.js';
-import { artCss, artHtmlClass, detectArt } from './art.js';
+import { artCss, artHtmlClass, detectArt, detectShots } from './art.js';
 import { sceneCss } from './views/scene.js';
 import { checkoutConfigured, createPaddleTransaction, priceIdForSku } from './checkout.js';
 import { authorizeUrl, exchangeCode, fetchIdentify, sessionFromDiscordUser } from './oauth.js';
@@ -46,7 +46,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 
-export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir), quoteCache, marketCache } = {}) {
+export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir), shots = detectShots(rootDir), quoteCache, marketCache } = {}) {
   const quotes = quoteCache || createQuoteCache({
     load: () => (db && typeof db.latestTickerQuotes === 'function' ? db.latestTickerQuotes() : []),
     interval: config.NODE_ENV !== 'test',
@@ -252,7 +252,7 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   app.get('/', (req, res) => {
     page(req, res, {
       page: 'home',
-      body: homePage({ config, user: req.user }),
+      body: homePage({ config, shots }),
     });
   });
 

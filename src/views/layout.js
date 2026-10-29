@@ -58,7 +58,7 @@ export function layout(data) {
     user,
     config,
     page = 'default',
-    description = 'Buy Gold Bars for Disgrowth, the city market game played in Discord.',
+    description = 'Disgrowth is a life sim and shared market that lives inside Discord. Rent a room, find a job and start a business.',
     body,
     artClass = '',
     paddleBoot = null,

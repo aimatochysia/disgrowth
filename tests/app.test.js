@@ -934,7 +934,13 @@ test('landing and legal pages render', async () => {
     const html = await home.text();
     assert.match(html, /Disgrowth/);
     assert.match(html, /celestial-axis/);
-    assert.match(html, /Join the community/);
+    assert.match(html, /Join the Discord/);
+    assert.match(html, /You(&#39;|')re moving to the city/);
+    assert.match(html, /5,000 CR in paper money/);
+    assert.equal((html.match(/class="shot-empty"/g) || []).length, 6);
+    assert.match(html, /<b>Start a business:<\/b>/);
+    assert.match(html, /href="\/store"[^>]*>Shop Gold Bars/);
+    assert.doesNotMatch(html, /Four districts, one climb|Start here|One real hour is one city day|Alpha · now open/);
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
     assert.match(html, />Home</);
     assert.match(html, />Shop</);
@@ -943,7 +949,6 @@ test('landing and legal pages render', async () => {
     assert.match(html, />Terms</);
     assert.match(html, /btn-discord/);
     assert.doesNotMatch(html, /In the city/);
-    assert.match(html, /Start here/);
     assert.doesNotMatch(html, /canopy|Rent a stall|dont store/);
     assert.match(html, /Paddle/);
     assert.match(html, /data-to-top/);
@@ -1005,6 +1010,15 @@ test('landing and legal pages render', async () => {
     const legacySuccess = await fetch(`${base}/success`, { redirect: 'manual' });
     assert.equal(legacySuccess.status, 302);
     assert.equal(legacySuccess.headers.get('location'), '/welcome');
+  });
+});
+
+test('home gallery shows a screenshot once its file exists in public/shots', async () => {
+  const app = createApp({ config: config(), db: mockDb(), art: {}, shots: { city: '/shots/city.webp' } });
+  await withServer(app, async (base) => {
+    const html = await (await fetch(`${base}/`)).text();
+    assert.match(html, /<img src="\/shots\/city\.webp" alt="The city" width="1600" height="1000"/);
+    assert.equal((html.match(/class="shot-empty"/g) || []).length, 5);
   });
 });
 

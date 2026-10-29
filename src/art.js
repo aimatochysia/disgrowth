@@ -23,6 +23,29 @@ export function detectArt(rootDir) {
   return found;
 }
 
+// Home page gallery: drop public/shots/<slot>.webp (or .jpg, .png) and it replaces the placeholder.
+export const SHOT_SLOTS = [
+  ['city', 'The city'],
+  ['schedule', 'Your schedule'],
+  ['home', 'Your home'],
+  ['market', 'The market'],
+  ['business', 'Your business'],
+  ['discord', 'Discord'],
+];
+
+export function detectShots(rootDir) {
+  const found = {};
+  for (const [slot] of SHOT_SLOTS) {
+    for (const ext of ['webp', 'jpg', 'png']) {
+      if (fs.existsSync(path.join(rootDir, 'public', 'shots', `${slot}.${ext}`))) {
+        found[slot] = `/shots/${slot}.${ext}`;
+        break;
+      }
+    }
+  }
+  return found;
+}
+
 export function artCss(found) {
   const lines = [];
   if (found['sky-day']) {
