@@ -1,38 +1,28 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-// Landing-page art. Each slot is a labelled box with its size until a file named <slot>.webp (or .jpg, .png) is
-// dropped in public/shots. Sizes are the final pixels; draw at that size (2x for sprites).
-export const SHOT_SLOTS = [
-  { slot: 'hero', label: 'Hero: the game world, cosy and wide', w: 2400, h: 1200 },
-  { slot: 'forest', label: 'The Forest', w: 1600, h: 900 },
-  { slot: 'home', label: 'Your home', w: 1600, h: 900 },
-  { slot: 'town', label: 'Town map', w: 1600, h: 900 },
+// Landing page: scroll-locked parallax scenes. Each scene has three layers (back, mid, front) drawn at 2560x1440 so
+// they can drift without showing an edge; the front layer is a PNG with transparency. A layer without a file in
+// public/shots is a labelled box. To add or reorder scenes, edit SCENES (and its copy in src/views/home.js).
+export const LAYER_SIZE = { w: 2560, h: 1440 };
+export const LAYERS = [
+  { name: 'back', note: 'sky and far distance' },
+  { name: 'mid', note: 'middle ground, transparent PNG' },
+  { name: 'front', note: 'foreground, transparent PNG' },
 ];
-
-// Planting toy sprites, PNG with transparency, bottom-centre anchor.
-export const CROP_SLOTS = [
-  { slot: 'crop-plot', label: 'Empty plot', w: 256, h: 256 },
-  { slot: 'crop-1', label: 'Stage 1: sprout', w: 256, h: 256 },
-  { slot: 'crop-2', label: 'Stage 2: growing', w: 256, h: 256 },
-  { slot: 'crop-3', label: 'Stage 3: ready to harvest', w: 256, h: 256 },
-  { slot: 'crop-can', label: 'Watering can', w: 256, h: 256 },
-];
-
-// Dress-up preview: one body and a few outfit layers, aligned to the body.
-export const AVATAR_SLOTS = [
-  { slot: 'avatar-body', label: 'Avatar body, front view', w: 180, h: 300 },
-  { slot: 'avatar-outfit-1', label: 'Outfit layer 1', w: 180, h: 300 },
-  { slot: 'avatar-outfit-2', label: 'Outfit layer 2', w: 180, h: 300 },
-  { slot: 'avatar-outfit-3', label: 'Outfit layer 3', w: 180, h: 300 },
-];
+export const SCENES = ['scene-1', 'scene-2', 'scene-3', 'scene-4'];
+export const layerSlot = (scene, layer) => `${scene}-${layer}`;
 
 // Gold Bar shop icon (not placed on a page yet).
 export const SHOP_SLOTS = [{ slot: 'gold-bar', label: 'Gold Bar icon', w: 128, h: 128 }];
 
 export function detectShots(rootDir) {
   const found = {};
-  for (const { slot } of [...SHOT_SLOTS, ...CROP_SLOTS, ...AVATAR_SLOTS, ...SHOP_SLOTS]) {
+  const slots = [
+    ...SCENES.flatMap((scene) => LAYERS.map((layer) => layerSlot(scene, layer.name))),
+    ...SHOP_SLOTS.map((entry) => entry.slot),
+  ];
+  for (const slot of slots) {
     for (const ext of ['webp', 'jpg', 'png']) {
       if (fs.existsSync(path.join(rootDir, 'public', 'shots', `${slot}.${ext}`))) {
         found[slot] = `/shots/${slot}.${ext}`;

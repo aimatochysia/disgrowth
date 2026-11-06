@@ -1319,10 +1319,6 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
   color: var(--muted);
 }
 
-.home-top {
-  padding: 0.75rem 0 0;
-}
-
 .logo {
   margin: 0 0 1.4rem;
   text-align: center;
@@ -1334,105 +1330,42 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
   color: var(--text);
 }
 
-.intro {
-  max-width: 40rem;
-  margin: 0 auto;
-  text-align: center;
-}
 
-.intro h1 {
-  margin: 0 0 0.7rem;
-  font-family: Fraunces, serif;
-  font-weight: 500;
-  font-size: clamp(1.5rem, 4vw, 2.1rem);
-}
+/* Landing: scroll-locked parallax scenes. Without JS the scenes simply stack and scroll. */
+.reel { position: relative; }
+.panel-scene { position: relative; min-height: 100vh; overflow: hidden; display: grid; align-items: end; }
+.layers { position: absolute; inset: 0; }
+.layer { position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
+.layer-back { --d: -8; z-index: 1; }
+.layer-mid { --d: -20; z-index: 2; }
+.layer-front { --d: -40; z-index: 3; }
+.layer-empty { display: grid; place-content: center; gap: 0.25rem; text-align: center; color: var(--muted); border: 2px dashed var(--border); font-size: 0.85rem; }
+.layer-back.layer-empty { background: var(--bg-deep); align-content: start; padding-top: 22vh; }
+.layer-mid.layer-empty { background: color-mix(in srgb, var(--panel) 30%, transparent); }
+.layer-front.layer-empty { background: none; align-content: end; padding-bottom: 6vh; }
+.layer-empty b { color: var(--text); }
+.scene-copy { position: relative; z-index: 5; width: min(960px, calc(100% - 2rem)); margin: 0 auto; padding: 6rem 0 5rem; }
+.scene-copy h1 { font-family: Fraunces, "Times New Roman", serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
+.scene-copy p { max-width: 36rem; margin: 0.4rem 0; }
+.reel-links { margin-top: 1.5rem; font-size: 0.85rem; }
+.reel-links a { margin-right: 0.9rem; }
+.reel-dots, .reel-fade { display: none; }
 
-.intro p {
-  margin: 0.5rem 0 0;
+/* With JS (class set by reel.js) the page is locked and scenes fade through black. */
+html.reel-on, html.reel-on body { overflow: hidden; height: 100%; }
+html.reel-on .site-footer, html.reel-on .to-top { display: none; }
+html.reel-on .reel { position: fixed; inset: 0; }
+html.reel-on .panel-scene { position: absolute; inset: 0; min-height: 0; opacity: 0; visibility: hidden; }
+html.reel-on .panel-scene.is-active { opacity: 1; visibility: visible; }
+html.reel-on .reel-fade { display: block; position: absolute; inset: 0; z-index: 6; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.45s ease; }
+html.reel-on .reel-fade.is-black { opacity: 1; }
+html.reel-on .reel-dots { display: grid; gap: 0.6rem; position: absolute; z-index: 7; right: 1.25rem; top: 50%; transform: translateY(-50%); }
+.reel-dots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; border: 2px solid var(--text); background: transparent; cursor: pointer; }
+.reel-dots button[aria-current="true"] { background: var(--text); }
+html:not(.reel-on) .reel-links { display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .layer-back { animation: drift 40s ease-in-out infinite alternate; }
+  .layer-mid { animation: drift 28s ease-in-out infinite alternate; }
+  .layer-front { animation: drift 20s ease-in-out infinite alternate; }
 }
-
-.shots {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.75rem;
-  margin: 1.75rem 0 0;
-}
-
-.shot {
-  margin: 0;
-}
-
-.shot img,
-.shot-empty {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 10;
-  border-radius: 8px;
-  border: 1px solid var(--border);
-  object-fit: cover;
-}
-
-.shot-empty {
-  display: grid;
-  place-items: center;
-  border-style: dashed;
-  background: var(--panel-a);
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.shot figcaption {
-  margin-top: 0.3rem;
-  text-align: center;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.features {
-  margin: 0;
-  padding-left: 1.2rem;
-}
-
-.features li {
-  margin: 0.7rem 0;
-}
-
-.home-links {
-  justify-content: center;
-  margin-top: 2rem;
-}
-
-@media (max-width: 640px) {
-  .shots {
-    grid-template-columns: 1fr;
-  }
-}
-
-/* Landing art: labelled boxes until the real files are in public/shots. */
-.art { display: block; width: 100%; border-radius: 8px; object-fit: cover; }
-.ratio-2-1 { aspect-ratio: 2 / 1; }
-.ratio-16-9 { aspect-ratio: 16 / 9; }
-.ratio-1-1 { aspect-ratio: 1 / 1; }
-.ratio-3-5 { aspect-ratio: 3 / 5; }
-.art-empty {
-  display: grid;
-  place-content: center;
-  gap: 0.2rem;
-  padding: 0.5rem;
-  text-align: center;
-  border: 2px dashed var(--border);
-  background: var(--panel-a);
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-.art-empty b { color: var(--text); font-weight: 600; }
-.art-small { max-width: 64px; }
-.hero-art { margin: 1.5rem 0 0; }
-.toys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
-.toys .section-title { grid-column: 1 / -1; }
-.toy h3 { margin: 0 0 0.75rem; }
-.toy-stage { max-width: 220px; margin: 0 auto; }
-.toy-stage [hidden] { display: none; }
-.toy-note { text-align: center; margin: 0.6rem 0; }
-.toy-actions { display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
-.avatar-stack { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; }
+@keyframes drift { from { translate: -6px 0; } to { translate: 6px -3px; } }

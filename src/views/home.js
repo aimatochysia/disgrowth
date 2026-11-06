@@ -1,74 +1,50 @@
 import { html } from '../lib/html.js';
-import { AVATAR_SLOTS, CROP_SLOTS, SHOT_SLOTS } from '../art.js';
+import { LAYERS, LAYER_SIZE, SCENES, layerSlot } from '../art.js';
 
-const FEATURES = [
-  ['Make a living by hand', 'Grow, forage, cook and craft. Every CR is earned by playing: there is no passive income.'],
-  ['Follow a living market', 'Commodity prices rise and fall around the clock, so time your sales. The market is its own: players never move its prices.'],
-  ['Watch the companies', 'Company stocks are on the board for you to follow, not to trade.'],
+// One entry per scene in SCENES. The last scene carries the buttons.
+const COPY = [
+  ['Start small. Grow something.', 'You have 400 CR in paper money and a head full of plans.'],
+  ['Forage, cook, craft.', 'Every CR is earned by playing. There is no passive income.'],
+  ['Make a home.', 'Fill it with furniture, dress your avatar, and share it with a partner.'],
+  ['A market that moves on its own.', 'Players never move prices, but prices decide what your goods sell for.'],
 ];
 
-// A slot with no file in public/shots stays a labelled box showing the size to draw (see detectShots).
-const gcd = (a, b) => (b ? gcd(b, a % b) : a);
-
-function art({ slot, label, w, h }, shots, extra = '') {
-  const ratio = `ratio-${w / gcd(w, h)}-${h / gcd(w, h)}`; // CSS classes, because the CSP forbids style attributes
+function layer(scene, { name, note }, shots) {
+  const slot = layerSlot(scene, name);
+  const { w, h } = LAYER_SIZE;
   return shots[slot]
-    ? html`<img class="art ${ratio} ${extra}" src="${shots[slot]}" alt="${label}" width="${w}" height="${h}" loading="lazy" />`
-    : html`<div class="art art-empty ${ratio} ${extra}" data-art="${slot}" role="img" aria-label="${label}"><b>${label}</b><span>${w} × ${h}</span></div>`;
+    ? html`<img class="layer layer-${name}" src="${shots[slot]}" alt="" width="${w}" height="${h}" />`
+    : html`<div class="layer layer-${name} layer-empty" data-art="${slot}"><b>${slot}</b><span>${note} · ${w} × ${h}</span></div>`;
 }
 
-const [PLOT, ...STAGES] = CROP_SLOTS.slice(0, 4);
-const CAN = CROP_SLOTS[4];
-
 export function homePage({ config, shots = {} }) {
+  const last = SCENES.length - 1;
   return html`
-    <section class="home-top">
-      <p class="logo">Disgrowth</p>
-      <div class="panel intro">
-        <h1>Start small. Grow something.</h1>
-        <p>You've got 400 CR in paper money, every note you own, and a head full of plans.</p>
-        <p>Four cities, from a quiet countryside cottage to a minimalist metropolis, and a market that moves whether you are watching or not. Plant, forage, craft, and pick your moment to sell.</p>
-      </div>
-    </section>
-
-    <section class="hero-art">${art(SHOT_SLOTS[0], shots)}</section>
-
-    <section class="shots" aria-label="Screenshots">
-      ${SHOT_SLOTS.slice(1).map((slot) => html`<figure class="shot">${art(slot, shots)}<figcaption>${slot.label}</figcaption></figure>`)}
-    </section>
-
-    <section class="band toys">
-      <h2 class="section-title">Try it</h2>
-      <div class="toy panel" id="crop-toy" data-stages="${STAGES.length}">
-        <h3>Tend a plot</h3>
-        <div class="toy-stage">
-          <div data-crop="0">${art(PLOT, shots)}</div>
-          ${STAGES.map((stage, i) => html`<div data-crop="${i + 1}" hidden>${art(stage, shots)}</div>`)}
-        </div>
-        <p class="toy-note" id="crop-note" role="status" aria-live="polite">An empty plot. Plant a seed.</p>
-        <div class="toy-actions">
-          <button type="button" class="btn btn-accent" id="crop-act">Plant a seed</button>
-          <span class="toy-can">${art(CAN, shots, 'art-small')}</span>
-        </div>
-        <p class="hint">Every stage needs a watering, like in the game. Nothing grows while you are away.</p>
-      </div>
-      <div class="toy panel">
-        <h3>Dress up</h3>
-        <div class="avatar-stack">${AVATAR_SLOTS.map((slot) => art(slot, shots))}</div>
-        <p class="hint">Outfits go here once the art is in.</p>
-      </div>
-    </section>
-
-    <section class="band">
-      <h2 class="section-title">Features</h2>
-      <ul class="features">
-        ${FEATURES.map(([lead, text]) => html`<li><b>${lead}:</b> ${text}</li>`)}
-      </ul>
-    </section>
-
-    <div class="cta-row home-links">
-      <a class="btn btn-accent" href="${config.DISCORD_COMMUNITY_INVITE}" rel="noopener noreferrer" target="_blank">Join the Discord</a>
-      <a class="btn btn-ghost" href="/store">Shop Gold Bars</a>
+    <div class="reel" id="reel" aria-roledescription="carousel" aria-label="Disgrowth">
+      ${SCENES.map(
+        (scene, i) => html`<section class="panel-scene${i === 0 ? ' is-active' : ''}" data-scene="${i}" aria-label="${COPY[i][0]}">
+          <div class="layers" aria-hidden="true">${LAYERS.map((entry) => layer(scene, entry, shots))}</div>
+          <div class="scene-copy">
+            ${i === 0 ? html`<p class="logo">Disgrowth</p>` : ''}
+            <h1>${COPY[i][0]}</h1>
+            <p>${COPY[i][1]}</p>
+            ${i === last
+              ? html`<div class="cta-row">
+                  <a class="btn btn-accent" href="${config.DISCORD_COMMUNITY_INVITE}" rel="noopener noreferrer" target="_blank">Join the Discord</a>
+                  <a class="btn btn-ghost" href="/store">Shop Gold Bars</a>
+                </div>
+                <nav class="reel-links" aria-label="Legal">
+                  <a href="/support">Support</a> <a href="/legal#terms">Terms</a> <a href="/legal#privacy">Privacy</a>
+                  <a href="/legal#refunds">Refunds</a> <a href="/legal#cookies">Cookies</a>
+                </nav>`
+              : ''}
+          </div>
+        </section>`,
+      )}
+      <nav class="reel-dots" aria-label="Scenes">
+        ${SCENES.map((_scene, i) => html`<button type="button" data-go="${i}" aria-label="Scene ${i + 1}"${i === 0 ? html` aria-current="true"` : ''}></button>`)}
+      </nav>
+      <div class="reel-fade" aria-hidden="true"></div>
     </div>
   `;
 }
