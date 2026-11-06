@@ -10,7 +10,7 @@ export function buyPage({ sku, user, player, inviteUrl, error = '', checkoutRead
       <section class="page-hero">
         <h1 class="display display-page">Create your character first</h1>
         <p class="lede narrow">
-          You’re logged in as <strong>${name}</strong>, but this Discord account has no Disgrowth character yet. Run <code>/disgrowth</code> in Discord, then refresh this page.
+          You’re logged in as <strong>${name}</strong>, but this Discord account has no Disgrowth character yet. Run <code>/city</code> in Discord, then refresh this page.
         </p>
         <a class="btn btn-accent" href="${inviteUrl}" rel="noopener noreferrer" target="_blank">Open the Discord server</a>
       </section>

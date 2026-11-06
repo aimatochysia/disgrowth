@@ -21,24 +21,17 @@ export function accountPage({ user, player, dbReady, inviteUrl, paddleCustomer =
     return html`
       <section class="page-hero">
         <h1 class="display display-page">${name}</h1>
-        <p class="lede narrow">This Discord account has no Disgrowth character yet. Run <code>/disgrowth</code> in Discord, then refresh this page.</p>
+        <p class="lede narrow">This Discord account has no Disgrowth character yet. Run <code>/city</code> in Discord, then refresh this page.</p>
         <a class="btn btn-accent" href="${inviteUrl}" rel="noopener noreferrer" target="_blank">Open the Discord server</a>
       </section>
     `;
   }
-
-  const onboarding = player.onboarding_step;
-  const needsTutorial = onboarding && onboarding !== 'complete' && onboarding !== 'raise_stats';
 
   return html`
     <section class="page-hero account-hero">
       <img class="avatar" src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="64" height="64" />
       <h1 class="display display-page">${name}</h1>
     </section>
-
-    ${needsTutorial
-      ? html`<p class="flash" role="status">Finish the tutorial in Discord to start claiming daily Bonds.</p>`
-      : ''}
 
     ${portalError ? html`<p class="flash" role="alert">${portalError}</p>` : ''}
 

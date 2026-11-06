@@ -77,7 +77,7 @@ src/
   grants.js       Webhook interpretation and wallet SQL
   oauth.js        Discord OAuth
   session.js      Session cookie and OAuth state cookie
-  market.js       Market snapshot, OHLC, and caching
+  market.js       Market snapshot, close-price history, and caching
   ticker.js       Header price ticker
   legal.js        Policy text
   views/          Page templates

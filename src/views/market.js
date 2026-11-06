@@ -2,14 +2,13 @@ import { html } from '../lib/html.js';
 import { CHART_WINDOW_KEYS, DEFAULT_CHART_WINDOW } from '../market.js';
 
 export const COMMODITY_NOTES = {
-  PHRM: 'Cleaners, fertiliser and the upkeep every shop needs.',
-  COMP: 'Advanced parts: chips, boards and robotics.',
-  FUEL: 'What the city burns to move and to make things.',
-  MACH: 'Low machinery: presses, pumps and tools.',
-  METL: 'Raw resources: ore, steel and wire.',
-  PRDC: 'Produce: what the city eats.',
-  RECL: 'Recyclables. Tends to climb when the rest of the market falls.',
-  TXTL: 'Textiles: cloth, thread and finished fabric.',
+  AGRI: 'Agriculture: crops, seeds, berries, flour and meals.',
+  ALCM: 'Alchemy: herbs, tea and salve.',
+  BMAT: 'Basic materials: logs, stone, iron ore and wild fibre.',
+  BMON: 'Basic monster drops: hide, bone and slime.',
+  COMP: 'Components: planks, ingots, nails, rope and cloth.',
+  FUEL: 'Charcoal and firewood.',
+  TXTL: 'Textiles: cloth goods and clothes.',
 };
 
 export const PAGE_SIZE = 50;
@@ -72,7 +71,7 @@ function chartPane({ ticker, focus, solo = false }) {
     </form>
     <p class="muted" id="market-formula-note" role="status"></p>
     <div class="market-formulas" id="market-formulas"></div>
-    <p class="hint">Lines use close, open, high, low, volume with sma, ema, hi, lo and abs. They stay in this browser and are never sent anywhere.</p>
+    <p class="hint">Lines use close with sma, ema, hi, lo and abs. They stay in this browser and are never sent anywhere.</p>
   </div>`;
 }
 
@@ -99,7 +98,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
   return html`
     <section class="page-hero">
       <h1 class="display display-page">Market</h1>
-      <p class="lede narrow">Prices from the city market. Trading happens in Discord.</p>
+      <p class="lede narrow">Prices from the city market. Players never move them, but they set what your goods sell for in Discord. Company stocks are for watching only.</p>
     </section>
     <section class="market-screen panel">
       <div class="market-toolbar">

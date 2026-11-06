@@ -173,14 +173,9 @@ export function publicSnapshot(rows, asOf = new Date()) {
 
 export function publicBar(row) {
   const t = Number(row?.t);
-  const o = round4(row?.o);
-  const h = round4(row?.h);
-  const l = round4(row?.l);
   const c = round4(row?.c);
-  const v = round4(row?.v) ?? 0;
-  if (!Number.isFinite(t) || o == null || h == null || l == null || c == null) return null;
-  if (o <= 0 || h <= 0 || l <= 0 || c <= 0) return null;
-  return { t, o, h, l, c, v: v < 0 ? 0 : v };
+  if (!Number.isFinite(t) || c == null || c <= 0) return null;
+  return { t, c };
 }
 
 export function publicOhlc(ticker, windowKey, bars, now = new Date()) {
@@ -192,7 +187,7 @@ export function publicOhlc(ticker, windowKey, bars, now = new Date()) {
     if (bar) cleaned.push(bar);
     if (cleaned.length >= MARKET_BAR_CAP) break;
   }
-  // A gap of a month or more between bars means month-grain candles.
+  // A gap of a month or more between bars means month-grain bars.
   const monthly = cleaned.length > 1 && cleaned[1].t - cleaned[0].t >= 25 * 86_400;
   const nowDay = inGameDayIndex(now);
   for (const bar of cleaned) bar.ago = timeAgoLabel(bar.t / 86_400, nowDay, monthly ? 'month' : 'day');
@@ -200,83 +195,13 @@ export function publicOhlc(ticker, windowKey, bars, now = new Date()) {
 }
 
 function priceOf(row) {
-  return finitePositive(row?.close) ?? finitePositive(row?.price) ?? finitePositive(row?.open);
+  return finitePositive(row?.close) ?? finitePositive(row?.price);
 }
 
 export function mapOhlcRows(rows, time = GAME_TIME) {
   const bars = [];
   for (const row of rows || []) {
-    const at = row.period_start || row.recorded_at;
-    const price = priceOf(row);
-    if (price == null) continue;
-    const open = finitePositive(row.open) ?? price;
-    const close = finitePositive(row.close) ?? price;
-    const high = finitePositive(row.high) ?? Math.max(open, close, price);
-    const low = finitePositive(row.low) ?? Math.min(open, close, price);
-    const bar = publicBar({
-      t: toInGameUnix(at, time),
-      o: open,
-      h: Math.max(high, open, close),
-      l: Math.min(low, open, close),
-      c: close,
-      v: row.volume || 0,
-    });
-    if (bar) bars.push(bar);
-    if (bars.length >= MARKET_BAR_CAP) break;
-  }
-  return bars;
-}
-
-export function bucketBars(rows, start, end, candleCount) {
-  const startMs = start.getTime();
-  const endMs = end.getTime();
-  const count = Math.max(1, Number(candleCount) || 48);
-  const bucketMs = (endMs - startMs) / count;
-  const buckets = Array.from({ length: count }, (_unused, index) => ({
-    start: startMs + index * bucketMs,
-    open: null,
-    high: null,
-    low: null,
-    close: null,
-    volume: 0,
-    samples: 0,
-  }));
-
-  const sorted = [...(rows || [])].sort(
-    (a, b) => new Date(a.recorded_at).getTime() - new Date(b.recorded_at).getTime(),
-  );
-
-  for (const row of sorted) {
-    const at = new Date(row.recorded_at).getTime();
-    if (at < startMs || at >= endMs) continue;
-    const index = Math.min(Math.max(Math.floor((at - startMs) / bucketMs), 0), count - 1);
-    const price = priceOf(row);
-    if (price == null) continue;
-    const bucket = buckets[index];
-    if (bucket.samples === 0) {
-      bucket.open = price;
-      bucket.high = price;
-      bucket.low = price;
-    } else {
-      bucket.high = Math.max(bucket.high, finitePositive(row.high) || price);
-      bucket.low = Math.min(bucket.low, finitePositive(row.low) || price);
-    }
-    bucket.close = price;
-    bucket.volume += Math.abs(Number(row.volume) || 0);
-    bucket.samples += 1;
-  }
-
-  const bars = [];
-  for (const bucket of buckets) {
-    if (bucket.samples === 0) continue;
-    const bar = publicBar({
-      t: toInGameUnix(bucket.start),
-      o: bucket.open,
-      h: bucket.high,
-      l: bucket.low,
-      c: bucket.close,
-      v: bucket.volume,
-    });
+    const bar = publicBar({ t: toInGameUnix(row.period_start || row.recorded_at, time), c: priceOf(row) });
     if (bar) bars.push(bar);
     if (bars.length >= MARKET_BAR_CAP) break;
   }

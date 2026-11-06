@@ -3,7 +3,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import pg from 'pg';
 import { discordId as parseDiscordId } from './lib/validate.js';
-import { sanitizeTicker } from './ticker.js';
+import { sanitizeTicker, tickerSpellings } from './ticker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -31,6 +31,16 @@ export function createDb(databaseUrl) {
   pool.on('error', (err) => {
     console.error('[store] postgres pool error', err.message);
   });
+
+  // assets.active arrives with the bot's retire-MACH migration; until then (42703) every asset counts as active.
+  async function queryActive(sql, params) {
+    try {
+      return await pool.query(sql.replaceAll('{active}', 'a.active'), params);
+    } catch (err) {
+      if (err?.code !== '42703') throw err;
+      return pool.query(sql.replaceAll('{active}', 'true'), params);
+    }
+  }
 
   return {
     pool,
@@ -63,7 +73,7 @@ export function createDb(databaseUrl) {
       if (!id) return null;
       const { rows } = await pool.query(
         `SELECT id, discord_id, credits, bonds, gold_bars,
-                subscription_active, subscription_expires_at, onboarding_step
+                subscription_active, subscription_expires_at
          FROM players
          WHERE discord_id = $1`,
         [id],
@@ -137,7 +147,7 @@ export function createDb(databaseUrl) {
     },
 
     async latestTickerQuotes() {
-      const { rows } = await pool.query(
+      const { rows } = await queryActive(
         `SELECT a.ticker, a.current_price AS price, prev.price AS prev_price
          FROM assets a
          LEFT JOIN LATERAL (
@@ -149,6 +159,7 @@ export function createDb(databaseUrl) {
            OFFSET 1
            LIMIT 1
          ) prev ON true
+         WHERE {active}
          ORDER BY a.ticker
          LIMIT 16`,
       );
@@ -156,12 +167,12 @@ export function createDb(databaseUrl) {
     },
 
     async listMarketQuotes() {
+      // shortcut: drop the focus_tags fallback once its migration has run live.
       try {
-        return (await pool.query(MARKET_SNAPSHOT_SQL)).rows;
+        return (await queryActive(MARKET_SNAPSHOT_SQL)).rows;
       } catch (err) {
-        // shortcut: delete this fallback once the focus_tags migration has run on the live database.
         if (err?.code !== '42703') throw err;
-        return (await pool.query(MARKET_SNAPSHOT_SQL.replace('focus_tags, ', ''))).rows;
+        return (await queryActive(MARKET_SNAPSHOT_SQL.replace('focus_tags, ', ''))).rows;
       }
     },
 
@@ -178,7 +189,7 @@ export function createDb(databaseUrl) {
     async findMarketAsset(ticker) {
       const symbol = sanitizeTicker(ticker);
       if (!symbol) return null;
-      const { rows } = await pool.query(MARKET_ASSET_SQL, [symbol]);
+      const { rows } = await queryActive(MARKET_ASSET_SQL, [tickerSpellings(symbol)]);
       return rows[0] || null;
     },
 
@@ -229,13 +240,13 @@ export const PLAYER_COLUMNS = [
   'gold_bars',
   'subscription_active',
   'subscription_expires_at',
-  'onboarding_step',
 ];
 
 export const MARKET_SNAPSHOT_SQL = `
 SELECT ticker, name, type, sector, price, market_cap, volume, focus, focus_tags,
        change_7d, change_1m, change_6m, change_1y
-FROM asset_quotes
+FROM asset_quotes q
+WHERE EXISTS (SELECT 1 FROM assets a WHERE a.ticker = q.ticker AND {active})
 ORDER BY (type = 'company'), market_cap DESC NULLS LAST, ticker ASC
 LIMIT 5000
 `.trim();
@@ -243,14 +254,15 @@ LIMIT 5000
 export const MARKET_ASSET_SQL = `
 SELECT a.id, a.ticker, a.name, a.type, a.sector, a.current_price
 FROM assets a
-WHERE a.ticker = $1
+WHERE a.ticker = ANY($1)
+  AND {active}
   AND (a.type <> 'company'
        OR EXISTS (SELECT 1 FROM businesses b WHERE b.listed_asset_id = a.id AND b.is_public = true))
 LIMIT 1
 `.trim();
 
 export const MARKET_OHLC_SQL = `
-SELECT period_start, recorded_at, open, high, low, close, price, volume
+SELECT period_start, recorded_at, close, price
 FROM price_history
 WHERE asset_id = $1
   AND grain = $2

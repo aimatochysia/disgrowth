@@ -11,7 +11,6 @@ import {
 import { GOLD_GRANT_SQL, GOLD_REFUND_SQL } from '../src/grants.js';
 import {
   DEFAULT_CHART_WINDOW,
-  bucketBars,
   GAME_TIME,
   createMarketCache,
   loadMarketOhlc,
@@ -29,6 +28,8 @@ test('market snapshot reads asset_quotes only, never fair_price or the point spl
   assert.match(MARKET_SNAPSHOT_SQL, /focus/);
   assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price|recipe_points|discord_id/);
   // A delisted company stays in assets for its history; the lookup asks for a public business behind it.
+  assert.match(MARKET_SNAPSHOT_SQL, /\{active\}/);
+  assert.match(MARKET_ASSET_SQL, /\{active\}/);
   assert.match(MARKET_ASSET_SQL, /b\.listed_asset_id = a\.id AND b\.is_public = true/);
   assert.doesNotMatch(MARKET_ASSET_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_OHLC_SQL, /fair_price/);
@@ -36,7 +37,7 @@ test('market snapshot reads asset_quotes only, never fair_price or the point spl
   assert.match(MARKET_OHLC_SQL, /grain = \$2/);
   assert.match(MARKET_OHLC_SQL, /period_start >= \$3/);
   assert.match(MARKET_OHLC_SQL, /LIMIT \$4/);
-  assert.doesNotMatch(MARKET_OHLC_SQL, /tick/);
+  assert.doesNotMatch(MARKET_OHLC_SQL, /tick|open|high|low|volume/);
 });
 
 test('player columns and grants no longer mention marks', () => {
@@ -143,25 +144,7 @@ test('mapOhlcRows uses in-game unix and skips zero closes', () => {
   assert.equal(bars.length, 2);
   assert.equal(bars[0].t, 0);
   assert.equal(bars[0].c, 100.5);
-  assert.equal(bars[0].v, 12);
   assert.equal(bars[1].t, 86400);
-  assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
-});
-
-test('bucketBars downsamples ticks without a fair line', () => {
-  const start = new Date('2026-09-18T00:00:00Z');
-  const end = new Date('2026-09-18T04:00:00Z');
-  const rows = [
-    { recorded_at: '2026-09-18T00:10:00Z', price: 10, volume: 2, fair_price: 99 },
-    { recorded_at: '2026-09-18T00:20:00Z', price: 12, volume: 3, fair_price: 99 },
-    { recorded_at: '2026-09-18T02:10:00Z', price: 11, volume: 1, fair_price: 99 },
-  ];
-  const bars = bucketBars(rows, start, end, 2);
-  assert.equal(bars.length, 2);
-  assert.equal(bars[0].o, 10);
-  assert.equal(bars[0].h, 12);
-  assert.equal(bars[0].c, 12);
-  assert.equal(bars[0].v, 5);
   assert.equal(Object.hasOwn(bars[0], 'fair_price'), false);
 });
 
@@ -177,7 +160,7 @@ test('market cache coalesces snapshot loads and 404s', async () => {
     loadOhlc: async (ticker, windowKey) => {
       ohlcLoads += 1;
       if (ticker === 'NOPE') return null;
-      return { ticker, window: windowKey, bars: [{ t: 946684800, o: 1, h: 2, l: 1, c: 1.5, v: 4 }] };
+      return { ticker, window: windowKey, bars: [{ t: 946684800, c: 1.5 }] };
     },
   });
   const a = cache.refresh();
@@ -190,7 +173,7 @@ test('market cache coalesces snapshot loads and 404s', async () => {
   assert.equal(loads, 1);
   const fuel = await cache.getOhlc('FUEL', '24h');
   assert.equal(fuel.window, '1M');
-  assert.equal(fuel.bars[0].v, 4);
+  assert.equal(fuel.bars[0].c, 1.5);
   const afterFuel = ohlcLoads;
   const missA = await cache.getOhlc('NOPE', '1M');
   const missB = await cache.getOhlc('NOPE', '1M');
@@ -233,14 +216,15 @@ test('loadMarketOhlc never scans ticks and aliases old windows', async () => {
   assert.equal(payload.ticker, 'FUEL');
   assert.equal(payload.window, '1M');
   assert.ok(payload.bars.length >= 1);
-  assert.equal(payload.bars[0].v, 120);
+  assert.equal(payload.bars[0].c, 75.2);
+  assert.deepEqual(Object.keys(payload.bars[0]).sort(), ['ago', 'c', 't']);
   assert.doesNotMatch(JSON.stringify(payload), /fair_price/);
   const fiveY = await loadMarketOhlc(db, 'FUEL', '5Y', now);
   assert.equal(fiveY.window, '5Y');
   assert.deepEqual(grains, ['day', 'month', 'day']);
 });
 
-test('market client pins the axis and draws volume', () => {
+test('market client pins the axis and draws a close line', () => {
   const src = readFileSync(fileURLToPath(new URL('../public/js/market.js', import.meta.url)), 'utf8');
   assert.match(src, /fixLeftEdge: true/);
   assert.match(src, /fixRightEdge: true/);
@@ -250,8 +234,8 @@ test('market client pins the axis and draws volume', () => {
   assert.match(src, /fitContent/);
   assert.match(src, /'1M'/);
   assert.match(src, /'1Y'/);
-  assert.match(src, /addHistogramSeries/);
-  assert.match(src, /volumeSeries/);
+  assert.match(src, /addLineSeries/);
+  assert.doesNotMatch(src, /addCandlestickSeries|addHistogramSeries/);
   assert.match(src, /market-filter\.js/);
 });
 
@@ -270,9 +254,9 @@ test('timeAgoLabel ladder matches the bot', () => {
 test('publicQuote carries tags for companies only, as clean tickers and never the split', () => {
   const company = publicQuote({
     ticker: 'BULY', name: 'Bulk Nook', type: 'company', price: 12, market_cap: 100,
-    focus_tags: ['phrm', 'MACH', 'phrm', '../x', 'comp'], recipe_points: { PHRM: 14 },
+    focus_tags: ['phrm', 'bmat', 'prdc', '../x', 'comp'], recipe_points: { PHRM: 14 },
   });
-  assert.deepEqual(company.tags, ['PHRM', 'MACH', 'COMP']);
+  assert.deepEqual(company.tags, ['ALCM', 'BMAT', 'AGRI', 'COMP']);
   assert.doesNotMatch(JSON.stringify(company), /recipe|14/);
   assert.equal(publicQuote({ ticker: 'FUEL', type: 'commodity', price: 1, focus_tags: ['PHRM'] }).tags, undefined);
   assert.equal(publicQuote({ ticker: 'BULY', type: 'company', price: 1, focus_tags: null }).tags, undefined);
@@ -324,13 +308,13 @@ test('heatmap groups: businesses only, one group per tag, cap split across tags,
 
 test('chart formulas: parsed here, never eval, bad input throws a short message', async () => {
   const { evaluate } = await import('../public/js/market-formula.js');
-  const bars = [1, 2, 3, 4, 5].map((c, t) => ({ t, o: c, h: c + 1, l: c - 1, c, v: 10 }));
+  const bars = [1, 2, 3, 4, 5].map((c, t) => ({ t, c }));
   assert.deepEqual(evaluate('sma(close, 2)', bars).map((p) => p.value), [1.5, 2.5, 3.5, 4.5]);
-  assert.deepEqual(evaluate('hi(high, 3) - lo(low, 3)', bars).map((p) => p.value), [4, 4, 4]);
+  assert.deepEqual(evaluate('hi(close, 3) - lo(close, 3)', bars).map((p) => p.value), [2, 2, 2]);
   assert.deepEqual(evaluate('-close * 2 + 1', bars).map((p) => p.value), [-1, -3, -5, -7, -9]);
   assert.equal(evaluate('ema(close, 1)', bars).at(-1).value, 5);
   assert.equal(evaluate('close / 0', bars).length, 0);
-  for (const bad of ['', 'x'.repeat(121), 'process.exit()', 'foo(1)', 'sma(close)', 'sma(close, close)', 'close +', 'sma(close, 2) )', '('.repeat(12) + 'close' + ')'.repeat(12)]) {
+  for (const bad of ['', 'open', 'volume', 'x'.repeat(121), 'process.exit()', 'foo(1)', 'sma(close)', 'sma(close, close)', 'close +', 'sma(close, 2) )', '('.repeat(12) + 'close' + ')'.repeat(12)]) {
     assert.throws(() => evaluate(bad, bars), Error, bad);
   }
 });
