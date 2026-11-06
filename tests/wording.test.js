@@ -12,6 +12,7 @@ const ALLOWED = [
   /\bthe city\b/gi, // the game world: "what the city burns", "moving to the city"
   /\bcity market\b/gi, // the market's name
   /\bcity's\b/gi, // "the city's"
+  /<code>\/city<\/code>/gi, // the game's main slash command
 ];
 const BANNED = /\b(coins?|districts?|areas?|neighbou?rhoods?|city)\b/gi;
 

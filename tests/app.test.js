@@ -331,7 +331,7 @@ test('/buy without player row does not redirect to Paddle', async () => {
     });
     assert.equal(res.status, 200);
     const html = await res.text();
-    assert.match(html, /\/disgrowth/);
+    assert.match(html, /\/city/);
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
     assert.doesNotMatch(html, /paddle\.com/);
   });

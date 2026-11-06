@@ -73,7 +73,7 @@ export function createDb(databaseUrl) {
       if (!id) return null;
       const { rows } = await pool.query(
         `SELECT id, discord_id, credits, bonds, gold_bars,
-                subscription_active, subscription_expires_at, onboarding_step
+                subscription_active, subscription_expires_at
          FROM players
          WHERE discord_id = $1`,
         [id],
@@ -240,7 +240,6 @@ export const PLAYER_COLUMNS = [
   'gold_bars',
   'subscription_active',
   'subscription_expires_at',
-  'onboarding_step',
 ];
 
 export const MARKET_SNAPSHOT_SQL = `

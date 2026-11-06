@@ -79,7 +79,7 @@ const DOCS = {
 
 1. **Discord profile (OAuth identify + email).** User id, username, display name, avatar hash, and email when Discord provides it (used to prefill Paddle Checkout).
 2. **Session.** An encrypted cookie so we remember who is logged in.
-3. **Game account fields we read.** Credits, Bonds, Gold Bars, and tutorial progress — to show your account page and to apply purchases.
+3. **Game account fields we read.** Credits, Bonds, and Gold Bars — to show your account page and to apply purchases.
 4. **Payments (via Paddle webhooks).** Event type, order and variant ids, the Discord id and pack you checked out with, status, and related timestamps. Paddle collects your payment card, billing address, and email as Merchant of Record. We do not see your full card number. Stored webhook JSON is redacted (email, card last four, and IP stripped).
 5. **Logs.** IP address, browser, URL, time, error codes — security and debugging, retained {{LOG_RETENTION_DAYS}} days unless needed for fraud.
 
