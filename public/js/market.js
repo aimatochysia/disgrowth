@@ -38,8 +38,7 @@ import { evaluate } from './market-formula.js?v=20261029';
   let ticker = String(boot.ticker || '');
   let windowKey = normalizeWindow(boot.window);
   let chart = null;
-  let candleSeries = null;
-  let volumeSeries = null;
+  let priceSeries = null;
   let barCount = 0;
   let lastBars = [];
   let formulas = [];
@@ -93,8 +92,7 @@ import { evaluate } from './market-formula.js?v=20261029';
     if (chart) {
       chart.remove();
       chart = null;
-      candleSeries = null;
-      volumeSeries = null;
+      priceSeries = null;
       barCount = 0;
       lines.length = 0;
     }
@@ -125,26 +123,14 @@ import { evaluate } from './market-formula.js?v=20261029';
       handleScroll: { mouseWheel: true, pressedMouseMove: true, horzTouchDrag: true, vertTouchDrag: false },
       handleScale: { mouseWheel: true, pinch: true, axisPressedMouseMove: true, axisDoubleClickReset: true },
     });
-    candleSeries = chart.addCandlestickSeries({
-      upColor: theme.up,
-      downColor: theme.down,
-      borderVisible: false,
-      wickUpColor: theme.up,
-      wickDownColor: theme.down,
-    });
-    volumeSeries = chart.addHistogramSeries({
-      priceFormat: { type: 'volume' },
-      priceScaleId: '',
-      scaleMargins: { top: 0.78, bottom: 0 },
-    });
-    chart.priceScale('').applyOptions({ scaleMargins: { top: 0.78, bottom: 0 } });
+    priceSeries = chart.addLineSeries({ color: theme.up, lineWidth: 2, priceLineVisible: false });
     return true;
   }
 
   function fitView() {
     if (!chart || barCount < 1) return;
     chart.timeScale().fitContent();
-    candleSeries?.priceScale().applyOptions({ autoScale: true });
+    priceSeries?.priceScale().applyOptions({ autoScale: true });
   }
 
   function applyTheme() {
@@ -156,12 +142,7 @@ import { evaluate } from './market-formula.js?v=20261029';
       rightPriceScale: theme.rightPriceScale,
       timeScale: theme.timeScale,
     });
-    candleSeries?.applyOptions({
-      upColor: theme.up,
-      downColor: theme.down,
-      wickUpColor: theme.up,
-      wickDownColor: theme.down,
-    });
+    priceSeries?.applyOptions({ color: theme.up });
   }
 
   function markSelected() {
@@ -234,7 +215,7 @@ import { evaluate } from './market-formula.js?v=20261029';
   function addFormula(source) {
     const note = document.getElementById('market-formula-note');
     try {
-      evaluate(source, lastBars.length ? lastBars : [{ t: 0, o: 1, h: 1, l: 1, c: 1, v: 1 }]);
+      evaluate(source, lastBars.length ? lastBars : [{ t: 0, c: 1 }]);
     } catch (err) {
       if (note) note.textContent = err.message;
       return false;
@@ -272,23 +253,10 @@ import { evaluate } from './market-formula.js?v=20261029';
       host.textContent = 'Chart unavailable.';
       return;
     }
-    const candles = bars.map((bar) => ({
-      time: bar.t,
-      open: bar.o,
-      high: bar.h,
-      low: bar.l,
-      close: bar.c,
-    }));
-    const volume = bars.map((bar) => ({
-      time: bar.t,
-      value: Number(bar.v) > 0 ? bar.v : 0,
-      color: bar.c >= bar.o ? 'rgba(45, 106, 50, 0.45)' : 'rgba(179, 38, 30, 0.45)',
-    }));
     agoByTime.clear();
     for (const bar of bars) agoByTime.set(bar.t, bar.ago);
-    candleSeries.setData(candles);
-    volumeSeries.setData(volume);
-    barCount = candles.length;
+    priceSeries.setData(bars.map((bar) => ({ time: bar.t, value: bar.c })));
+    barCount = bars.length;
     lastBars = bars;
     drawFormulas();
     fitView();

@@ -12,12 +12,20 @@ export const FALLBACK_TICKER = [
   { kind: 'label', text: 'PLAYED IN DISCORD' },
 ];
 
-// CHEM became PHRM on 2026-10-27; old links and saved vault values still say CHEM. Remove after 2026-11-26.
+// Old commodity tickers and the new ones they became (the game rebuild, 2026-11). Links, saved vault values and rows
+// from a database not yet migrated still use the old ones. shortcut: remove once the bot's rename migration has shipped.
+export const TICKER_RENAMES = { CHEM: 'ALCM', PHRM: 'ALCM', PRDC: 'AGRI', METL: 'BMAT', RECL: 'BMON' };
+
 export function sanitizeTicker(value) {
   const ticker = String(value || '')
     .trim()
     .toUpperCase();
-  return TICKER_RE.test(ticker) ? (ticker === 'CHEM' ? 'PHRM' : ticker) : '';
+  return TICKER_RE.test(ticker) ? TICKER_RENAMES[ticker] || ticker : '';
+}
+
+/** Every spelling a database might still hold for a ticker: the new one first, then the old ones. */
+export function tickerSpellings(ticker) {
+  return [ticker, ...Object.keys(TICKER_RENAMES).filter((old) => TICKER_RENAMES[old] === ticker)];
 }
 
 function money(value) {

@@ -2,12 +2,10 @@ import { html } from '../lib/html.js';
 import { SHOT_SLOTS } from '../art.js';
 
 const FEATURES = [
-  ['Make a living', 'Find a job, learn a trade, and work your way up from the Green Marches to Grand Boulevard.'],
-  ['Rent a room of your own', 'Choose a place in any of four districts, then fill it with furniture that earns its keep.'],
-  ['Learn to live in the city', 'Work, study, rest, or do it all! Just mind your energy and your stress. The choice is yours...'],
-  ['Start a business', 'Rent a lot, give it a name, pick what it makes, and watch it grow into a company you can list.'],
-  ['Follow a living market', 'Prices rise and fall around the clock, whether you are watching or not.'],
-  ['Come back to more', 'Your character keeps going while you are away, for up to three days.'],
+  ['Make a living by hand', 'Grow, forage, cook and craft. Every CR is earned by playing: there is no passive income.'],
+  ['Four cities', 'Green Marches is a rustic countryside cottage town, Quay Commons a mid-century small town, Metro Flats a dense late-night maze, and Grand Boulevard a clean, minimalist metropolis.'],
+  ['Follow a living market', 'Commodity prices rise and fall around the clock, so time your sales. The market is its own: players never move its prices.'],
+  ['Watch the companies', 'Company stocks are on the board for you to follow, not to trade.'],
 ];
 
 // A slot with no file in public/shots stays an empty placeholder (see detectShots).
@@ -26,7 +24,7 @@ export function homePage({ config, shots = {} }) {
       <p class="logo">Disgrowth</p>
       <div class="panel intro">
         <h1>You're moving to the city...</h1>
-        <p>You've saved 5,000 CR in paper money, every note you own, and bet it all on a small room in the Green Marches.</p>
+        <p>You've got 400 CR in paper money, every note you own, and a head full of plans.</p>
         <p>The city is loud, expensive and full of people who started with less. With a key in your pocket and a head full of big dreams, you set out to make it big!</p>
       </div>
     </section>

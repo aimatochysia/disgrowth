@@ -2,8 +2,8 @@ import assert from 'node:assert/strict';
 import { readdirSync, readFileSync } from 'node:fs';
 import { test } from 'node:test';
 
-// Player-facing copy: CR is paper money (never "coin"), the four places are districts (never "area" or "neighbourhood"),
-// and "city" only means the whole game world. A hit outside the allowlist is read in context, then fixed or allowed here with a reason.
+// Player-facing copy: CR is paper money (never "coin"), the four places are cities (never "district", "area" or "neighbourhood"),
+// and singular "city" only means the whole game world. A hit outside the allowlist is read in context, then fixed or allowed here with a reason.
 const FILES = [
   ...readdirSync(new URL('../src/views/', import.meta.url)).map((name) => `views/${name}`),
   'catalog.js', 'legal.js', 'shopNotice.js', 'ticker.js',
@@ -13,9 +13,9 @@ const ALLOWED = [
   /\bcity market\b/gi, // the market's name
   /\bcity's\b/gi, // "the city's"
 ];
-const BANNED = /\b(coins?|areas?|neighbou?rhoods?|city)\b/gi;
+const BANNED = /\b(coins?|districts?|areas?|neighbou?rhoods?|city)\b/gi;
 
-test('player-facing text keeps the CR and district wording', () => {
+test('player-facing text keeps the CR and cities wording', () => {
   for (const file of FILES) {
     let text = readFileSync(new URL(`../src/${file}`, import.meta.url), 'utf8');
     for (const phrase of ALLOWED) text = text.replace(phrase, '');

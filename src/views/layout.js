@@ -58,7 +58,7 @@ export function layout(data) {
     user,
     config,
     page = 'default',
-    description = 'Disgrowth is a life sim and shared market that lives inside Discord. Rent a room, find a job and start a business.',
+    description = 'Disgrowth is a life sim and shared market that lives inside Discord. Grow, craft and sell across four cities.',
     body,
     artClass = '',
     paddleBoot = null,

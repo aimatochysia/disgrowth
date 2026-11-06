@@ -288,7 +288,7 @@ test('homepage ticker is a cached market strip, not a per-request query', async 
     ...mockDb(),
     async latestTickerQuotes() {
       loads += 1;
-      return [{ ticker: 'PRDC', price: 39.2633, prev_price: 39.5986 }];
+      return [{ ticker: 'AGRI', price: 39.2633, prev_price: 39.5986 }];
     },
   };
   const quoteCache = createQuoteCache({
@@ -303,9 +303,9 @@ test('homepage ticker is a cached market strip, not a per-request query', async 
     assert.equal(home.status, 200);
     const html = await home.text();
     assert.match(html, /class="ticker"/);
-    assert.match(html, />PRDC</);
+    assert.match(html, />AGRI</);
     assert.match(html, /39\.26/);
-    assert.match(await store.text(), />PRDC</);
+    assert.match(await store.text(), />AGRI</);
     assert.equal(loads, 1);
   });
   quoteCache.stop();
@@ -936,9 +936,9 @@ test('landing and legal pages render', async () => {
     assert.match(html, /celestial-axis/);
     assert.match(html, /Join the Discord/);
     assert.match(html, /You(&#39;|')re moving to the city/);
-    assert.match(html, /5,000 CR in paper money/);
+    assert.match(html, /400 CR in paper money/);
     assert.equal((html.match(/class="shot-empty"/g) || []).length, 6);
-    assert.match(html, /<b>Start a business:<\/b>/);
+    assert.match(html, /<b>Four cities:<\/b>/);
     assert.match(html, /href="\/store"[^>]*>Shop Gold Bars/);
     assert.doesNotMatch(html, /Four districts, one climb|Start here|One real hour is one city day|Alpha · now open/);
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
@@ -1048,7 +1048,7 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
       return {
         ticker: 'FUEL',
         window: '1M',
-        bars: [{ t: 946684800, o: 75.1, h: 75.8, l: 74.9, c: 75.2, v: 120 }],
+        bars: [{ t: 946684800, c: 75.2 }],
       };
     },
   };
@@ -1060,7 +1060,7 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, />Market</);
-    assert.match(html, /Trading happens in Discord/);
+    assert.match(html, /Selling happens in Discord/);
     assert.match(html, /FUEL/);
     assert.match(html, /ACME/);
     assert.match(html, /id="market-boot"/);
@@ -1077,7 +1077,7 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     assert.doesNotMatch(html, /data-window="6h"/);
     assert.doesNotMatch(html, /data-window="24h"/);
     assert.match(html, /\/js\/lightweight-charts\.js/);
-    assert.match(html, /What the city burns/);
+    assert.match(html, /Charcoal and firewood/);
     assert.doesNotMatch(html, /fair_price/);
     assert.doesNotMatch(html, /Buy Fuel/);
     const solo = await fetch(`${base}/market/fuel?window=1Y`, { headers });
@@ -1103,7 +1103,6 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     assert.equal(bars.ticker, 'FUEL');
     assert.equal(bars.bars[0].c, 75.2);
     assert.doesNotMatch(JSON.stringify(bars), /fair_price/);
-    assert.equal(bars.bars[0].v, 120);
     const bad = await fetch(`${base}/api/market/ohlc?ticker=../x`, { headers });
     assert.equal(bad.status, 404);
     const unknown = await fetch(`${base}/api/market/ohlc?ticker=NOPE`, { headers });
@@ -1140,10 +1139,10 @@ test('market is a 404 for logged-out visitors and no link to it is shown', async
   });
 });
 
-test('every one of the eight commodities has a market page line', async () => {
+test('every one of the seven commodities has a market page line', async () => {
   const { COMMODITY_NOTES } = await import('../src/views/market.js');
   assert.deepEqual(Object.keys(COMMODITY_NOTES).sort(), [
-    'COMP', 'FUEL', 'MACH', 'METL', 'PHRM', 'PRDC', 'RECL', 'TXTL',
+    'AGRI', 'ALCM', 'BMAT', 'BMON', 'COMP', 'FUEL', 'TXTL',
   ]);
 });
 

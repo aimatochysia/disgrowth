@@ -9,9 +9,9 @@ import {
 } from '../src/ticker.js';
 
 test('ticker symbols are short A–Z / 0–9 only', () => {
-  assert.equal(sanitizeTicker('prdc'), 'PRDC');
+  assert.equal(sanitizeTicker('agri'), 'AGRI');
   assert.equal(sanitizeTicker('<script>'), '');
-  assert.equal(sanitizeTicker('PRDC;DROP'), '');
+  assert.equal(sanitizeTicker('AGRI;DROP'), '');
   assert.equal(sanitizeTicker('TOOLONGNAME'), '');
 });
 
@@ -22,7 +22,7 @@ test('formatQuote shows percent change from the previous tick', () => {
   assert.equal(up.dir, 'up');
   assert.match(up.change, /^\+2\.\d{2}%$/);
 
-  const down = formatQuote({ ticker: 'PRDC', price: 39.2633, prev_price: 39.5986 });
+  const down = formatQuote({ ticker: 'AGRI', price: 39.2633, prev_price: 39.5986 });
   assert.equal(down.dir, 'down');
   assert.match(down.change, /^−0\.\d{2}%$/);
 
@@ -34,7 +34,7 @@ test('formatQuote shows percent change from the previous tick', () => {
 test('bad rows fall back to the static strip', () => {
   assert.equal(quotesFromRows(null), FALLBACK_TICKER);
   assert.equal(quotesFromRows([{ ticker: '../../etc', price: 1 }]), FALLBACK_TICKER);
-  assert.equal(quotesFromRows([{ ticker: 'PRDC', price: 12.5 }])[0].ticker, 'PRDC');
+  assert.equal(quotesFromRows([{ ticker: 'AGRI', price: 12.5 }])[0].ticker, 'AGRI');
 });
 
 test('quote cache serves memory and does not stampede load', async () => {
@@ -43,19 +43,23 @@ test('quote cache serves memory and does not stampede load', async () => {
     ttlMs: 60_000,
     load: async () => {
       loads += 1;
-      return [{ ticker: 'PHRM', price: 61.94, prev_price: 61.77 }];
+      return [{ ticker: 'ALCM', price: 61.94, prev_price: 61.77 }];
     },
   });
   const a = cache.refresh();
   const b = cache.refresh();
   await Promise.all([a, b]);
   assert.equal(loads, 1);
-  assert.equal(cache.snapshot()[0].ticker, 'PHRM');
+  assert.equal(cache.snapshot()[0].ticker, 'ALCM');
   assert.equal(loads, 1);
   cache.stop();
 });
 
-test('the old CHEM ticker maps to PHRM', async () => {
-  const { sanitizeTicker } = await import('../src/ticker.js');
-  assert.equal(sanitizeTicker('chem'), 'PHRM');
+test('old commodity tickers map to the new ones', async () => {
+  const { tickerSpellings } = await import('../src/ticker.js');
+  for (const [old, now] of [['chem', 'ALCM'], ['PHRM', 'ALCM'], ['prdc', 'AGRI'], ['METL', 'BMAT'], ['RECL', 'BMON']]) {
+    assert.equal(sanitizeTicker(old), now);
+  }
+  assert.deepEqual(tickerSpellings('ALCM'), ['ALCM', 'CHEM', 'PHRM']);
+  assert.deepEqual(tickerSpellings('FUEL'), ['FUEL']);
 });

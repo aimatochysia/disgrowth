@@ -1,7 +1,7 @@
 // Chart formulas the player types in the browser, e.g. "sma(close, 20)" or "ema(close, 12) - ema(close, 26)".
 // A tiny parser, not eval (the CSP forbids it, and nothing here is ever sent anywhere).
 
-const FIELDS = { open: 'o', high: 'h', low: 'l', close: 'c', volume: 'v' };
+const FIELDS = { close: 'c' };
 const MAX_LENGTH = 120;
 
 function roll(series, n, step) {
