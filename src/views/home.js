@@ -23,9 +23,9 @@ export function homePage({ config, shots = {} }) {
     <section class="home-top">
       <p class="logo">Disgrowth</p>
       <div class="panel intro">
-        <h1>You're moving to the city...</h1>
+        <h1>Start small. Grow something.</h1>
         <p>You've got 400 CR in paper money, every note you own, and a head full of plans.</p>
-        <p>The city is loud, expensive and full of people who started with less. With a key in your pocket and a head full of big dreams, you set out to make it big!</p>
+        <p>Four cities, from a quiet countryside cottage to a minimalist metropolis, and a market that moves whether you are watching or not. Plant, forage, craft, and pick your moment to sell.</p>
       </div>
     </section>
 

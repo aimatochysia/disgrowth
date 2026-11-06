@@ -935,7 +935,7 @@ test('landing and legal pages render', async () => {
     assert.match(html, /Disgrowth/);
     assert.match(html, /celestial-axis/);
     assert.match(html, /Join the Discord/);
-    assert.match(html, /You(&#39;|')re moving to the city/);
+    assert.match(html, /Start small\. Grow something/);
     assert.match(html, /400 CR in paper money/);
     assert.equal((html.match(/class="shot-empty"/g) || []).length, 6);
     assert.match(html, /<b>Four cities:<\/b>/);
