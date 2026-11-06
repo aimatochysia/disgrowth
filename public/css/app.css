@@ -1925,3 +1925,33 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
     grid-template-columns: 1fr;
   }
 }
+
+/* Landing art: labelled boxes until the real files are in public/shots. */
+.art { display: block; width: 100%; border-radius: 8px; object-fit: cover; }
+.ratio-2-1 { aspect-ratio: 2 / 1; }
+.ratio-16-9 { aspect-ratio: 16 / 9; }
+.ratio-1-1 { aspect-ratio: 1 / 1; }
+.ratio-3-5 { aspect-ratio: 3 / 5; }
+.art-empty {
+  display: grid;
+  place-content: center;
+  gap: 0.2rem;
+  padding: 0.5rem;
+  text-align: center;
+  border: 2px dashed var(--border);
+  background: var(--panel-a);
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+.art-empty b { color: var(--text); font-weight: 600; }
+.art-small { max-width: 64px; }
+.hero-art { margin: 1.5rem 0 0; }
+.toys { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1rem; }
+.toys .section-title { grid-column: 1 / -1; }
+.toy h3 { margin: 0 0 0.75rem; }
+.toy-stage { max-width: 220px; margin: 0 auto; }
+.toy-stage [hidden] { display: none; }
+.toy-note { text-align: center; margin: 0.6rem 0; }
+.toy-actions { display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
+.avatar-stack { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; }
+@media (max-width: 640px) { .toys { grid-template-columns: 1fr; } .avatar-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

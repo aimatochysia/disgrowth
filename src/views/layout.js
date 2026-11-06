@@ -158,6 +158,7 @@ export function layout(data) {
   ${paddleBootMarkup(paddleBoot)}
   ${marketBootMarkup(marketBoot)}
   <script src="/js/app.js" defer></script>
+  ${page === 'home' ? raw('<script src="/js/crop-toy.js" defer></script>') : ''}
 </body>
 </html>`;
 }

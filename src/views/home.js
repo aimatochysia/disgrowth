@@ -1,5 +1,5 @@
 import { html } from '../lib/html.js';
-import { SHOT_SLOTS } from '../art.js';
+import { AVATAR_SLOTS, CROP_SLOTS, SHOT_SLOTS } from '../art.js';
 
 const FEATURES = [
   ['Make a living by hand', 'Grow, forage, cook and craft. Every CR is earned by playing: there is no passive income.'],
@@ -7,15 +7,18 @@ const FEATURES = [
   ['Watch the companies', 'Company stocks are on the board for you to follow, not to trade.'],
 ];
 
-// A slot with no file in public/shots stays an empty placeholder (see detectShots).
-function shot([slot, label], shots) {
-  return html`<figure class="shot">
-    ${shots[slot]
-      ? html`<img src="${shots[slot]}" alt="${label}" width="1600" height="1000" loading="lazy" />`
-      : html`<div class="shot-empty" aria-hidden="true">screenshot</div>`}
-    <figcaption>${label}</figcaption>
-  </figure>`;
+// A slot with no file in public/shots stays a labelled box showing the size to draw (see detectShots).
+const gcd = (a, b) => (b ? gcd(b, a % b) : a);
+
+function art({ slot, label, w, h }, shots, extra = '') {
+  const ratio = `ratio-${w / gcd(w, h)}-${h / gcd(w, h)}`; // CSS classes, because the CSP forbids style attributes
+  return shots[slot]
+    ? html`<img class="art ${ratio} ${extra}" src="${shots[slot]}" alt="${label}" width="${w}" height="${h}" loading="lazy" />`
+    : html`<div class="art art-empty ${ratio} ${extra}" data-art="${slot}" role="img" aria-label="${label}"><b>${label}</b><span>${w} × ${h}</span></div>`;
 }
+
+const [PLOT, ...STAGES] = CROP_SLOTS.slice(0, 4);
+const CAN = CROP_SLOTS[4];
 
 export function homePage({ config, shots = {} }) {
   return html`
@@ -28,8 +31,32 @@ export function homePage({ config, shots = {} }) {
       </div>
     </section>
 
+    <section class="hero-art">${art(SHOT_SLOTS[0], shots)}</section>
+
     <section class="shots" aria-label="Screenshots">
-      ${SHOT_SLOTS.map((slot) => shot(slot, shots))}
+      ${SHOT_SLOTS.slice(1).map((slot) => html`<figure class="shot">${art(slot, shots)}<figcaption>${slot.label}</figcaption></figure>`)}
+    </section>
+
+    <section class="band toys">
+      <h2 class="section-title">Try it</h2>
+      <div class="toy panel" id="crop-toy" data-stages="${STAGES.length}">
+        <h3>Tend a plot</h3>
+        <div class="toy-stage">
+          <div data-crop="0">${art(PLOT, shots)}</div>
+          ${STAGES.map((stage, i) => html`<div data-crop="${i + 1}" hidden>${art(stage, shots)}</div>`)}
+        </div>
+        <p class="toy-note" id="crop-note" role="status" aria-live="polite">An empty plot. Plant a seed.</p>
+        <div class="toy-actions">
+          <button type="button" class="btn btn-accent" id="crop-act">Plant a seed</button>
+          <span class="toy-can">${art(CAN, shots, 'art-small')}</span>
+        </div>
+        <p class="hint">Every stage needs a watering, like in the game. Nothing grows while you are away.</p>
+      </div>
+      <div class="toy panel">
+        <h3>Dress up</h3>
+        <div class="avatar-stack">${AVATAR_SLOTS.map((slot) => art(slot, shots))}</div>
+        <p class="hint">Outfits go here once the art is in.</p>
+      </div>
     </section>
 
     <section class="band">
