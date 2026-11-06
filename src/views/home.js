@@ -3,7 +3,6 @@ import { SHOT_SLOTS } from '../art.js';
 
 const FEATURES = [
   ['Make a living by hand', 'Grow, forage, cook and craft. Every CR is earned by playing: there is no passive income.'],
-  ['Four cities', 'Green Marches is a rustic countryside cottage town, Quay Commons a mid-century small town, Metro Flats a dense late-night maze, and Grand Boulevard a clean, minimalist metropolis.'],
   ['Follow a living market', 'Commodity prices rise and fall around the clock, so time your sales. The market is its own: players never move its prices.'],
   ['Watch the companies', 'Company stocks are on the board for you to follow, not to trade.'],
 ];

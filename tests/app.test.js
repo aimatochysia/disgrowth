@@ -938,7 +938,7 @@ test('landing and legal pages render', async () => {
     assert.match(html, /Start small\. Grow something/);
     assert.match(html, /400 CR in paper money/);
     assert.equal((html.match(/class="shot-empty"/g) || []).length, 6);
-    assert.match(html, /<b>Four cities:<\/b>/);
+    assert.match(html, /<b>Follow a living market:<\/b>/);
     assert.match(html, /href="\/store"[^>]*>Shop Gold Bars/);
     assert.doesNotMatch(html, /Four districts, one climb|Start here|One real hour is one city day|Alpha · now open/);
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
