@@ -98,7 +98,7 @@ export function marketPage({ quotes = [], ticker = '', windowKey = DEFAULT_CHART
   return html`
     <section class="page-hero">
       <h1 class="display display-page">Market</h1>
-      <p class="lede narrow">Prices from the city market. Selling happens in Discord, and company stocks are for watching only.</p>
+      <p class="lede narrow">Prices from the city market. Players never move them, but they set what your goods sell for in Discord. Company stocks are for watching only.</p>
     </section>
     <section class="market-screen panel">
       <div class="market-toolbar">
