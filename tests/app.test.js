@@ -1060,7 +1060,7 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     assert.equal(page.status, 200);
     const html = await page.text();
     assert.match(html, />Market</);
-    assert.match(html, /Selling happens in Discord/);
+    assert.match(html, /Players never move them/);
     assert.match(html, /FUEL/);
     assert.match(html, /ACME/);
     assert.match(html, /id="market-boot"/);
