@@ -1,5 +1,4 @@
 import { html, raw } from '../lib/html.js';
-import { sceneMarkup } from './scene.js';
 import { discordAvatarUrl } from '../session.js';
 import { ageGate } from './age-gate.js';
 import { FALLBACK_TICKER, tickerTrack } from '../ticker.js';
@@ -60,7 +59,6 @@ export function layout(data) {
     page = 'default',
     description = 'Disgrowth is a life sim and shared market that lives inside Discord. Grow, craft and sell across four cities.',
     body,
-    artClass = '',
     paddleBoot = null,
     marketBoot = null,
     tickerQuotes = FALLBACK_TICKER,
@@ -72,13 +70,13 @@ export function layout(data) {
   const loginNext = !path || path === '/' || path === '/login' ? '/store' : path;
 
   return html`<!DOCTYPE html>
-<html lang="en" data-theme="day" data-page="${page}"${artClass ? html` class="${artClass}"` : ''}>
+<html lang="en" data-page="${page}">
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>${pageTitle}</title>
   <meta name="description" content="${description}" />
-  <meta name="theme-color" content="#0d1117" />
+  <meta name="theme-color" content="#efe6d6" />
   <meta property="og:title" content="${pageTitle}" />
   <meta property="og:description" content="${description}" />
   <meta property="og:type" content="website" />
@@ -87,12 +85,10 @@ export function layout(data) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,360;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/css/app.css" />
-  <link rel="stylesheet" href="/art.css" />
-  <script src="/js/theme-boot.js"></script>
+  <script src="/js/age-boot.js"></script>
 </head>
 <body id="top">
   <a class="skip" href="#content">Skip to content</a>
-  ${sceneMarkup()}
 
   <div class="ticker" aria-hidden="true">
     <div class="ticker-track">
@@ -119,13 +115,6 @@ export function layout(data) {
           <span class="nav-toggle-bars" aria-hidden="true"></span>
         </button>
       </div>
-      <button type="button" class="theme-toggle" data-theme-toggle aria-pressed="false" aria-label="Switch day and night">
-        <span class="theme-toggle-face" aria-hidden="true">
-          <span class="mini-sun"></span>
-          <span class="mini-moon"></span>
-        </span>
-        <span class="theme-toggle-label" data-theme-label>Day</span>
-      </button>
       ${user
         ? html`<a class="btn btn-discord btn-account" href="/account"${path === '/account' ? raw(' aria-current="page"') : ''}><img src="${discordAvatarUrl(user.discordId, user.avatar)}" alt="" width="22" height="22" /><span>${user.globalName || user.username}</span></a>`
         : html`<a class="btn btn-discord" href="${loginHref(loginNext)}">${discordSvg()} Log in</a>`}

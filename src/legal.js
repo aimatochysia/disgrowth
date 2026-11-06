@@ -138,8 +138,6 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Age check.** When you answer the age question on the shop, a cookie and local storage remember your answer for one year so we do not ask on every visit.
 
-**Day and night.** Your browser may remember the day/night preference in local storage. That is not a cookie and is not used to identify you.
-
 **Paddle.** Checkout may load Paddle scripts and open an overlay on this site. Paddle may set cookies on **their** domain. See their policy.
 
 **Analytics.** None in this version of the Store.

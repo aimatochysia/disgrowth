@@ -218,7 +218,7 @@ test('homepage still renders when Vercel DATABASE_URL is localhost', async () =>
     PADDLE_PRICE_GOLD_50: 'pri_gold_50',
     PADDLE_PRICE_GOLD_100: 'pri_gold_100',
   });
-  const app = createApp({ config: cfg, db: null, art: {} });
+  const app = createApp({ config: cfg, db: null });
   await withServer(app, async (base) => {
     const home = await fetch(`${base}/`);
     assert.equal(home.status, 200);
@@ -296,7 +296,7 @@ test('homepage ticker is a cached market strip, not a per-request query', async 
     interval: false,
   });
   await quoteCache.refresh();
-  const app = createApp({ config: cfg, db, art: {}, quoteCache });
+  const app = createApp({ config: cfg, db, quoteCache });
   await withServer(app, async (base) => {
     const home = await fetch(`${base}/`);
     const store = await fetch(`${base}/store`);
@@ -313,7 +313,7 @@ test('homepage ticker is a cached market strip, not a per-request query', async 
 
 test('/buy without session redirects to login', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/buy/gold-10`, { redirect: 'manual' });
     assert.equal(res.status, 302);
@@ -323,7 +323,7 @@ test('/buy without session redirects to login', async () => {
 
 test('/buy without player row does not redirect to Paddle', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb({ player: null }), art: {} });
+  const app = createApp({ config: cfg, db: mockDb({ player: null }) });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/buy/gold-10`, {
       redirect: 'manual',
@@ -339,7 +339,7 @@ test('/buy without player row does not redirect to Paddle', async () => {
 
 test('POST /buy without player does not 302 to Paddle', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb({ player: null }), art: {} });
+  const app = createApp({ config: cfg, db: mockDb({ player: null }) });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/buy/gold-10`, {
       method: 'POST',
@@ -459,7 +459,7 @@ test('POST /buy retries Paddle checkout without STORE_ORIGIN when the domain is 
 test('/buy with player shows first-purchase Bonds copy', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
-  const app = createApp({ config: cfg, db: mockDb({ player }), art: {} });
+  const app = createApp({ config: cfg, db: mockDb({ player }) });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/buy/gold-10`, {
       headers: { cookie: sessionCookie(cfg) },
@@ -483,7 +483,7 @@ test('/buy with player shows first-purchase Bonds copy', async () => {
 
 test('unknown sku is 404', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/buy/marks-pack`, {
       headers: { cookie: sessionCookie(cfg) },
@@ -494,7 +494,7 @@ test('unknown sku is 404', async () => {
 
 test('oauth next= cannot leave this origin', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/auth/discord?next=https://evil.example/phish`, { redirect: 'manual' });
     assert.equal(res.status, 302);
@@ -507,7 +507,7 @@ test('oauth next= cannot leave this origin', async () => {
 
 test('logged-in /login redirects to shop instead of asking again', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const shop = await fetch(`${base}/login`, {
       redirect: 'manual',
@@ -587,7 +587,7 @@ test('oauth callback signs in from Discord state and returns to next', async () 
 
 test('oauth state mismatch redirects to login', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/api/auth/discord/callback?code=abc&state=nope`, { redirect: 'manual' });
     assert.equal(res.status, 302);
@@ -597,7 +597,7 @@ test('oauth state mismatch redirects to login', async () => {
 
 test('HTML responses set clickjacking and MIME sniffing headers', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/`);
     assert.equal(res.status, 200);
@@ -704,7 +704,7 @@ test('oauth callback rejects a non-numeric Discord id', async () => {
 
 test('webhook HMAC reject', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/api/webhooks/paddle`, {
       method: 'POST',
@@ -717,7 +717,7 @@ test('webhook HMAC reject', async () => {
 
 test('legacy Lemon Squeezy webhook path is gone', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/api/webhooks/lemonsqueezy`, { method: 'POST', body: '{}' });
     assert.equal(res.status, 404);
@@ -728,7 +728,7 @@ test('idempotent double transaction.completed does not grant twice', async () =>
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player, pending: { txn_5001: { discord_id: '42', sku_key: 'gold-10' } } });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   const raw = JSON.stringify({
     event_id: 'evt_5001',
     event_type: 'transaction.completed',
@@ -771,7 +771,7 @@ test('second gold-10 purchase is catalog amount, not doubled', async () => {
       txn_second: { discord_id: '42', sku_key: 'gold-10' },
     },
   });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
 
   await withServer(app, async (base) => {
     for (const [eventId, txnId] of [
@@ -807,7 +807,7 @@ test('gold-25 transaction.completed does not stack Patron days', async () => {
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player, pending: { txn_5002: { discord_id: '42', sku_key: 'gold-25' } } });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   const raw = JSON.stringify({
     event_id: 'evt_5002',
     event_type: 'transaction.completed',
@@ -843,7 +843,7 @@ test('gold-50 first purchase unlocks Patron tier 1 from lifetime Gold Bars', asy
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player, pending: { txn_50: { discord_id: '42', sku_key: 'gold-50' } } });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   const raw = JSON.stringify({
     event_id: 'evt_50',
     event_type: 'transaction.completed',
@@ -879,7 +879,7 @@ test('refund of a first purchase reverses listed gold and matching Bonds', async
   const cfg = config();
   const player = { id: 7, discord_id: '42' };
   const db = mockDb({ player, pending: { txn_bonus: { discord_id: '42', sku_key: 'gold-10' } } });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   const paid = JSON.stringify({
     event_id: 'evt_bonus',
     event_type: 'transaction.completed',
@@ -927,13 +927,12 @@ test('refund of a first purchase reverses listed gold and matching Bonds', async
 
 test('landing and legal pages render', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const home = await fetch(`${base}/`);
     assert.equal(home.status, 200);
     const html = await home.text();
     assert.match(html, /Disgrowth/);
-    assert.match(html, /celestial-axis/);
     assert.match(html, /Join the Discord/);
     assert.match(html, /Start small\. Grow something/);
     assert.match(html, /400 CR in paper money/);
@@ -1017,7 +1016,7 @@ test('landing and legal pages render', async () => {
 });
 
 test('home gallery shows a screenshot once its file exists in public/shots', async () => {
-  const app = createApp({ config: config(), db: mockDb(), art: {}, shots: { forest: '/shots/forest.webp' } });
+  const app = createApp({ config: config(), db: mockDb(), shots: { forest: '/shots/forest.webp' } });
   await withServer(app, async (base) => {
     const html = await (await fetch(`${base}/`)).text();
     assert.match(html, /<img class="art ratio-16-9 " src="\/shots\/forest\.webp" alt="The Forest" width="1600" height="900"/);
@@ -1056,7 +1055,7 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     },
   };
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {}, marketCache });
+  const app = createApp({ config: cfg, db: mockDb(), marketCache });
   const headers = { cookie: sessionCookie() };
   await withServer(app, async (base) => {
     const page = await fetch(`${base}/market`, { headers });
@@ -1122,7 +1121,7 @@ test('market is a 404 for logged-out visitors and no link to it is shown', async
       return { ticker: 'FUEL', window: '1M', bars: [] };
     },
   };
-  const app = createApp({ config: config(), db: mockDb(), art: {}, marketCache });
+  const app = createApp({ config: config(), db: mockDb(), marketCache });
   await withServer(app, async (base) => {
     for (const path of ['/market', '/market?ticker=FUEL', '/api/market/snapshot', '/api/market/ohlc?ticker=FUEL']) {
       const res = await fetch(`${base}${path}`);
@@ -1185,7 +1184,7 @@ test('overlay POST returns the server-made transaction id and records who it is 
 test('webhook ignores custom_data: a transaction with no pending order grants nothing', async () => {
   const cfg = config();
   const db = mockDb({ player: { id: 7, discord_id: '42' } });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   const raw = JSON.stringify({
     event_id: 'evt_forged',
     event_type: 'transaction.completed',
@@ -1208,7 +1207,7 @@ test('webhook ignores custom_data: a transaction with no pending order grants no
 
 test('oauth callback needs the state cookie from the same browser (no login CSRF)', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const start = await fetch(`${base}/auth/discord`, { redirect: 'manual' });
     const state = new URL(start.headers.get('location')).searchParams.get('state');
@@ -1225,7 +1224,7 @@ test('oauth callback needs the state cookie from the same browser (no login CSRF
 test('logout is POST-only and revokes the session on the server', async () => {
   const cfg = config();
   const db = mockDb();
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   await withServer(app, async (base) => {
     assert.equal((await fetch(`${base}/logout`, { redirect: 'manual' })).status, 404);
     const headers = { cookie: sessionCookie() };
@@ -1243,7 +1242,7 @@ test('log out everywhere drops every session of that player', async () => {
   const cfg = config();
   const db = mockDb();
   db.sessions.set('other-device', { discord_id: '42', username: 'ash', global_name: 'Ash', avatar: null, email: '' });
-  const app = createApp({ config: cfg, db, art: {} });
+  const app = createApp({ config: cfg, db });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/account/logout-all`, {
       method: 'POST',
@@ -1257,14 +1256,11 @@ test('log out everywhere drops every session of that player', async () => {
 
 test('pages carry no inline styles and CSP drops unsafe-inline for styles', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb(), art: {} });
+  const app = createApp({ config: cfg, db: mockDb() });
   await withServer(app, async (base) => {
     const res = await fetch(`${base}/`);
     const html = await res.text();
     assert.doesNotMatch(html, /\sstyle=/);
     assert.doesNotMatch(res.headers.get('content-security-policy') || '', /style-src[^;]*unsafe-inline/);
-    const css = await (await fetch(`${base}/art.css`)).text();
-    assert.match(css, /\.star-41\{/);
-    assert.match(css, /\.ray-11\{transform:rotate\(330deg\)\}/);
   });
 });

@@ -1,29 +1,6 @@
-/* Disgrowth store.
-   Theme colors are registered custom properties animated on <html> only,
-   staggered back to front (sky, hills, trees, text, panels). Do not add
-   color or background transitions to descendants: they fight the token
-   animation and make text flash during the day/night switch. */
+/* Disgrowth website: one warm theme. */
 
-@property --bg { syntax: "<color>"; inherits: true; initial-value: #efe6d6; }
-@property --bg-deep { syntax: "<color>"; inherits: true; initial-value: #e4d7c2; }
-@property --panel { syntax: "<color>"; inherits: true; initial-value: #f7f1e6; }
-@property --panel-a { syntax: "<color>"; inherits: true; initial-value: rgba(247, 241, 230, 0.9); }
-@property --border { syntax: "<color>"; inherits: true; initial-value: rgba(36, 30, 24, 0.14); }
-@property --text { syntax: "<color>"; inherits: true; initial-value: #1c1814; }
-@property --muted { syntax: "<color>"; inherits: true; initial-value: #5c5348; }
-@property --accent { syntax: "<color>"; inherits: true; initial-value: #3f5c2a; }
-@property --accent-ink { syntax: "<color>"; inherits: true; initial-value: #f7f1e6; }
-@property --gold { syntax: "<color>"; inherits: true; initial-value: #9a6b14; }
-@property --gold-ink { syntax: "<color>"; inherits: true; initial-value: #1c1814; }
-@property --positive { syntax: "<color>"; inherits: true; initial-value: #2d6a32; }
-@property --negative { syntax: "<color>"; inherits: true; initial-value: #b3261e; }
-@property --halo { syntax: "<color>"; inherits: true; initial-value: rgba(255, 196, 70, 0.5); }
-@property --grid { syntax: "<color>"; inherits: true; initial-value: rgba(36, 30, 24, 0.055); }
-@property --ticker-bg { syntax: "<color>"; inherits: true; initial-value: rgba(28, 22, 16, 0.9); }
-@property --ticker-fg { syntax: "<color>"; inherits: true; initial-value: rgba(255, 235, 180, 0.78); }
-
-:root,
-html[data-theme="day"] {
+:root {
   color-scheme: light;
   --bg: #efe6d6;
   --bg-deep: #e4d7c2;
@@ -38,49 +15,9 @@ html[data-theme="day"] {
   --gold-ink: #1c1814;
   --positive: #2d6a32;
   --negative: #b3261e;
-  --sky-top: #fff6d4;
-  --sky-mid: #f0c57a;
-  --sky-bot: #dccbb0;
-  --far: #7d8d6e;
-  --mid: #445536;
-  --near: #243018;
-  --fog: rgba(255, 248, 236, 0.42);
-  --grid: rgba(36, 30, 24, 0.055);
   --ticker-bg: rgba(28, 22, 16, 0.9);
   --ticker-fg: rgba(255, 235, 180, 0.78);
-  --halo: rgba(255, 196, 70, 0.5);
   --shadow: 0 10px 40px rgba(40, 28, 16, 0.08);
-  --cloud: rgba(255, 252, 246, 0.55);
-}
-
-html[data-theme="night"] {
-  color-scheme: dark;
-  --bg: #0d1117;
-  --bg-deep: #080c10;
-  --panel: #161b22;
-  --panel-a: rgba(22, 27, 34, 0.9);
-  --border: #30363d;
-  --text: #e6edf3;
-  --muted: #8b949e;
-  --accent: #8ab85a;
-  --accent-ink: #0d1117;
-  --gold: #d29922;
-  --gold-ink: #0d1117;
-  --positive: #3fb950;
-  --negative: #f85149;
-  --sky-top: #1c3048;
-  --sky-mid: #0c1a2c;
-  --sky-bot: #081218;
-  --far: #163044;
-  --mid: #0e1c18;
-  --near: #070d0a;
-  --fog: rgba(8, 16, 24, 0.45);
-  --grid: rgba(230, 237, 243, 0.045);
-  --ticker-bg: rgba(4, 10, 16, 0.88);
-  --ticker-fg: rgba(230, 237, 243, 0.62);
-  --halo: rgba(180, 200, 220, 0.28);
-  --shadow: 0 12px 48px rgba(0, 0, 0, 0.35);
-  --cloud: rgba(180, 200, 220, 0.08);
 }
 
 *,
@@ -102,27 +39,6 @@ body {
   font-size: 16px;
   line-height: 1.65;
   padding-top: 28px;
-}
-
-html.theme-animated {
-  transition:
-    --halo 1.15s ease,
-    --grid 1.15s ease 0.08s,
-    --bg 1.15s ease 0.4s,
-    --bg-deep 1.15s ease 0.4s,
-    --text 1.15s ease 0.48s,
-    --muted 1.15s ease 0.48s,
-    --accent 1.15s ease 0.48s,
-    --accent-ink 1.15s ease 0.48s,
-    --gold 1.15s ease 0.48s,
-    --gold-ink 1.15s ease 0.48s,
-    --positive 1.15s ease 0.48s,
-    --negative 1.15s ease 0.48s,
-    --ticker-bg 1.15s ease 0.48s,
-    --ticker-fg 1.15s ease 0.48s,
-    --panel 1.15s ease 0.56s,
-    --panel-a 1.15s ease 0.56s,
-    --border 1.15s ease 0.56s;
 }
 
 img {
@@ -152,353 +68,6 @@ code {
 .skip:focus {
   top: 2.6rem;
 }
-
-/* ── Scene ─────────────────────────────────────────────── */
-
-.scene {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  pointer-events: none;
-  overflow: hidden;
-}
-
-.layer {
-  position: absolute;
-  inset: 0;
-  will-change: transform;
-}
-
-.layer-sky-day,
-.layer-sky-night {
-  position: absolute;
-  inset: 0;
-}
-
-.layer-sky-day {
-  background:
-    radial-gradient(ellipse at 72% -4%, #fff6d4 0%, #f0c57a 26%, #dccbb0 62%, #efe6d6 100%);
-  opacity: 1;
-}
-
-.layer-sky-night {
-  background:
-    radial-gradient(ellipse at 72% 8%, #1c3048 0%, #0c1a2c 38%, #081218 100%);
-  opacity: 0;
-}
-
-html[data-theme="night"] .layer-sky-day { opacity: 0; }
-html[data-theme="night"] .layer-sky-night { opacity: 1; }
-
-.layer-stars {
-  opacity: 0;
-}
-html[data-theme="night"] .layer-stars { opacity: 1; }
-
-html.theme-animated .layer-sky-day,
-html.theme-animated .layer-sky-night {
-  transition: opacity 1.15s ease;
-}
-
-html.theme-animated .layer-stars {
-  transition: opacity 1.15s ease 0.08s;
-}
-
-.star {
-  position: absolute;
-  border-radius: 50%;
-  background: #fff;
-  animation: starPulse var(--dur, 2s) ease-in-out infinite alternate;
-}
-
-.layer-clouds {
-  color: #fffaf0;
-  opacity: 0.35;
-}
-html[data-theme="night"] .layer-clouds {
-  color: #b4c8dc;
-  opacity: 0.08;
-}
-
-html.theme-animated .layer-clouds {
-  transition: opacity 1.15s ease 0.08s, color 1.15s ease 0.08s;
-}
-
-.cloud-svg,
-.grid-svg,
-.svg-fallback {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-}
-
-.layer-far .svg-fallback,
-.layer-mid .svg-fallback,
-.layer-near .svg-fallback {
-  fill: currentColor;
-  color: inherit;
-}
-
-.layer-grid {
-  opacity: 1;
-}
-.grid-svg line {
-  stroke: rgba(36, 30, 24, 0.055);
-  stroke-width: 0.35;
-}
-html[data-theme="night"] .grid-svg line {
-  stroke: rgba(230, 237, 243, 0.045);
-}
-
-html.theme-animated .grid-svg line {
-  transition: stroke 1.15s ease 0.08s;
-}
-
-.layer-far,
-.layer-mid,
-.layer-near {
-  top: auto;
-  bottom: 0;
-  left: 0;
-  right: 0;
-  background-size: cover;
-  background-position: center bottom;
-  background-repeat: no-repeat;
-}
-
-.layer-far {
-  height: 36%;
-}
-.layer-mid {
-  height: 28%;
-}
-.layer-near {
-  height: 20%;
-}
-
-.sil {
-  position: absolute;
-  inset: 0;
-  color: inherit;
-}
-
-.layer-far .sil-day { color: #7d8d6e; }
-.layer-far .sil-night { color: #163044; }
-.layer-mid .sil-day { color: #445536; }
-.layer-mid .sil-night { color: #0e1c18; }
-.layer-near .sil-day { color: #243018; }
-.layer-near .sil-night { color: #070d0a; }
-
-.sil-day { opacity: 1; }
-.sil-night { opacity: 0; }
-
-html[data-theme="night"] .sil-day { opacity: 0; }
-html[data-theme="night"] .sil-night { opacity: 1; }
-
-html.theme-animated .layer-far .sil {
-  transition: opacity 1.15s ease 0.16s;
-}
-html.theme-animated .layer-mid .sil {
-  transition: opacity 1.15s ease 0.24s;
-}
-html.theme-animated .layer-near .sil {
-  transition: opacity 1.15s ease 0.32s;
-}
-
-.layer-fog {
-  top: auto;
-  height: 28%;
-  bottom: 8%;
-  background: none;
-}
-.fog-near {
-  height: 22%;
-  bottom: 0;
-}
-
-.layer-fog::before,
-.layer-fog::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-
-.fog-far::before {
-  background: linear-gradient(to top, rgba(255, 248, 236, 0.42), transparent);
-}
-.fog-far::after {
-  background: linear-gradient(to top, rgba(8, 16, 24, 0.45), transparent);
-  opacity: 0;
-}
-.fog-near::before {
-  background: linear-gradient(to top, rgba(255, 248, 236, 0.5), transparent);
-}
-.fog-near::after {
-  background: linear-gradient(to top, rgba(8, 16, 24, 0.5), transparent);
-  opacity: 0;
-}
-
-html[data-theme="night"] .fog-far::before,
-html[data-theme="night"] .fog-near::before {
-  opacity: 0;
-}
-html[data-theme="night"] .fog-far::after,
-html[data-theme="night"] .fog-near::after {
-  opacity: 1;
-}
-
-html.theme-animated .fog-far::before,
-html.theme-animated .fog-far::after {
-  transition: opacity 1.15s ease 0.24s;
-}
-html.theme-animated .fog-near::before,
-html.theme-animated .fog-near::after {
-  transition: opacity 1.15s ease 0.32s;
-}
-
-.layer-vignette {
-  background: none;
-}
-
-.layer-vignette::before,
-.layer-vignette::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-}
-
-.layer-vignette::before {
-  background:
-    linear-gradient(to right, rgba(239, 230, 214, 0.78) 0%, rgba(239, 230, 214, 0.4) 34%, transparent 58%),
-    linear-gradient(to top, #efe6d6 0%, rgba(239, 230, 214, 0.7) 14%, transparent 32%);
-}
-
-.layer-vignette::after {
-  background:
-    linear-gradient(to right, rgba(13, 17, 23, 0.78) 0%, rgba(13, 17, 23, 0.4) 34%, transparent 58%),
-    linear-gradient(to top, #0d1117 0%, rgba(13, 17, 23, 0.7) 14%, transparent 32%);
-  opacity: 0;
-}
-
-html[data-theme="night"] .layer-vignette::before { opacity: 0; }
-html[data-theme="night"] .layer-vignette::after { opacity: 1; }
-
-html.theme-animated .layer-vignette::before,
-html.theme-animated .layer-vignette::after {
-  transition: opacity 1.15s ease 0.4s;
-}
-
-html[data-page="legal"] .layer-vignette::before,
-html[data-page="buy"] .layer-vignette::before,
-html[data-page="account"] .layer-vignette::before {
-  background:
-    linear-gradient(to top, #efe6d6 0%, rgba(239, 230, 214, 0.82) 38%, rgba(239, 230, 214, 0.35) 100%);
-}
-
-html[data-page="legal"] .layer-vignette::after,
-html[data-page="buy"] .layer-vignette::after,
-html[data-page="account"] .layer-vignette::after {
-  background:
-    linear-gradient(to top, #0d1117 0%, rgba(13, 17, 23, 0.82) 38%, rgba(13, 17, 23, 0.35) 100%);
-}
-
-/* ── Celestial axis ────────────────────────────────────── */
-
-.celestial-par {
-  overflow: hidden;
-}
-
-.celestial-axis {
-  position: absolute;
-  left: 72%;
-  top: 46%;
-  width: 0;
-  height: 0;
-  transform: rotate(0deg);
-}
-
-html.theme-animated .celestial-axis {
-  transition: transform 1.6s cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-html.theme-animated .sun-ray {
-  transition: opacity 1.15s ease;
-}
-
-html.theme-animated .sun-core,
-html.theme-animated .moon-core,
-html.theme-animated .orb-halo {
-  transition: box-shadow 1.15s ease, background 1.15s ease, opacity 1.15s ease;
-}
-
-html.theme-animated .theme-toggle-face {
-  transition: transform 0.7s cubic-bezier(0.65, 0, 0.35, 1);
-}
-
-.orb {
-  position: absolute;
-  left: 0;
-  width: 96px;
-  height: 96px;
-  margin: -48px 0 0 -48px;
-}
-
-.sun { top: -34vh; }
-.moon { top: 34vh; }
-
-.orb-core {
-  position: absolute;
-  inset: 18px;
-  border-radius: 50%;
-}
-
-.sun-core {
-  background: radial-gradient(circle at 38% 34%, #fff8d0 0%, #ffcc4a 42%, #ef9b1c 68%, transparent 72%);
-  box-shadow: 0 0 36px rgba(255, 196, 70, 0.5), 0 0 88px rgba(240, 160, 32, 0.28);
-}
-
-.moon-core {
-  background: radial-gradient(circle at 34% 32%, #f6f6ee 0%, #c5d0da 60%, #8ea6b6 100%);
-  box-shadow: 0 0 28px rgba(255, 196, 70, 0.35);
-}
-
-html[data-theme="night"] .sun-core {
-  box-shadow: 0 0 36px rgba(180, 200, 220, 0.22), 0 0 72px rgba(120, 160, 200, 0.1);
-}
-
-html[data-theme="night"] .moon-core {
-  box-shadow: 0 0 28px rgba(180, 200, 220, 0.28);
-}
-
-.orb-halo {
-  position: absolute;
-  inset: -28px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 196, 70, 0.5) 0%, transparent 68%);
-}
-
-html[data-theme="night"] .orb-halo {
-  background: radial-gradient(circle, rgba(180, 200, 220, 0.28) 0%, transparent 68%);
-}
-
-.sun-rays {
-  position: absolute;
-  inset: 0;
-}
-.sun-ray {
-  position: absolute;
-  left: 50%;
-  top: 50%;
-  width: 1px;
-  height: 46px;
-  margin-left: -0.5px;
-  transform-origin: 50% 0;
-  background: linear-gradient(to bottom, rgba(255, 210, 90, 0.0), rgba(255, 200, 80, 0.55), transparent);
-  opacity: 0.55;
-}
-
-html[data-theme="night"] .sun-ray { opacity: 0.12; }
 
 /* ── Chrome ────────────────────────────────────────────── */
 
@@ -709,29 +278,6 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
   transform: rotate(-45deg);
 }
 
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.45rem;
-  min-height: 44px;
-  padding: 0 0.75rem 0 0.4rem;
-  border-radius: 999px;
-  border: 1px solid var(--border);
-  background: var(--panel-a);
-  color: var(--text);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 11px;
-  letter-spacing: 0.06em;
-  cursor: pointer;
-}
-
-.theme-toggle:hover,
-.theme-toggle:focus-visible {
-  transform: translateY(-1px);
-  border-color: color-mix(in srgb, var(--text) 28%, var(--border));
-  background: color-mix(in srgb, var(--text) 8%, var(--panel-a));
-}
-
 .btn-discord {
   background: #5865f2;
   color: #fff;
@@ -760,38 +306,6 @@ html[data-theme="night"] .sun-ray { opacity: 0.12; }
 .site-header .btn-discord {
   min-height: 40px;
   padding: 0.35rem 0.95rem;
-}
-
-.theme-toggle-face {
-  position: relative;
-  width: 22px;
-  height: 22px;
-}
-.mini-sun,
-.mini-moon {
-  position: absolute;
-  inset: 4px;
-  border-radius: 50%;
-}
-.mini-sun {
-  background: #f0c14a;
-}
-.mini-moon {
-  background: #c5d0da;
-  transform: translateY(18px);
-  opacity: 0;
-}
-html[data-theme="night"] .mini-sun {
-  transform: translateY(-18px);
-  opacity: 0;
-}
-html[data-theme="night"] .mini-moon {
-  transform: none;
-  opacity: 1;
-}
-html.theme-animated .mini-sun,
-html.theme-animated .mini-moon {
-  transition: transform 0.6s ease, opacity 0.6s ease;
 }
 
 /* ── Layout ────────────────────────────────────────────── */
@@ -1628,16 +1142,6 @@ html[data-page="market"] .site-footer {
     padding: 0.4rem 1rem;
   }
 
-  .theme-toggle-label {
-    display: none;
-  }
-
-  .theme-toggle {
-    width: 44px;
-    padding: 0;
-    justify-content: center;
-  }
-
   .brand-sub {
     display: none;
   }
@@ -1648,24 +1152,6 @@ html[data-page="market"] .site-footer {
     text-overflow: ellipsis;
     white-space: nowrap;
   }
-
-  .celestial-axis {
-    left: 88%;
-    top: 22%;
-  }
-
-  .sun { top: -28vh; }
-  .moon { top: 28vh; }
-
-  .orb {
-    width: 72px;
-    height: 72px;
-    margin: -36px 0 0 -36px;
-  }
-
-  .layer-far { height: 26%; opacity: 0.7; }
-  .layer-mid { height: 18%; opacity: 0.7; }
-  .layer-near { height: 14%; opacity: 0.65; }
 }
 
 /* Hamburger only in portrait. Landscape keeps the full nav and shrinks to fit. */
@@ -1758,10 +1244,6 @@ html[data-page="market"] .site-footer {
   *::after {
     animation: none !important;
     transition: none !important;
-  }
-
-  html.theme-animated .celestial-axis {
-    transition: none;
   }
 
   .nav :is(a, button) {
@@ -1954,4 +1436,3 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .toy-note { text-align: center; margin: 0.6rem 0; }
 .toy-actions { display: flex; align-items: center; justify-content: center; gap: 0.75rem; }
 .avatar-stack { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0.4rem; }
-@media (max-width: 640px) { .toys { grid-template-columns: 1fr; } .avatar-stack { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

@@ -87,16 +87,6 @@ deploy/nginx/     Origin config for the VPS
 tests/            node:test suites
 ```
 
-## Scene art
+## Landing art
 
-The background scene ships as SVG silhouettes. To replace a layer with illustrated art, add any of these files to `public/art/`. They are detected at startup.
-
-| File | Layer |
-| --- | --- |
-| `sky-day.webp`, `.jpg`, or `.png` | Day sky |
-| `sky-night.webp`, `.jpg`, or `.png` | Night sky, same framing as the day sky |
-| `far.webp` or `far.png` | Distant ridge and skyline, transparent |
-| `mid.webp` or `mid.png` | Forest and exchange hall, transparent |
-| `near.webp` or `near.png` | Foreground grove, transparent |
-
-Keep one horizon line across `far`, `mid`, and `near` so the parallax lines up. Do not use Discord branding in the art.
+The home page shows labelled boxes with the size to draw. Add `<slot>.webp` (or `.jpg`, `.png`) to `public/shots/` and the box becomes the image. Slots and sizes live in `src/art.js`: `hero` 2400×1200; `forest`, `home`, `town` 1600×900; `crop-plot`, `crop-1`, `crop-2`, `crop-3`, `crop-can` 256×256; `avatar-body`, `avatar-outfit-1..3` 180×300; `gold-bar` 128×128. Do not use Discord branding in the art.
