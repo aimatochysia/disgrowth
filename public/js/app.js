@@ -3,54 +3,6 @@
   const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   const nav = document.getElementById('site-nav');
   const navBtn = document.querySelector('[data-nav-toggle]');
-  const axis = document.querySelector('.celestial-axis');
-
-  function currentTheme() {
-    return root.dataset.theme === 'night' ? 'night' : 'day';
-  }
-
-  let celestialAngle = currentTheme() === 'night' ? 180 : 0;
-
-  function applyCelestialAngle() {
-    const transform = `rotate(${celestialAngle}deg)`;
-    if (axis) axis.style.transform = transform;
-    document.querySelectorAll('.theme-toggle-face').forEach((el) => {
-      el.style.transform = transform;
-    });
-  }
-
-  applyCelestialAngle();
-
-  function syncToggle(theme) {
-    document.querySelectorAll('[data-theme-toggle]').forEach((btn) => {
-      btn.setAttribute('aria-pressed', theme === 'night' ? 'true' : 'false');
-      const label = btn.querySelector('[data-theme-label]');
-      if (label) label.textContent = theme === 'night' ? 'Night' : 'Day';
-    });
-  }
-
-  function setTheme(theme) {
-    root.dataset.theme = theme;
-    try {
-      localStorage.setItem('mg-theme', theme);
-    } catch {
-      /* ignore */
-    }
-    syncToggle(theme);
-  }
-
-  function toggleTheme() {
-    setTheme(currentTheme() === 'night' ? 'day' : 'night');
-    celestialAngle += 180;
-    applyCelestialAngle();
-  }
-
-  requestAnimationFrame(() => {
-    requestAnimationFrame(() => {
-      root.classList.add('theme-animated');
-      syncToggle(currentTheme());
-    });
-  });
 
   function setNavOpen(open) {
     if (!nav || !navBtn) return;
@@ -83,7 +35,6 @@
   }
 
   document.addEventListener('click', (event) => {
-    if (event.target.closest('[data-theme-toggle]')) toggleTheme();
     const toggle = event.target.closest('[data-nav-toggle]');
     if (toggle) {
       setNavOpen(!nav.classList.contains('is-open'));

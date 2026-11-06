@@ -133,18 +133,6 @@ import { evaluate } from './market-formula.js?v=20261029';
     priceSeries?.priceScale().applyOptions({ autoScale: true });
   }
 
-  function applyTheme() {
-    if (!chart) return;
-    const theme = themeOptions();
-    chart.applyOptions({
-      layout: theme.layout,
-      grid: theme.grid,
-      rightPriceScale: theme.rightPriceScale,
-      timeScale: theme.timeScale,
-    });
-    priceSeries?.applyOptions({ color: theme.up });
-  }
-
   function markSelected() {
     document.querySelectorAll('.quote-row').forEach((row) => {
       row.classList.toggle('is-on', row.getAttribute('data-ticker') === ticker);
@@ -635,9 +623,6 @@ import { evaluate } from './market-formula.js?v=20261029';
   resize.observe(host);
   const heat = document.getElementById('market-heatmap');
   if (heat) new ResizeObserver(() => quotes.length && renderHeatmap()).observe(heat);
-
-  const themeWatch = new MutationObserver(() => applyTheme());
-  themeWatch.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
 
   restorePrefs()
     .then(() => {

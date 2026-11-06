@@ -4,8 +4,7 @@ import express from 'express';
 import helmet from 'helmet';
 import rateLimit, { ipKeyGenerator } from 'express-rate-limit';
 import { CATALOG, catalogItemsFromConfig, isSku } from './catalog.js';
-import { artCss, artHtmlClass, detectArt, detectShots } from './art.js';
-import { sceneCss } from './views/scene.js';
+import { detectShots } from './art.js';
 import { checkoutConfigured, createPaddleTransaction, priceIdForSku } from './checkout.js';
 import { authorizeUrl, exchangeCode, fetchIdentify, sessionFromDiscordUser } from './oauth.js';
 import { render } from './lib/html.js';
@@ -46,7 +45,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const rootDir = path.join(__dirname, '..');
 
-export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootDir), shots = detectShots(rootDir), quoteCache, marketCache } = {}) {
+export function createApp({ config, db, fetchImpl = fetch, shots = detectShots(rootDir), quoteCache, marketCache } = {}) {
   const quotes = quoteCache || createQuoteCache({
     load: () => (db && typeof db.latestTickerQuotes === 'function' ? db.latestTickerQuotes() : []),
     interval: config.NODE_ENV !== 'test',
@@ -65,7 +64,6 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
   // One hop in front of Node (nginx). Vercel strips spoofed X-Forwarded-For itself.
   app.set('trust proxy', process.env.VERCEL ? true : 1);
 
-  const artClass = artHtmlClass(art);
 
   app.use(
     helmet({
@@ -177,10 +175,6 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
     next();
   });
 
-  app.get('/art.css', (_req, res) => {
-    res.type('css').send(`${artCss(art)}\n${sceneCss()}`);
-  });
-
   function buildPaddleBoot(req) {
     if (!config.PADDLE_CLIENT_TOKEN) return null;
     if (config.PADDLE_ENV !== 'production' && config.PADDLE_ENV !== 'sandbox') return null;
@@ -214,7 +208,6 @@ export function createApp({ config, db, fetchImpl = fetch, art = detectArt(rootD
             page: pageName,
             description,
             body,
-            artClass,
             paddleBoot: paddle ? buildPaddleBoot(req) : null,
             marketBoot,
             tickerQuotes: quotes.snapshot(),
