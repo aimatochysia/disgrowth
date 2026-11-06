@@ -936,11 +936,10 @@ test('landing and legal pages render', async () => {
     assert.match(html, /Join the Discord/);
     assert.match(html, /Start small\. Grow something/);
     assert.match(html, /400 CR in paper money/);
-    assert.equal((html.match(/art-empty/g) || []).length, 13);
-    assert.match(html, /<span>2400 × 1200<\/span>/);
-    assert.match(html, /id="crop-toy"/);
-    assert.match(html, /\/js\/crop-toy\.js/);
-    assert.match(html, /<b>Follow a living market:<\/b>/);
+    assert.equal((html.match(/layer-empty/g) || []).length, 12);
+    assert.match(html, /<span>sky and far distance · 2560 × 1440<\/span>/);
+    assert.equal((html.match(/class="panel-scene/g) || []).length, 4);
+    assert.match(html, /\/js\/reel\.js/);
     assert.match(html, /href="\/store"[^>]*>Shop Gold Bars/);
     assert.doesNotMatch(html, /Four districts, one climb|Start here|One real hour is one city day|Alpha · now open/);
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
@@ -1015,12 +1014,12 @@ test('landing and legal pages render', async () => {
   });
 });
 
-test('home gallery shows a screenshot once its file exists in public/shots', async () => {
-  const app = createApp({ config: config(), db: mockDb(), shots: { forest: '/shots/forest.webp' } });
+test('a parallax layer shows its image once its file exists in public/shots', async () => {
+  const app = createApp({ config: config(), db: mockDb(), shots: { 'scene-1-back': '/shots/scene-1-back.webp' } });
   await withServer(app, async (base) => {
     const html = await (await fetch(`${base}/`)).text();
-    assert.match(html, /<img class="art ratio-16-9 " src="\/shots\/forest\.webp" alt="The Forest" width="1600" height="900"/);
-    assert.equal((html.match(/art-empty/g) || []).length, 12);
+    assert.match(html, /<img class="layer layer-back" src="\/shots\/scene-1-back\.webp" alt="" width="2560" height="1440"/);
+    assert.equal((html.match(/layer-empty/g) || []).length, 11);
   });
 });
 
