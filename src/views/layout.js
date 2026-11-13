@@ -3,6 +3,12 @@ import { discordAvatarUrl } from '../session.js';
 import { ageGate } from './age-gate.js';
 import { FALLBACK_TICKER, tickerTrack } from '../ticker.js';
 import { publicLoginCache } from '../prefs.js';
+import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
+
+// Content hash on our own asset URLs so Cloudflare and browsers drop stale copies after each deploy.
+const v = (path) => createHash('sha1').update(readFileSync(new URL(`../../public${path}`, import.meta.url))).digest('hex').slice(0, 8);
+const ASSET = Object.fromEntries(['/css/app.css', '/js/app.js', '/js/parallax.js'].map((path) => [path, `${path}?v=${v(path)}`]));
 
 function paddleBootMarkup(boot) {
   if (!boot || !boot.clientToken || !boot.env) return '';
@@ -84,10 +90,11 @@ export function layout(data) {
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,360;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/css/app.css" />
+  <link rel="stylesheet" href="${ASSET['/css/app.css']}" />
   <script src="/js/age-boot.js"></script>
 </head>
 <body id="top">
+  ${page === 'home' || page === 'store' ? raw('<div class="loader" aria-hidden="true"><p class="logo">Disgrowth</p><span class="loader-bar"></span></div>') : ''}
   <a class="skip" href="#content">Skip to content</a>
 
   <div class="ticker" aria-hidden="true">
@@ -146,8 +153,8 @@ export function layout(data) {
   ${loginBootMarkup(user)}
   ${paddleBootMarkup(paddleBoot)}
   ${marketBootMarkup(marketBoot)}
-  <script src="/js/app.js" defer></script>
-  ${page === 'home' || page === 'store' ? raw('<script src="/js/parallax.js" defer></script>') : ''}
+  <script src="${ASSET['/js/app.js']}" defer></script>
+  ${page === 'home' || page === 'store' ? raw(`<script src="${ASSET['/js/parallax.js']}" defer></script>`) : ''}
 </body>
 </html>`;
 }
