@@ -16,7 +16,7 @@ export function homePage({ config, shots = {} }) {
     ${COPY.map(
       ([title, text], i) => html`<section class="snap" aria-label="${title}">
         <div class="scene-copy">
-          ${i === 0 ? html`<p class="logo">Disgrowth</p>` : ''}
+          ${i === 0 ? html`<p class="logo"><img src="/logo.png" alt="" width="256" height="256" />Disgrowth</p>` : ''}
           <h1>${title}</h1>
           <p>${text}</p>
           ${i === last
