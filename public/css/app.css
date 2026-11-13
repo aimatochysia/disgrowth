@@ -1336,13 +1336,19 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .panel-scene { position: relative; min-height: 100vh; overflow: hidden; display: grid; }
 .layers { position: absolute; inset: 0; }
 .layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
-/* Pointer depth per layer. 1 (sky) and 6 (the focus) stay put; 7 passes in front and moves the other way. */
-.layer-1_5 { --d: 24; }
-.layer-2 { --d: 18; }
-.layer-3 { --d: 14; }
-.layer-4 { --d: 10; }
-.layer-5 { --d: 5; }
-.layer-7 { --d: -14; }
+/* Pointer depth per layer. 1 (sky) and 7 (the focus) stay put; 8 passes in front and moves the other way. */
+.layer-2 { --d: 24; }
+.layer-3 { --d: 18; }
+.layer-4 { --d: 14; }
+.layer-5 { --d: 10; }
+.layer-6 { --d: 5; }
+.layer-8 { --d: -14; }
+/* The two cloud layers also drift on their own. */
+@media (prefers-reduced-motion: no-preference) {
+  .layer-2 { animation: drift 34s ease-in-out infinite alternate; }
+  .layer-5 { animation: drift 22s ease-in-out infinite alternate; }
+}
+@keyframes drift { from { translate: -18px 0; } to { translate: 18px 0; } }
 .scene-empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 0.25rem; text-align: center; color: var(--muted); background: var(--bg-deep); border: 2px dashed var(--border); font-size: 0.85rem; }
 .scene-empty b { color: var(--text); }
 .scene-copy { position: relative; z-index: 5; width: min(960px, calc(100% - 2rem)); margin: 0 auto; align-self: start; }

@@ -15,7 +15,7 @@ export const CATALOG = {
     kind: 'one_time',
     gold: 500,
     variantEnv: 'PADDLE_PRICE_GOLD_10',
-    blurb: 'A first stack for when daily Bonds run short.',
+    blurb: 'A first stack to get you started.',
   },
   'gold-25': {
     sku_key: 'gold-25',
