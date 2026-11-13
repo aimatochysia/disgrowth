@@ -1333,18 +1333,20 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 
 /* Landing: scroll-locked parallax scenes. Without JS the scenes simply stack and scroll. */
 .reel { position: relative; }
-.panel-scene { position: relative; min-height: 100vh; overflow: hidden; display: grid; align-items: end; }
+.panel-scene { position: relative; min-height: 100vh; overflow: hidden; display: grid; }
 .layers { position: absolute; inset: 0; }
-.layer { position: absolute; inset: -4%; width: 108%; height: 108%; object-fit: cover; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
-.layer-back { --d: -8; z-index: 1; }
-.layer-mid { --d: -20; z-index: 2; }
-.layer-front { --d: -40; z-index: 3; }
-.layer-empty { display: grid; place-content: center; gap: 0.25rem; text-align: center; color: var(--muted); border: 2px dashed var(--border); font-size: 0.85rem; }
-.layer-back.layer-empty { background: var(--bg-deep); align-content: start; padding-top: 22vh; }
-.layer-mid.layer-empty { background: color-mix(in srgb, var(--panel) 30%, transparent); }
-.layer-front.layer-empty { background: none; align-content: end; padding-bottom: 6vh; }
-.layer-empty b { color: var(--text); }
-.scene-copy { position: relative; z-index: 5; width: min(960px, calc(100% - 2rem)); margin: 0 auto; padding: 6rem 0 5rem; }
+.layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
+/* Pointer depth per layer. 1 (sky) and 6 (the focus) stay put; 7 passes in front and moves the other way. */
+.layer-1_5 { --d: 24; }
+.layer-2 { --d: 18; }
+.layer-3 { --d: 14; }
+.layer-4 { --d: 10; }
+.layer-5 { --d: 5; }
+.layer-7 { --d: -14; }
+.scene-empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 0.25rem; text-align: center; color: var(--muted); background: var(--bg-deep); border: 2px dashed var(--border); font-size: 0.85rem; }
+.scene-empty b { color: var(--text); }
+.scene-copy { position: relative; z-index: 5; width: min(960px, calc(100% - 2rem)); margin: 0 auto; align-self: start; }
+.scene-copy { background: color-mix(in srgb, var(--panel) 82%, transparent); border-radius: 12px; padding: 1.5rem 1.75rem; margin-top: 8rem; padding-bottom: 1.5rem; }
 .scene-copy h1 { font-family: Fraunces, "Times New Roman", serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
 .scene-copy p { max-width: 36rem; margin: 0.4rem 0; }
 .reel-links { margin-top: 1.5rem; font-size: 0.85rem; }
@@ -1363,9 +1365,3 @@ html.reel-on .reel-dots { display: grid; gap: 0.6rem; position: absolute; z-inde
 .reel-dots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; border: 2px solid var(--text); background: transparent; cursor: pointer; }
 .reel-dots button[aria-current="true"] { background: var(--text); }
 html:not(.reel-on) .reel-links { display: none; }
-@media (prefers-reduced-motion: no-preference) {
-  .layer-back { animation: drift 40s ease-in-out infinite alternate; }
-  .layer-mid { animation: drift 28s ease-in-out infinite alternate; }
-  .layer-front { animation: drift 20s ease-in-out infinite alternate; }
-}
-@keyframes drift { from { translate: -6px 0; } to { translate: 6px -3px; } }

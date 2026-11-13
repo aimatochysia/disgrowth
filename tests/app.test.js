@@ -927,7 +927,7 @@ test('refund of a first purchase reverses listed gold and matching Bonds', async
 
 test('landing and legal pages render', async () => {
   const cfg = config();
-  const app = createApp({ config: cfg, db: mockDb() });
+  const app = createApp({ config: cfg, db: mockDb(), shots: {} });
   await withServer(app, async (base) => {
     const home = await fetch(`${base}/`);
     assert.equal(home.status, 200);
@@ -936,8 +936,8 @@ test('landing and legal pages render', async () => {
     assert.match(html, /Join the Discord/);
     assert.match(html, /Start small\. Grow something/);
     assert.match(html, /400 CR in paper money/);
-    assert.equal((html.match(/layer-empty/g) || []).length, 12);
-    assert.match(html, /<span>sky and far distance · 2560 × 1440<\/span>/);
+    assert.equal((html.match(/class="scene-empty"/g) || []).length, 4);
+    assert.match(html, /<span>8 layers, back to front · 3400 × 1200 each<\/span>/);
     assert.equal((html.match(/class="panel-scene/g) || []).length, 4);
     assert.match(html, /\/js\/reel\.js/);
     assert.match(html, /href="\/store"[^>]*>Shop Gold Bars/);
@@ -1014,12 +1014,13 @@ test('landing and legal pages render', async () => {
   });
 });
 
-test('a parallax layer shows its image once its file exists in public/shots', async () => {
-  const app = createApp({ config: config(), db: mockDb(), shots: { 'scene-1-back': '/shots/scene-1-back.webp' } });
+test('a scene shows its layers, in order, once their files exist in public/shots', async () => {
+  const shots = { 'scene-1-1': '/shots/scene-1-1.png', 'scene-1-1_5': '/shots/scene-1-1_5.png' };
+  const app = createApp({ config: config(), db: mockDb(), shots });
   await withServer(app, async (base) => {
     const html = await (await fetch(`${base}/`)).text();
-    assert.match(html, /<img class="layer layer-back" src="\/shots\/scene-1-back\.webp" alt="" width="2560" height="1440"/);
-    assert.equal((html.match(/layer-empty/g) || []).length, 11);
+    assert.match(html, /<img class="layer layer-1" src="\/shots\/scene-1-1\.png" alt="" width="3400" height="1200" \/>\s*<img class="layer layer-1_5"/);
+    assert.equal((html.match(/class="scene-empty"/g) || []).length, 3);
   });
 });
 
