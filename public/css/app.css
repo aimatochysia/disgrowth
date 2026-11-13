@@ -1246,50 +1246,41 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
   color: var(--text);
 }
 
-/* Landing: scroll-locked parallax scenes. Without JS the scenes simply stack and scroll. */
-.reel { position: relative; }
-.panel-scene { position: relative; min-height: 100vh; overflow: hidden; display: grid; }
-.layers { position: absolute; inset: 0; }
-.layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; --f: 1; object-position: calc(50% + var(--pan, 0) * var(--f) * 1%) 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
-/* Pointer depth per layer. 1 (sky) and 7 (the focus) stay put; 8 passes in front and moves the other way. */
-/* Portrait pan (--pan, set by reel.js): far layers slide less than the focus, the front one more. */
-.layer-2 { --f: 0.5; }
-.layer-3 { --f: 0.6; }
-.layer-4 { --f: 0.7; }
-.layer-5 { --f: 0.8; }
-.layer-6 { --f: 0.9; }
-.layer-8 { --f: 1.15; }
-.layer-2 { --d: 24; }
+/* Parallax backdrop (home and shop) and the home sections. */
+.backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
+.layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
+/* Mouse depth per layer (eased by parallax.js). 1 (sky), 7 (the focus) and the clouds 2 and 5 ignore the mouse; 8 is in front and moves the other way. */
 .layer-3 { --d: 18; }
 .layer-4 { --d: 14; }
-.layer-5 { --d: 10; }
-.layer-6 { --d: 5; }
+.layer-6 { --d: 6; }
 .layer-8 { --d: -14; }
-/* The two cloud layers also drift on their own. */
 @media (prefers-reduced-motion: no-preference) {
   .layer-2 { animation: drift 34s ease-in-out infinite alternate; }
   .layer-5 { animation: drift 22s ease-in-out infinite alternate; }
 }
+/* Touch screens have no mouse: the moving layers sway left and right on their own. */
+@media (prefers-reduced-motion: no-preference) and (hover: none) {
+  .layer-3 { animation: sway 9s ease-in-out infinite alternate; }
+  .layer-4 { animation: sway 7s ease-in-out infinite alternate-reverse; }
+  .layer-6 { animation: sway 11s ease-in-out infinite alternate; --sway: 4px; }
+  .layer-8 { animation: sway 6s ease-in-out infinite alternate-reverse; }
+}
 @keyframes drift { from { translate: -18px 0; } to { translate: 18px 0; } }
+@keyframes sway { from { translate: calc(-1 * var(--sway, 10px)) 0; } to { translate: var(--sway, 10px) 0; } }
 .scene-empty { position: absolute; inset: 0; display: grid; place-content: center; gap: 0.25rem; text-align: center; color: var(--muted); background: var(--bg-deep); border: 2px dashed var(--border); font-size: 0.85rem; }
 .scene-empty b { color: var(--text); }
-.scene-copy { position: relative; z-index: 5; width: min(960px, calc(100% - 2rem)); margin: 0 auto; align-self: start; }
-.scene-copy { background: color-mix(in srgb, var(--panel) 82%, transparent); border-radius: 12px; padding: 1.5rem 1.75rem; margin-top: 8rem; padding-bottom: 1.5rem; }
+/* Home: the page scrolls and eases to rest at the top of each section, over the same backdrop. */
+html[data-page="home"] { scroll-snap-type: y mandatory; }
+html[data-page="home"] .wrap { padding: 0; }
+/* The header floats over the sections so each one snaps flush to the top of the screen. */
+html[data-page="home"] body { padding-top: 0; }
+html[data-page="home"] .site-header { position: fixed; left: 0; right: 0; }
+/* The shop heading sits on the busy backdrop, so it gets the same soft panel as the home copy. */
+html[data-page="store"] .page-hero { background: color-mix(in srgb, var(--panel) 82%, transparent); border-radius: 12px; padding: 1.5rem 1.75rem; }
+html[data-page="home"] .site-footer, html[data-page="home"] .to-top { display: none; }
+.snap { min-height: 100vh; display: grid; align-items: start; scroll-snap-align: start; scroll-snap-stop: always; }
+.scene-copy { position: relative; width: min(960px, calc(100% - 2rem)); margin: 8rem auto 0; background: color-mix(in srgb, var(--panel) 82%, transparent); border-radius: 12px; padding: 1.5rem 1.75rem; }
 .scene-copy h1 { font-family: Fraunces, "Times New Roman", serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
 .scene-copy p { max-width: 36rem; margin: 0.4rem 0; }
-.reel-links { margin-top: 1.5rem; font-size: 0.85rem; }
-.reel-links a { margin-right: 0.9rem; }
-.reel-dots, .reel-fade { display: none; }
-
-/* With JS (class set by reel.js) the page is locked and scenes fade through black. */
-html.reel-on, html.reel-on body { overflow: hidden; height: 100%; }
-html.reel-on .site-footer, html.reel-on .to-top { display: none; }
-html.reel-on .reel { position: fixed; inset: 0; }
-html.reel-on .panel-scene { position: absolute; inset: 0; min-height: 0; opacity: 0; visibility: hidden; }
-html.reel-on .panel-scene.is-active { opacity: 1; visibility: visible; }
-html.reel-on .reel-fade { display: block; position: absolute; inset: 0; z-index: 6; background: #000; opacity: 0; pointer-events: none; transition: opacity 0.45s ease; }
-html.reel-on .reel-fade.is-black { opacity: 1; }
-html.reel-on .reel-dots { display: grid; gap: 0.6rem; position: absolute; z-index: 7; right: 1.25rem; top: 50%; transform: translateY(-50%); }
-.reel-dots button { width: 12px; height: 12px; padding: 0; border-radius: 50%; border: 2px solid var(--text); background: transparent; cursor: pointer; }
-.reel-dots button[aria-current="true"] { background: var(--text); }
-html:not(.reel-on) .reel-links { display: none; }
+.snap-links { margin-top: 1.5rem; font-size: 0.85rem; }
+.snap-links a { margin-right: 0.9rem; }

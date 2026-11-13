@@ -1,7 +1,7 @@
 import { html } from '../lib/html.js';
-import { LAYERS, LAYER_SIZE, SCENES, layerSlot } from '../art.js';
+import { backdrop } from './backdrop.js';
 
-// One entry per scene in SCENES. The last scene carries the buttons.
+// One section per entry; the page scrolls and snaps to each over the same backdrop. The last carries the buttons.
 const COPY = [
   ['Start small. Grow something.', 'You have 400 CR in paper money and a head full of plans.'],
   ['Forage, cook, craft.', 'Every CR is earned by playing. There is no passive income.'],
@@ -9,48 +9,28 @@ const COPY = [
   ['A market that moves on its own.', 'Players never move prices, but prices decide what your goods sell for.'],
 ];
 
-// shortcut: a scene without its own files reuses scene 1's; drop this once every scene has art.
-function layers(scene, shots) {
-  const { w, h } = LAYER_SIZE;
-  const own = LAYERS.some((name) => shots[layerSlot(scene, name)]);
-  if (!own && scene !== SCENES[0]) scene = SCENES[0];
-  const found = LAYERS.filter((name) => shots[layerSlot(scene, name)]);
-  if (!found.length) {
-    return html`<div class="scene-empty" data-art="${scene}"><b>${scene}</b><span>${LAYERS.length} layers, back to front · ${w} × ${h} each</span></div>`;
-  }
-  return found.map(
-    (name) => html`<img class="layer layer-${name}" src="${shots[layerSlot(scene, name)]}" alt="" width="${w}" height="${h}" />`,
-  );
-}
-
 export function homePage({ config, shots = {} }) {
-  const last = SCENES.length - 1;
+  const last = COPY.length - 1;
   return html`
-    <div class="reel" id="reel" aria-roledescription="carousel" aria-label="Disgrowth">
-      ${SCENES.map(
-        (scene, i) => html`<section class="panel-scene${i === 0 ? ' is-active' : ''}" data-scene="${i}" aria-label="${COPY[i][0]}">
-          <div class="layers" aria-hidden="true">${layers(scene, shots)}</div>
-          <div class="scene-copy">
-            ${i === 0 ? html`<p class="logo">Disgrowth</p>` : ''}
-            <h1>${COPY[i][0]}</h1>
-            <p>${COPY[i][1]}</p>
-            ${i === last
-              ? html`<div class="cta-row">
-                  <a class="btn btn-accent" href="${config.DISCORD_COMMUNITY_INVITE}" rel="noopener noreferrer" target="_blank">Join the Discord</a>
-                  <a class="btn btn-ghost" href="/store">Shop Gold Bars</a>
-                </div>
-                <nav class="reel-links" aria-label="Legal">
-                  <a href="/support">Support</a> <a href="/legal#terms">Terms</a> <a href="/legal#privacy">Privacy</a>
-                  <a href="/legal#refunds">Refunds</a> <a href="/legal#cookies">Cookies</a>
-                </nav>`
-              : ''}
-          </div>
-        </section>`,
-      )}
-      <nav class="reel-dots" aria-label="Scenes">
-        ${SCENES.map((_scene, i) => html`<button type="button" data-go="${i}" aria-label="Scene ${i + 1}"${i === 0 ? html` aria-current="true"` : ''}></button>`)}
-      </nav>
-      <div class="reel-fade" aria-hidden="true"></div>
-    </div>
+    ${backdrop(shots)}
+    ${COPY.map(
+      ([title, text], i) => html`<section class="snap" aria-label="${title}">
+        <div class="scene-copy">
+          ${i === 0 ? html`<p class="logo">Disgrowth</p>` : ''}
+          <h1>${title}</h1>
+          <p>${text}</p>
+          ${i === last
+            ? html`<div class="cta-row">
+                <a class="btn btn-accent" href="${config.DISCORD_COMMUNITY_INVITE}" rel="noopener noreferrer" target="_blank">Join the Discord</a>
+                <a class="btn btn-ghost" href="/store">Shop Gold Bars</a>
+              </div>
+              <nav class="snap-links" aria-label="Legal">
+                <a href="/support">Support</a> <a href="/legal#terms">Terms</a> <a href="/legal#privacy">Privacy</a>
+                <a href="/legal#refunds">Refunds</a> <a href="/legal#cookies">Cookies</a>
+              </nav>`
+            : ''}
+        </div>
+      </section>`,
+    )}
   `;
 }
