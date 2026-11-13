@@ -35,7 +35,7 @@ body {
 }
 
 body {
-  font-family: "IBM Plex Sans", "Noto Sans", system-ui, sans-serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.65;
   padding-top: 28px;
@@ -52,7 +52,7 @@ a {
 }
 
 code {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 0.9em;
 }
 
@@ -81,7 +81,7 @@ code {
   overflow: hidden;
   background: var(--ticker-bg);
   color: var(--ticker-fg);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.04em;
   display: flex;
@@ -142,7 +142,7 @@ code {
   margin-right: auto;
   text-decoration: none;
   color: var(--accent);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -319,7 +319,7 @@ code {
 }
 
 .kicker {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.42em;
   text-transform: uppercase;
@@ -328,11 +328,11 @@ code {
 }
 
 .display {
-  font-family: Fraunces, "Times New Roman", serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-weight: 500;
   font-size: clamp(2.4rem, 6vw, 5.2rem);
-  line-height: 0.98;
-  letter-spacing: -0.03em;
+  line-height: 1.05;
+  letter-spacing: 0;
   margin: 0 0 1.4rem;
   color: var(--text);
   -webkit-text-fill-color: var(--text);
@@ -453,7 +453,7 @@ code {
 }
 
 .section-title {
-  font-family: Fraunces, serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-size: clamp(1.5rem, 2.4vw, 2.1rem);
   font-weight: 500;
   margin: 0 0 1.4rem;
@@ -483,14 +483,14 @@ code {
 }
 
 .wallet .code {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.12em;
 }
 
 .wallet h2,
 .sku-title {
-  font-family: Fraunces, serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-weight: 500;
   font-size: 1.35rem;
   margin: 0.35rem 0 0.4rem;
@@ -503,7 +503,7 @@ code {
 }
 
 .wallet .stamp {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -516,7 +516,7 @@ code {
 }
 
 .wallet .balance {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
   font-size: 1.8rem;
   color: var(--text);
@@ -558,7 +558,7 @@ code {
 }
 
 .price {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-variant-numeric: tabular-nums;
 }
 
@@ -577,7 +577,7 @@ code {
 }
 
 .facts dt {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -651,7 +651,7 @@ code {
 .legal-toc a {
   color: var(--muted);
   text-decoration: none;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 12px;
   letter-spacing: 0.04em;
   min-height: 44px;
@@ -687,7 +687,7 @@ code {
 }
 
 .legal-chapter h2 {
-  font-family: Fraunces, serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-weight: 500;
   font-size: clamp(1.55rem, 2.4vw, 2.15rem);
   margin: 0.15rem 0 1rem;
@@ -778,7 +778,7 @@ code {
 }
 
 .quote-heading {
-  font-family: Fraunces, serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-size: 1.15rem;
   font-weight: 500;
   margin: 0 0 0.55rem;
@@ -812,7 +812,7 @@ code {
 }
 
 .quote-sym {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 0.82rem;
   letter-spacing: 0.08em;
 }
@@ -829,18 +829,18 @@ code {
   display: block;
   margin: 0.15rem 0 0;
   color: var(--muted);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 0.72rem;
   letter-spacing: 0.02em;
 }
 
 .quote-px {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 0.86rem;
 }
 
 .quote-chg {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 0.78rem;
   min-width: 4.4rem;
   text-align: right;
@@ -875,7 +875,7 @@ code {
 }
 
 .market-window {
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 0.75rem;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -956,7 +956,7 @@ html[data-page="market"] .site-footer {
 .footer-links a {
   color: var(--muted);
   text-decoration: none;
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-family: Silkscreen, ui-monospace, monospace;
   font-size: 11px;
   min-height: 44px;
   display: inline-flex;
@@ -1238,7 +1238,7 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .logo {
   margin: 0 0 1.4rem;
   text-align: center;
-  font-family: Fraunces, "Times New Roman", serif;
+  font-family: "Pixelify Sans", system-ui, sans-serif;
   font-weight: 700;
   font-size: clamp(2.6rem, 9vw, 4.6rem);
   line-height: 1;
@@ -1280,7 +1280,7 @@ html[data-page="store"] .page-hero { background: color-mix(in srgb, var(--panel)
 html[data-page="home"] .site-footer, html[data-page="home"] .to-top { display: none; }
 .snap { min-height: 100vh; display: grid; align-items: start; scroll-snap-align: start; scroll-snap-stop: always; }
 .scene-copy { position: relative; width: min(960px, calc(100% - 2rem)); margin: 8rem auto 0; background: color-mix(in srgb, var(--panel) 82%, transparent); border-radius: 12px; padding: 1.5rem 1.75rem; }
-.scene-copy h1 { font-family: Fraunces, "Times New Roman", serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.02; letter-spacing: -0.02em; margin: 0 0 0.75rem; }
+.scene-copy h1 { font-family: "Pixelify Sans", system-ui, sans-serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.1; margin: 0 0 0.75rem; }
 .scene-copy p { max-width: 36rem; margin: 0.4rem 0; }
 .snap-links { margin-top: 1.5rem; font-size: 0.85rem; }
 .snap-links a { margin-right: 0.9rem; }
