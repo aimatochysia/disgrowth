@@ -1,6 +1,9 @@
-// Eases the backdrop layers toward the mouse. Touch screens get the CSS sway instead, and reduced motion gets neither.
+// Shows the backdrop once loaded and eases its layers layers toward the mouse. Touch screens get the CSS sway instead, and reduced motion gets neither.
 (() => {
   if (!document.querySelector('.backdrop')) return;
+  // Lift the loading screen once every layer is in (cached visits finish before it ever fades in).
+  const layers = [...document.querySelectorAll('.backdrop .layer')];
+  Promise.all(layers.map((img) => img.decode().catch(() => {}))).then(() => document.documentElement.classList.add('art-ready'));
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const root = document.documentElement;
