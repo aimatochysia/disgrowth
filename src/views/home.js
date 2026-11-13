@@ -9,8 +9,11 @@ const COPY = [
   ['A market that moves on its own.', 'Players never move prices, but prices decide what your goods sell for.'],
 ];
 
+// shortcut: a scene without its own files reuses scene 1's; drop this once every scene has art.
 function layers(scene, shots) {
   const { w, h } = LAYER_SIZE;
+  const own = LAYERS.some((name) => shots[layerSlot(scene, name)]);
+  if (!own && scene !== SCENES[0]) scene = SCENES[0];
   const found = LAYERS.filter((name) => shots[layerSlot(scene, name)]);
   if (!found.length) {
     return html`<div class="scene-empty" data-art="${scene}"><b>${scene}</b><span>${LAYERS.length} layers, back to front · ${w} × ${h} each</span></div>`;

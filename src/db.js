@@ -159,7 +159,7 @@ export function createDb(databaseUrl) {
            OFFSET 1
            LIMIT 1
          ) prev ON true
-         WHERE {active}
+         WHERE {active} AND a.type <> 'company'
          ORDER BY a.ticker
          LIMIT 16`,
       );
@@ -167,13 +167,7 @@ export function createDb(databaseUrl) {
     },
 
     async listMarketQuotes() {
-      // shortcut: drop the focus_tags fallback once its migration has run live.
-      try {
-        return (await queryActive(MARKET_SNAPSHOT_SQL)).rows;
-      } catch (err) {
-        if (err?.code !== '42703') throw err;
-        return (await queryActive(MARKET_SNAPSHOT_SQL.replace('focus_tags, ', ''))).rows;
-      }
+      return (await queryActive(MARKET_SNAPSHOT_SQL)).rows;
     },
 
     /** The bot's calendar, written at its boot; null until then. */
@@ -243,21 +237,20 @@ export const PLAYER_COLUMNS = [
 ];
 
 export const MARKET_SNAPSHOT_SQL = `
-SELECT ticker, name, type, sector, price, market_cap, volume, focus, focus_tags,
-       change_7d, change_1m, change_6m, change_1y
+SELECT ticker, name, price, volume, change_7d, change_1m, change_6m, change_1y
 FROM asset_quotes q
-WHERE EXISTS (SELECT 1 FROM assets a WHERE a.ticker = q.ticker AND {active})
-ORDER BY (type = 'company'), market_cap DESC NULLS LAST, ticker ASC
-LIMIT 5000
+WHERE q.type <> 'company'
+  AND EXISTS (SELECT 1 FROM assets a WHERE a.ticker = q.ticker AND {active})
+ORDER BY ticker ASC
+LIMIT 50
 `.trim();
 
 export const MARKET_ASSET_SQL = `
-SELECT a.id, a.ticker, a.name, a.type, a.sector, a.current_price
+SELECT a.id, a.ticker, a.name, a.current_price
 FROM assets a
 WHERE a.ticker = ANY($1)
   AND {active}
-  AND (a.type <> 'company'
-       OR EXISTS (SELECT 1 FROM businesses b WHERE b.listed_asset_id = a.id AND b.is_public = true))
+  AND a.type <> 'company'
 LIMIT 1
 `.trim();
 

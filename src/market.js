@@ -132,33 +132,18 @@ const CHANGE_KEYS = [
   ['1Y', 'change_1y'],
 ];
 
-/** The engine writes focus_tags as commodity tickers in share order (text[] or a JSON array). Only the tags leave, never the split. */
-function publicTags(value) {
-  const list = Array.isArray(value) ? value : [];
-  return [...new Set(list.map(sanitizeTicker).filter(Boolean))].slice(0, 8);
-}
-
-/** One asset_quotes row as the page sees it. The point split never leaves the engine, only its focus name and tags. */
+/** One asset_quotes row as the page sees it: commodities only, never the engine's fair price. */
 export function publicQuote(row) {
   const ticker = sanitizeTicker(row?.ticker);
   if (!ticker) return null;
   const price = money(row.price);
   if (!price) return null;
-  const type = row.type === 'company' ? 'company' : 'commodity';
-  const cap = type === 'company' ? Number(row.market_cap) : NaN;
-  const focus = type === 'company' && row.focus ? String(row.focus).slice(0, 48) : '';
-  const tags = type === 'company' ? publicTags(row.focus_tags) : [];
   return {
     ticker,
     name: String(row.name || ticker).slice(0, 80),
-    type,
-    sector: row.sector ? String(row.sector).slice(0, 32) : '',
     price,
     vol: Math.round(Number(row.volume) || 0),
     changes: Object.fromEntries(CHANGE_KEYS.map(([key, column]) => [key, Number(row[column]) || 0])),
-    ...(Number.isFinite(cap) && cap > 0 ? { cap: Math.round(cap) } : {}),
-    ...(focus ? { focus } : {}),
-    ...(tags.length ? { tags } : {}),
   };
 }
 

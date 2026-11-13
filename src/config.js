@@ -152,7 +152,7 @@ export function loadConfig(env = process.env) {
     LOG_RETENTION_DAYS: Number(env.LOG_RETENTION_DAYS) || 90,
     SLA_DAYS: Number(env.SLA_DAYS) || 5,
     TRANSFER_MECHANISM: real(env.TRANSFER_MECHANISM) || 'hosting may process data outside your country',
-    LEGAL_DATE: real(env.LEGAL_DATE) || '2026-09-07',
+    LEGAL_DATE: real(env.LEGAL_DATE) || '2026-11-13',
     previewLegal,
 
     checkoutReady: Boolean(

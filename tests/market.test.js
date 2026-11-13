@@ -25,12 +25,12 @@ import {
 
 test('market snapshot reads asset_quotes only, never fair_price or the point split', () => {
   assert.match(MARKET_SNAPSHOT_SQL, /FROM asset_quotes/);
-  assert.match(MARKET_SNAPSHOT_SQL, /focus/);
-  assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price|recipe_points|discord_id/);
-  // A delisted company stays in assets for its history; the lookup asks for a public business behind it.
+  assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /fair_price|recipe_points|discord_id|focus|market_cap/);
+  // Commodities only (company stocks are not shown), and never a retired asset.
+  assert.match(MARKET_SNAPSHOT_SQL, /type <> 'company'/);
+  assert.match(MARKET_ASSET_SQL, /type <> 'company'/);
   assert.match(MARKET_SNAPSHOT_SQL, /\{active\}/);
   assert.match(MARKET_ASSET_SQL, /\{active\}/);
-  assert.match(MARKET_ASSET_SQL, /b\.listed_asset_id = a\.id AND b\.is_public = true/);
   assert.doesNotMatch(MARKET_ASSET_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_OHLC_SQL, /fair_price/);
   assert.doesNotMatch(MARKET_OHLC_SQL, /macro_regime/);
@@ -46,7 +46,7 @@ test('player columns and grants no longer mention marks', () => {
   assert.doesNotMatch(GOLD_REFUND_SQL, /\bmarks\b/);
 });
 
-test('publicQuote drops unknown tickers and never copies fair_price or the mix', () => {
+test('publicQuote drops unknown tickers and copies only what the page shows', () => {
   assert.equal(publicQuote({ ticker: '../x', price: 1 }), null);
   const quote = publicQuote({
     ticker: 'fuel',
@@ -68,24 +68,10 @@ test('publicQuote drops unknown tickers and never copies fair_price or the mix',
   assert.deepEqual(quote, {
     ticker: 'FUEL',
     name: 'Fuel',
-    type: 'commodity',
-    sector: 'logistics',
     price: '75.12',
     vol: 120,
     changes: { '7D': 1.5, '1M': -0.4, '6M': 3, '1Y': 9 },
   });
-  const company = publicQuote({
-    ticker: 'BULY',
-    name: 'Bulk Nook',
-    type: 'company',
-    price: 12,
-    market_cap: 1234.5,
-    focus: 'Bio-Mechanics',
-    recipe_points: { PHRM: 14, COMP: 15 },
-  });
-  assert.equal(company.focus, 'Bio-Mechanics');
-  assert.equal(company.cap, 1235);
-  assert.doesNotMatch(JSON.stringify(company), /recipe|PHRM|COMP/);
 });
 
 test('setGameTime applies the bot clock and ignores junk', () => {
@@ -236,7 +222,7 @@ test('market client pins the axis and draws a close line', () => {
   assert.match(src, /'1Y'/);
   assert.match(src, /addLineSeries/);
   assert.doesNotMatch(src, /addCandlestickSeries|addHistogramSeries/);
-  assert.match(src, /market-filter\.js/);
+  assert.doesNotMatch(src, /heatmap|market-filter/);
 });
 
 // Lockstep with bot `src/engine/timeLabels.test.js`: same table, now mid-day at a month start (day 12000.5).
@@ -249,61 +235,6 @@ test('timeAgoLabel ladder matches the bot', () => {
   for (const [days, want] of table) assert.equal(timeAgoLabel(now - days, now, 'day'), want, `${days} days`);
   assert.equal(timeAgoLabel(now, now, 'month'), 'today');
   assert.equal(timeAgoLabel(now - 90, now, 'month'), '3 months ago');
-});
-
-test('publicQuote carries tags for companies only, as clean tickers and never the split', () => {
-  const company = publicQuote({
-    ticker: 'BULY', name: 'Bulk Nook', type: 'company', price: 12, market_cap: 100,
-    focus_tags: ['phrm', 'bmat', 'prdc', '../x', 'comp'], recipe_points: { PHRM: 14 },
-  });
-  assert.deepEqual(company.tags, ['ALCM', 'BMAT', 'AGRI', 'COMP']);
-  assert.doesNotMatch(JSON.stringify(company), /recipe|14/);
-  assert.equal(publicQuote({ ticker: 'FUEL', type: 'commodity', price: 1, focus_tags: ['PHRM'] }).tags, undefined);
-  assert.equal(publicQuote({ ticker: 'BULY', type: 'company', price: 1, focus_tags: null }).tags, undefined);
-  assert.match(MARKET_SNAPSHOT_SQL, /focus_tags/);
-  assert.doesNotMatch(MARKET_SNAPSHOT_SQL, /recipe_points/);
-});
-
-test('market filter: tag keeps its commodity and its businesses, sector stands in until tags exist', async () => {
-  const { filterQuotes, tagList, tagsOf } = await import('../public/js/market-filter.js');
-  const quotes = [
-    { ticker: 'PHRM', name: 'Pharmaceuticals', type: 'commodity', sector: 'health' },
-    { ticker: 'MACH', name: 'Machinery', type: 'commodity', sector: 'industry' },
-    { ticker: 'AAA', name: 'Alpha', type: 'company', cap: 90, tags: ['PHRM', 'MACH', 'COMP'] },
-    { ticker: 'BBB', name: 'Beta', type: 'company', cap: 10, tags: ['MACH'] },
-    { ticker: 'CCC', name: 'Gamma', type: 'company', cap: 5, sector: 'retail' },
-    { ticker: 'DDD', name: 'Delta', type: 'company', cap: 1 },
-  ];
-  assert.deepEqual(tagsOf(quotes[4]), ['retail']);
-  assert.deepEqual(tagsOf(quotes[5]), []);
-  assert.deepEqual(tagsOf(quotes[0]), []);
-  assert.deepEqual(tagList(quotes).sort(), ['COMP', 'MACH', 'PHRM', 'retail']);
-  const names = (view) => filterQuotes(quotes, view).map((q) => q.ticker);
-  assert.deepEqual(names({}), ['PHRM', 'MACH', 'AAA', 'BBB', 'CCC', 'DDD']);
-  assert.deepEqual(names({ tag: 'PHRM' }), ['PHRM', 'AAA']);
-  assert.deepEqual(names({ tag: 'MACH' }), ['MACH', 'AAA', 'BBB']);
-  assert.deepEqual(names({ tag: 'MACH', type: 'company', q: 'beta' }), ['BBB']);
-  assert.deepEqual(names({ tag: 'retail' }), ['CCC']);
-  assert.deepEqual(names({ tag: 'NOPE' }), []);
-});
-
-test('heatmap groups: businesses only, one group per tag, cap split across tags, extras fold into rest', async () => {
-  const { heatGroups } = await import('../public/js/market-filter.js');
-  const quotes = [
-    { ticker: 'PHRM', type: 'commodity', cap: 1000 },
-    { ticker: 'AAA', type: 'company', cap: 90, tags: ['PHRM', 'MACH', 'COMP'] },
-    { ticker: 'BBB', type: 'company', cap: 10, tags: ['MACH'] },
-    { ticker: 'DDD', type: 'company', cap: 4 },
-    { ticker: 'EEE', type: 'company', cap: 0, tags: ['MACH'] },
-  ];
-  const groups = heatGroups(quotes);
-  assert.deepEqual([...groups.keys()].sort(), ['COMP', 'MACH', 'PHRM', 'other']);
-  assert.equal(groups.get('MACH').value, 40);
-  assert.deepEqual(groups.get('MACH').kept.map((i) => i.quote.ticker), ['AAA', 'BBB']);
-  assert.equal([...groups.values()].reduce((sum, g) => sum + g.value, 0), 104);
-  const folded = heatGroups(quotes, 1);
-  assert.deepEqual(folded.get('MACH').kept.map((i) => i.quote.ticker), ['AAA']);
-  assert.deepEqual(folded.get('MACH').rest.map((i) => i.quote.ticker), ['BBB']);
 });
 
 test('chart formulas: parsed here, never eval, bad input throws a short message', async () => {
