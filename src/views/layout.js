@@ -32,16 +32,6 @@ function loginBootMarkup(user) {
 <script src="/js/vault.js?v=20260923" defer></script>`);
 }
 
-function markSvg(className = 'mark') {
-  return html`
-    <svg class="${className}" viewBox="0 0 32 32" aria-hidden="true">
-      <rect x="6" y="10" width="20" height="14" rx="2" fill="currentColor" />
-      <path d="M16 8 C16 8 22 12 22 18 C22 22 19 25 16 24 C13 25 10 22 10 18 C10 12 16 8 16 8Z" fill="currentColor" opacity="0.55" />
-      <line x1="16" y1="24" x2="16" y2="12" stroke="currentColor" stroke-width="1.2" opacity="0.7" />
-    </svg>
-  `;
-}
-
 export function discordSvg() {
   return html`
     <svg class="ico" viewBox="0 0 24 24" aria-hidden="true">
@@ -86,7 +76,8 @@ export function layout(data) {
   <meta property="og:title" content="${pageTitle}" />
   <meta property="og:description" content="${description}" />
   <meta property="og:type" content="website" />
-  <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="/favicon.png" type="image/png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,360;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
@@ -94,7 +85,7 @@ export function layout(data) {
   <script src="/js/age-boot.js"></script>
 </head>
 <body id="top">
-  ${page === 'home' || page === 'store' ? raw('<div class="loader" aria-hidden="true"><p class="logo">Disgrowth</p><span class="loader-bar"></span></div>') : ''}
+  ${page === 'home' || page === 'store' ? raw('<div class="loader" aria-hidden="true"><img class="loader-mark" src="/logo.png" alt="" width="96" height="96" /><p class="logo">Disgrowth</p><span class="loader-bar"></span></div>') : ''}
   <a class="skip" href="#content">Skip to content</a>
 
   <div class="ticker" aria-hidden="true">
@@ -105,7 +96,7 @@ export function layout(data) {
 
   <header class="site-header">
     <a class="brand" href="/">
-      ${markSvg('mark')}
+      <img class="mark" src="/logo.png" alt="" width="22" height="22" />
       <span class="brand-name">Disgrowth</span>
       <span class="brand-sub">Store</span>
     </a>

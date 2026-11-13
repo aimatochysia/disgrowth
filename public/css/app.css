@@ -1253,7 +1253,7 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .layer-3 { --d: -12; }
 .layer-4 { --d: 5; }
 .layer-6 { --d: -6; }
-.layer-8 { --d: -4; }
+.layer-7 { --d: -3; }
 @media (prefers-reduced-motion: no-preference) {
   .layer-2 { animation: drift 34s ease-in-out infinite alternate; }
   .layer-5 { animation: drift 22s ease-in-out infinite alternate; }
@@ -1263,7 +1263,7 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
   .layer-3 { animation: sway 9s ease-in-out infinite alternate; }
   .layer-4 { animation: sway 7s ease-in-out infinite alternate-reverse; --sway: 4px; }
   .layer-6 { animation: sway 11s ease-in-out infinite alternate; --sway: 4px; }
-  .layer-8 { animation: sway 6s ease-in-out infinite alternate-reverse; --sway: 4px; }
+  .layer-7 { animation: sway 13s ease-in-out infinite alternate-reverse; --sway: 3px; }
 }
 @keyframes drift { from { translate: -18px 0; } to { translate: 18px 0; } }
 @keyframes sway { from { translate: calc(-1 * var(--sway, 10px)) 0; } to { translate: var(--sway, 10px) 0; } }
@@ -1294,3 +1294,8 @@ html[data-page="home"] { scroll-behavior: smooth; }
 @keyframes loader-in { from { opacity: 0; visibility: hidden; } to { opacity: 1; visibility: visible; } }
 @keyframes loader-bar { from { background-position: -100% 0, 0 0; } to { background-position: 200% 0, 0 0; } }
 @media (prefers-reduced-motion: reduce) { html[data-page="home"] { scroll-behavior: auto; } .loader-bar { animation: none; } }
+
+.loader-mark { width: 96px; height: 96px; image-rendering: pixelated; }
+/* Page changes cross-fade instead of blinking to the browser blank page between documents. */
+@view-transition { navigation: auto; }
+::view-transition-old(root), ::view-transition-new(root) { animation-duration: 0.45s; animation-timing-function: ease; }
