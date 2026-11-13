@@ -1250,10 +1250,10 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .backdrop { position: fixed; inset: 0; z-index: -1; overflow: hidden; }
 .layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
 /* Mouse depth per layer (eased by parallax.js). 1 (sky), 7 (the focus) and the clouds 2 and 5 ignore the mouse; 8 is in front and moves the other way. */
-.layer-3 { --d: 18; }
-.layer-4 { --d: 14; }
-.layer-6 { --d: 6; }
-.layer-8 { --d: -14; }
+.layer-3 { --d: -12; }
+.layer-4 { --d: 5; }
+.layer-6 { --d: -6; }
+.layer-8 { --d: -4; }
 @media (prefers-reduced-motion: no-preference) {
   .layer-2 { animation: drift 34s ease-in-out infinite alternate; }
   .layer-5 { animation: drift 22s ease-in-out infinite alternate; }
@@ -1261,9 +1261,9 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 /* Touch screens have no mouse: the moving layers sway left and right on their own. */
 @media (prefers-reduced-motion: no-preference) and (hover: none) {
   .layer-3 { animation: sway 9s ease-in-out infinite alternate; }
-  .layer-4 { animation: sway 7s ease-in-out infinite alternate-reverse; }
+  .layer-4 { animation: sway 7s ease-in-out infinite alternate-reverse; --sway: 4px; }
   .layer-6 { animation: sway 11s ease-in-out infinite alternate; --sway: 4px; }
-  .layer-8 { animation: sway 6s ease-in-out infinite alternate-reverse; }
+  .layer-8 { animation: sway 6s ease-in-out infinite alternate-reverse; --sway: 4px; }
 }
 @keyframes drift { from { translate: -18px 0; } to { translate: 18px 0; } }
 @keyframes sway { from { translate: calc(-1 * var(--sway, 10px)) 0; } to { translate: var(--sway, 10px) 0; } }
