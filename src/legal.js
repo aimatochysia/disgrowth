@@ -153,9 +153,9 @@ If more than two hours have passed, we cannot refund. If the Gold Bars have alre
 
 **Credits.** Earned and spent inside the simulation. **Not for sale** on the Store.
 
-**Bonds.** Daily spend in Discord, claimed there. The Store does not sell Bonds. The first Gold Bar purchase on a Discord account grants **as many Bonds as Gold Bars in that pack**, once. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
+**Bonds.** Earned and spent in Discord. The Store does not sell Bonds. The first Gold Bar purchase on a Discord account grants **as many Bonds as Gold Bars in that pack**, once. Gold Bars convert **to** Bonds in Discord at 1:1. Conversion is one-way. Never Bonds into Gold Bars. Never either into Credits.
 
-**Gold Bars.** The premium wallet sold on this Store. Buying Gold Bars does not buy Credits. The first-purchase gift is paid in Bonds, not extra Gold Bars.
+**Gold Bars.** The premium wallet sold on this Store. Some in-game items can only be bought with Gold Bars. Buying Gold Bars does not buy Credits. The first-purchase gift is paid in Bonds, not extra Gold Bars.
 
 **No secondary market.** You may not sell accounts, Gold Bars, or Bonds for real money. We may reclaim items obtained that way.
 

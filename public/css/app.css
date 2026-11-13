@@ -750,74 +750,6 @@ code {
   margin-left: auto;
 }
 
-.market-heatmap {
-  position: relative;
-  width: min(100%, 560px);
-  aspect-ratio: 1;
-  margin: 0 auto 1rem;
-  overflow: hidden;
-  border: 1px solid var(--border);
-  border-radius: 8px;
-}
-
-.hm-tile,
-.hm-sector {
-  position: absolute;
-  box-sizing: border-box;
-}
-
-.hm-tile {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  color: var(--text);
-  font-family: "IBM Plex Mono", ui-monospace, monospace;
-  font-size: 0.72rem;
-  line-height: 1.25;
-  cursor: pointer;
-}
-
-button.hm-tile:hover,
-button.hm-tile:focus-visible {
-  outline: 2px solid var(--text);
-  outline-offset: -2px;
-}
-
-div.hm-tile {
-  cursor: default;
-  opacity: 0.8;
-}
-
-.hm-sector {
-  overflow: hidden;
-  padding: 0;
-  border: 0;
-  background: none;
-  font-family: inherit;
-  text-align: left;
-  color: var(--muted);
-  font-size: 0.66rem;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  white-space: nowrap;
-  text-overflow: ellipsis;
-  cursor: pointer;
-}
-
-.hm-sector:hover,
-.hm-sector:focus-visible,
-.hm-sector.is-on {
-  color: var(--text);
-}
-
-.hm-tile.is-dim {
-  opacity: 0.4;
-}
-
 .market-chip {
   font: inherit;
   font-size: 0.8rem;
@@ -827,13 +759,6 @@ div.hm-tile {
   border-radius: 999px;
   padding: 0.25rem 0.7rem;
   cursor: pointer;
-}
-
-.market-pager {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  margin-top: 0.6rem;
 }
 
 .market-board {
@@ -900,15 +825,6 @@ div.hm-tile {
   white-space: nowrap;
 }
 
-.quote-row.has-mix {
-  align-items: start;
-}
-
-.quote-row.has-mix .quote-name {
-  white-space: normal;
-}
-
-.quote-mix,
 .market-mix {
   display: block;
   margin: 0.15rem 0 0;
@@ -1330,13 +1246,19 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
   color: var(--text);
 }
 
-
 /* Landing: scroll-locked parallax scenes. Without JS the scenes simply stack and scroll. */
 .reel { position: relative; }
 .panel-scene { position: relative; min-height: 100vh; overflow: hidden; display: grid; }
 .layers { position: absolute; inset: 0; }
-.layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; object-position: 50% 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
+.layer { position: absolute; inset: -4%; width: 108%; height: 108%; max-width: none; object-fit: cover; --f: 1; object-position: calc(50% + var(--pan, 0) * var(--f) * 1%) 100%; image-rendering: pixelated; will-change: transform; --d: 0; transform: translate3d(calc(var(--px, 0) * var(--d) * 1px), calc(var(--py, 0) * var(--d) * 1px), 0); }
 /* Pointer depth per layer. 1 (sky) and 7 (the focus) stay put; 8 passes in front and moves the other way. */
+/* Portrait pan (--pan, set by reel.js): far layers slide less than the focus, the front one more. */
+.layer-2 { --f: 0.5; }
+.layer-3 { --f: 0.6; }
+.layer-4 { --f: 0.7; }
+.layer-5 { --f: 0.8; }
+.layer-6 { --f: 0.9; }
+.layer-8 { --f: 1.15; }
 .layer-2 { --d: 24; }
 .layer-3 { --d: 18; }
 .layer-4 { --d: 14; }

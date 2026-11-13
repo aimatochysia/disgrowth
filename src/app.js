@@ -291,7 +291,7 @@ export function createApp({ config, db, fetchImpl = fetch, shots = detectShots(r
     page(req, res, {
       title: 'Market',
       page: 'market',
-      description: 'Commodity and company prices from the Disgrowth city market.',
+      description: 'Commodity prices from the Disgrowth city market.',
       marketBoot: {
         ticker,
         window: windowKey,

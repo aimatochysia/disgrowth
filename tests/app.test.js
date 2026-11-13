@@ -1020,7 +1020,9 @@ test('a scene shows its layers, in order, once their files exist in public/shots
   await withServer(app, async (base) => {
     const html = await (await fetch(`${base}/`)).text();
     assert.match(html, /<img class="layer layer-1" src="\/shots\/scene-1-1\.png" alt="" width="3400" height="1200" \/>\s*<img class="layer layer-2"/);
-    assert.equal((html.match(/class="scene-empty"/g) || []).length, 3);
+    // Scenes 2 to 4 have no files of their own yet, so they reuse scene 1's.
+    assert.equal((html.match(/class="scene-empty"/g) || []).length, 0);
+    assert.equal((html.match(/src="\/shots\/scene-1-1\.png"/g) || []).length, 4);
   });
 });
 
@@ -1039,8 +1041,7 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
       return {
         asOf: '2026-09-18T16:00:00.000Z',
         quotes: [
-          { ticker: 'FUEL', name: 'Fuel', type: 'commodity', sector: 'logistics', price: '75.12', vol: 0, changes: { '7D': 0, '1M': -0.4, '6M': 0, '1Y': 0 } },
-          { ticker: 'ACME', name: 'Acme Co', type: 'company', sector: 'retail', price: '12.50', vol: 0, cap: 5000, focus: 'Agri-Harvest', changes: { '7D': 0, '1M': 25, '6M': 0, '1Y': 0 } },
+          { ticker: 'FUEL', name: 'Fuel', price: '75.12', vol: 0, changes: { '7D': 0, '1M': -0.4, '6M': 0, '1Y': 0 } },
         ],
       };
     },
@@ -1064,15 +1065,12 @@ test('GET /market is watch-only for members and GET /api/market hides fair_price
     assert.match(html, />Market</);
     assert.match(html, /Players never move them/);
     assert.match(html, /FUEL/);
-    assert.match(html, /ACME/);
     assert.match(html, /id="market-boot"/);
     assert.match(html, /data-window="1M"/);
     assert.match(html, /data-window="7D"/);
-    assert.match(html, /id="market-heatmap"/);
+    assert.doesNotMatch(html, /market-heatmap|market-tag|market-type|Compan/);
     assert.match(html, /id="market-search"/);
-    assert.match(html, /id="market-tag"/);
     assert.match(html, /type="module" src="\/js\/market\.js/);
-    assert.match(html, /Agri-Harvest/);
     assert.doesNotMatch(html, /data-reset|data-ind/);
     assert.match(html, /id="market-formula-form"/);
     assert.match(html, /href="\/market\/FUEL"/);
