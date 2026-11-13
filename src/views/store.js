@@ -1,4 +1,5 @@
 import { html } from '../lib/html.js';
+import { backdrop } from './backdrop.js';
 
 function skuCard(item) {
   return html`
@@ -13,8 +14,9 @@ function skuCard(item) {
   `;
 }
 
-export function storePage({ items = [] } = {}) {
+export function storePage({ items = [], shots = {} } = {}) {
   return html`
+    ${backdrop(shots)}
     <section class="page-hero">
       <h1 class="display display-page">Shop</h1>
       <p class="lede narrow">

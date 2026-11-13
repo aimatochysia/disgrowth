@@ -936,10 +936,10 @@ test('landing and legal pages render', async () => {
     assert.match(html, /Join the Discord/);
     assert.match(html, /Start small\. Grow something/);
     assert.match(html, /400 CR in paper money/);
-    assert.equal((html.match(/class="scene-empty"/g) || []).length, 4);
+    assert.equal((html.match(/class="scene-empty"/g) || []).length, 1);
     assert.match(html, /<span>8 layers, back to front · 3400 × 1200 each<\/span>/);
-    assert.equal((html.match(/class="panel-scene/g) || []).length, 4);
-    assert.match(html, /\/js\/reel\.js/);
+    assert.equal((html.match(/class="snap"/g) || []).length, 4);
+    assert.match(html, /\/js\/parallax\.js/);
     assert.match(html, /href="\/store"[^>]*>Shop Gold Bars/);
     assert.doesNotMatch(html, /Four districts, one climb|Start here|One real hour is one city day|Alpha · now open/);
     assert.match(html, /discord\.gg\/XMadQ9tAd/);
@@ -1014,15 +1014,16 @@ test('landing and legal pages render', async () => {
   });
 });
 
-test('a scene shows its layers, in order, once their files exist in public/shots', async () => {
-  const shots = { 'scene-1-1': '/shots/scene-1-1.png', 'scene-1-2': '/shots/scene-1-2.png' };
+test('the backdrop shows its layers, in order, on home and shop once the files exist', async () => {
+  const shots = { 'bg-1': '/shots/bg-1.png', 'bg-2': '/shots/bg-2.png' };
   const app = createApp({ config: config(), db: mockDb(), shots });
   await withServer(app, async (base) => {
-    const html = await (await fetch(`${base}/`)).text();
-    assert.match(html, /<img class="layer layer-1" src="\/shots\/scene-1-1\.png" alt="" width="3400" height="1200" \/>\s*<img class="layer layer-2"/);
-    // Scenes 2 to 4 have no files of their own yet, so they reuse scene 1's.
-    assert.equal((html.match(/class="scene-empty"/g) || []).length, 0);
-    assert.equal((html.match(/src="\/shots\/scene-1-1\.png"/g) || []).length, 4);
+    for (const path of ['/', '/store']) {
+      const html = await (await fetch(`${base}${path}`)).text();
+      assert.match(html, /<img class="layer layer-1" src="\/shots\/bg-1\.png" alt="" width="3400" height="1200" \/>\s*<img class="layer layer-2"/, path);
+      assert.equal((html.match(/class="backdrop"/g) || []).length, 1, path);
+      assert.doesNotMatch(html, /scene-empty/, path);
+    }
   });
 });
 

@@ -255,7 +255,7 @@ export function createApp({ config, db, fetchImpl = fetch, shots = detectShots(r
       page: 'store',
       description: 'Gold Bar packs for Disgrowth. Log in with Discord and pay with Paddle.',
       paddle: true,
-      body: storePage({ items: catalogItemsFromConfig(config) }),
+      body: storePage({ items: catalogItemsFromConfig(config), shots }),
     });
   });
 

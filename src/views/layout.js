@@ -147,7 +147,7 @@ export function layout(data) {
   ${paddleBootMarkup(paddleBoot)}
   ${marketBootMarkup(marketBoot)}
   <script src="/js/app.js" defer></script>
-  ${page === 'home' ? raw('<script src="/js/reel.js" defer></script>') : ''}
+  ${page === 'home' || page === 'store' ? raw('<script src="/js/parallax.js" defer></script>') : ''}
 </body>
 </html>`;
 }
