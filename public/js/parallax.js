@@ -7,7 +7,7 @@
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const root = document.documentElement;
-  const EASE = 0.06; // share of the remaining distance covered each frame
+  const EASE = 0.035; // share of the remaining distance covered each frame
   const target = { x: 0, y: 0 };
   const now = { x: 0, y: 0 };
   let frame = 0;
