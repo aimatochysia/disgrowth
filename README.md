@@ -89,4 +89,4 @@ tests/            node:test suites
 
 ## Landing art
 
-The home page shows labelled boxes with the size to draw. Add `<slot>.webp` (or `.jpg`, `.png`) to `public/shots/` and the box becomes the image. Slots and sizes live in `src/art.js`: `hero` 2400×1200; `forest`, `home`, `town` 1600×900; `crop-plot`, `crop-1`, `crop-2`, `crop-3`, `crop-can` 256×256; `avatar-body`, `avatar-outfit-1..3` 180×300; `gold-bar` 128×128. Do not use Discord branding in the art.
+The home page is scroll-locked scenes (`src/art.js` lists them). A scene is a stack of 8 same-size layers, back to front, named `scene-<n>-<layer>.png` (or `.webp`, `.jpg`) in `public/shots/`, drawn 3400×1200 and shown zoomed to 16:9 around the middle. Layers 1 and 7 stay put; the rest wiggle with the mouse, and layers 2 and 5 also drift. A scene with no files shows a dashed box. `gold-bar` (128×128) is detected for the shop icon but not placed yet. Do not use Discord branding in the art.

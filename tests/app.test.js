@@ -1015,11 +1015,11 @@ test('landing and legal pages render', async () => {
 });
 
 test('a scene shows its layers, in order, once their files exist in public/shots', async () => {
-  const shots = { 'scene-1-1': '/shots/scene-1-1.png', 'scene-1-1_5': '/shots/scene-1-1_5.png' };
+  const shots = { 'scene-1-1': '/shots/scene-1-1.png', 'scene-1-2': '/shots/scene-1-2.png' };
   const app = createApp({ config: config(), db: mockDb(), shots });
   await withServer(app, async (base) => {
     const html = await (await fetch(`${base}/`)).text();
-    assert.match(html, /<img class="layer layer-1" src="\/shots\/scene-1-1\.png" alt="" width="3400" height="1200" \/>\s*<img class="layer layer-1_5"/);
+    assert.match(html, /<img class="layer layer-1" src="\/shots\/scene-1-1\.png" alt="" width="3400" height="1200" \/>\s*<img class="layer layer-2"/);
     assert.equal((html.match(/class="scene-empty"/g) || []).length, 3);
   });
 });

@@ -1,5 +1,5 @@
 // Scroll-locked scenes: wheel, swipe, keys or dots move one scene at a time, fading through black.
-// The pointer shifts the layers a little (parallax). Without this script the scenes just stack and scroll.
+// The pointer shifts the layers a little (parallax); the cloud layers also drift (CSS). Without this script the scenes just stack and scroll.
 (() => {
   const reel = document.getElementById('reel');
   if (!reel) return;
