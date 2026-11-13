@@ -9,12 +9,15 @@ const COPY = [
   ['A market that moves on its own.', 'Players never move prices, but prices decide what your goods sell for.'],
 ];
 
-function layer(scene, { name, note }, shots) {
-  const slot = layerSlot(scene, name);
+function layers(scene, shots) {
   const { w, h } = LAYER_SIZE;
-  return shots[slot]
-    ? html`<img class="layer layer-${name}" src="${shots[slot]}" alt="" width="${w}" height="${h}" />`
-    : html`<div class="layer layer-${name} layer-empty" data-art="${slot}"><b>${slot}</b><span>${note} · ${w} × ${h}</span></div>`;
+  const found = LAYERS.filter((name) => shots[layerSlot(scene, name)]);
+  if (!found.length) {
+    return html`<div class="scene-empty" data-art="${scene}"><b>${scene}</b><span>${LAYERS.length} layers, back to front · ${w} × ${h} each</span></div>`;
+  }
+  return found.map(
+    (name) => html`<img class="layer layer-${name}" src="${shots[layerSlot(scene, name)]}" alt="" width="${w}" height="${h}" />`,
+  );
 }
 
 export function homePage({ config, shots = {} }) {
@@ -23,7 +26,7 @@ export function homePage({ config, shots = {} }) {
     <div class="reel" id="reel" aria-roledescription="carousel" aria-label="Disgrowth">
       ${SCENES.map(
         (scene, i) => html`<section class="panel-scene${i === 0 ? ' is-active' : ''}" data-scene="${i}" aria-label="${COPY[i][0]}">
-          <div class="layers" aria-hidden="true">${LAYERS.map((entry) => layer(scene, entry, shots))}</div>
+          <div class="layers" aria-hidden="true">${layers(scene, shots)}</div>
           <div class="scene-copy">
             ${i === 0 ? html`<p class="logo">Disgrowth</p>` : ''}
             <h1>${COPY[i][0]}</h1>
