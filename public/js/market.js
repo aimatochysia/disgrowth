@@ -56,7 +56,7 @@ import { evaluate } from './market-formula.js?v=20261029';
       layout: {
         background: { color: cssVar('--panel', '#f7f1e6') },
         textColor: cssVar('--text', '#1c1814'),
-        fontFamily: '"IBM Plex Sans", system-ui, sans-serif',
+        fontFamily: '"Pixelify Sans", system-ui, sans-serif',
       },
       grid: {
         vertLines: { color: cssVar('--border', 'rgba(36, 30, 24, 0.14)') },

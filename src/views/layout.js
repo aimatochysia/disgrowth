@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 
 // Content hash on our own asset URLs so Cloudflare and browsers drop stale copies after each deploy.
 const v = (path) => createHash('sha1').update(readFileSync(new URL(`../../public${path}`, import.meta.url))).digest('hex').slice(0, 8);
-const ASSET = Object.fromEntries(['/css/app.css', '/js/app.js', '/js/parallax.js'].map((path) => [path, `${path}?v=${v(path)}`]));
+const ASSET = Object.fromEntries(['/css/app.css', '/js/app.js', '/js/parallax.js', '/js/market.js'].map((path) => [path, `${path}?v=${v(path)}`]));
 
 function paddleBootMarkup(boot) {
   if (!boot || !boot.clientToken || !boot.env) return '';
@@ -23,7 +23,7 @@ function marketBootMarkup(boot) {
   const json = JSON.stringify(boot).replaceAll('<', '\\u003c');
   return raw(`<script type="application/json" id="market-boot">${json}</script>
 <script src="/js/lightweight-charts.js" defer></script>
-<script type="module" src="/js/market.js?v=20261028"></script>`);
+<script type="module" src="${ASSET['/js/market.js']}"></script>`);
 }
 
 function loginBootMarkup(user) {
@@ -80,7 +80,7 @@ export function layout(data) {
   <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,500;0,9..144,700;1,9..144,360;1,9..144,500&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="${ASSET['/css/app.css']}" />
   <script src="/js/age-boot.js"></script>
 </head>
