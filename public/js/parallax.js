@@ -3,7 +3,10 @@
   if (!document.querySelector('.backdrop')) return;
   // Lift the loading screen once every layer is in (cached visits finish before it ever fades in).
   const layers = [...document.querySelectorAll('.backdrop .layer')];
-  Promise.all(layers.map((img) => img.decode().catch(() => {}))).then(() => document.documentElement.classList.add('art-ready'));
+  Promise.all(layers.map((img) => img.decode().catch(() => {}))).then(() => {
+    document.documentElement.classList.add('art-ready');
+    try { localStorage.setItem('art-seen', '1'); } catch { /* loader shows again next visit */ }
+  });
   if (!window.matchMedia('(hover: hover) and (pointer: fine)').matches) return;
   if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
   const root = document.documentElement;

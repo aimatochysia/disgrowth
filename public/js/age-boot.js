@@ -1,4 +1,10 @@
 (() => {
+  // Skip the first-load screen once the backdrop art has been seen (it is cached by then).
+  try {
+    if (localStorage.getItem('art-seen')) document.documentElement.classList.add('art-ready');
+  } catch {
+    /* loader shows until the art is in */
+  }
   const page = document.documentElement.dataset.page;
   if (page === 'store' || page === 'buy') {
     try {
