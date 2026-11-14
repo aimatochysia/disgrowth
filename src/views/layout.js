@@ -8,7 +8,7 @@ import { readFileSync } from 'node:fs';
 
 // Content hash on our own asset URLs so Cloudflare and browsers drop stale copies after each deploy.
 const v = (path) => createHash('sha1').update(readFileSync(new URL(`../../public${path}`, import.meta.url))).digest('hex').slice(0, 8);
-const ASSET = Object.fromEntries(['/css/app.css', '/js/app.js', '/js/parallax.js', '/js/market.js'].map((path) => [path, `${path}?v=${v(path)}`]));
+const ASSET = Object.fromEntries(['/css/app.css', '/js/age-boot.js', '/js/app.js', '/js/parallax.js', '/js/market.js'].map((path) => [path, `${path}?v=${v(path)}`]));
 
 function paddleBootMarkup(boot) {
   if (!boot || !boot.clientToken || !boot.env) return '';
@@ -82,7 +82,7 @@ export function layout(data) {
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400..700&family=Silkscreen&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="${ASSET['/css/app.css']}" />
-  <script src="/js/age-boot.js"></script>
+  <script src="${ASSET['/js/age-boot.js']}"></script>
 </head>
 <body id="top">
   ${page === 'home' || page === 'store' ? raw('<div class="loader" aria-hidden="true"><img class="loader-mark" src="/logo.png" alt="" width="96" height="96" /><p class="logo">Disgrowth</p><span class="loader-bar"></span></div>') : ''}

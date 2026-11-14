@@ -1,5 +1,8 @@
 /* Disgrowth website: one warm theme. */
 
+/* Pixelify Sans draws 5 like S or 8, which misleads on prices: digits only come from Jersey 10 (subset, OFL, see fonts/). */
+@font-face { font-family: "Pixel Digits"; src: url("/fonts/jersey10-digits.woff2") format("woff2"); unicode-range: U+0030-0039; size-adjust: 112%; font-display: swap; }
+
 :root {
   /* Stepped pixel corners instead of rounded ones (hael: everything pixelated). */
   --notch: polygon(0 8px, 4px 8px, 4px 4px, 8px 4px, 8px 0, calc(100% - 8px) 0, calc(100% - 8px) 4px, calc(100% - 4px) 4px, calc(100% - 4px) 8px, 100% 8px, 100% calc(100% - 8px), calc(100% - 4px) calc(100% - 8px), calc(100% - 4px) calc(100% - 4px), calc(100% - 8px) calc(100% - 4px), calc(100% - 8px) 100%, 8px 100%, 8px calc(100% - 4px), 4px calc(100% - 4px), 4px calc(100% - 8px), 0 calc(100% - 8px));
@@ -38,7 +41,7 @@ body {
 }
 
 body {
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-size: 16px;
   line-height: 1.65;
   padding-top: 28px;
@@ -331,7 +334,7 @@ code {
 }
 
 .display {
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-weight: 500;
   font-size: clamp(2.4rem, 6vw, 5.2rem);
   line-height: 1.05;
@@ -456,7 +459,7 @@ code {
 }
 
 .section-title {
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-size: clamp(1.5rem, 2.4vw, 2.1rem);
   font-weight: 500;
   margin: 0 0 1.4rem;
@@ -493,7 +496,7 @@ code {
 
 .wallet h2,
 .sku-title {
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-weight: 500;
   font-size: 1.35rem;
   margin: 0.35rem 0 0.4rem;
@@ -690,7 +693,7 @@ code {
 }
 
 .legal-chapter h2 {
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-weight: 500;
   font-size: clamp(1.55rem, 2.4vw, 2.15rem);
   margin: 0.15rem 0 1rem;
@@ -781,7 +784,7 @@ code {
 }
 
 .quote-heading {
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-size: 1.15rem;
   font-weight: 500;
   margin: 0 0 0.55rem;
@@ -1241,7 +1244,7 @@ html[data-page="buy"]:not([data-age-ok="yes"]) {
 .logo {
   margin: 0 0 1.4rem;
   text-align: center;
-  font-family: "Pixelify Sans", system-ui, sans-serif;
+  font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif;
   font-weight: 700;
   font-size: clamp(2.6rem, 9vw, 4.6rem);
   line-height: 1;
@@ -1288,13 +1291,13 @@ html[data-page="store"] .page-hero { background: color-mix(in srgb, var(--panel)
 html[data-page="home"] .site-footer, html[data-page="home"] .to-top { display: none; }
 .snap { min-height: 100vh; display: grid; align-items: start; scroll-snap-align: start; scroll-snap-stop: always; }
 .scene-copy { position: relative; width: min(960px, calc(100% - 2rem)); margin: 8rem auto 0; background: color-mix(in srgb, var(--panel) 82%, transparent); clip-path: var(--notch); padding: 1.5rem 1.75rem; }
-.scene-copy h1 { font-family: "Pixelify Sans", system-ui, sans-serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.1; margin: 0 0 0.75rem; }
+.scene-copy h1 { font-family: "Pixel Digits", "Pixelify Sans", system-ui, sans-serif; font-weight: 500; font-size: clamp(2rem, 5.5vw, 4rem); line-height: 1.1; margin: 0 0 0.75rem; }
 .scene-copy p { max-width: 36rem; margin: 0.4rem 0; }
 .snap-links { margin-top: 1.5rem; font-size: 0.85rem; }
 .snap-links a { margin-right: 0.9rem; }
 
-/* First-load screen: only fades in if the art takes over 0.4s, eases out when parallax.js marks it ready. */
-.loader { position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 1rem; background: var(--bg); animation: loader-in 0.3s 0.4s ease-out both, loader-in 0.6s 10s ease-in reverse forwards; }
+/* First-load screen: covers from the first frame, eases out when parallax.js marks the art ready (age-boot.js skips it once the art was seen; no JS lifts it after 10s). */
+.loader { position: fixed; inset: 0; z-index: 100; display: grid; place-content: center; justify-items: center; gap: 1rem; background: var(--bg); animation: loader-in 0.6s 10s ease-in reverse forwards; }
 .loader .logo { margin: 0; }
 .loader-bar { width: 10rem; height: 4px; background: linear-gradient(90deg, transparent, var(--text), transparent) 0 0 / 50% 100% no-repeat, color-mix(in srgb, var(--text) 15%, transparent); animation: loader-bar 1.2s ease-in-out infinite; }
 html.art-ready .loader { opacity: 0; visibility: hidden; transition: opacity 0.6s ease, visibility 0s 0.6s; animation: none; }
