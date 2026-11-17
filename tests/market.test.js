@@ -96,9 +96,9 @@ test('in-game windows map wall-clock onto in-game seconds', () => {
   const oneM = resolveChartWindow('1M', now);
   assert.equal(oneM.key, '1M');
   assert.equal(oneM.grain, 'day');
-  assert.equal(now.getTime() - oneM.start.getTime(), 30 * 60 * 60 * 1000);
+  assert.equal(now.getTime() - oneM.start.getTime(), 24 * 60 * 60 * 1000);
   assert.equal(now.getTime() - resolveChartWindow('7D', now).start.getTime(), 7 * 60 * 60 * 1000);
-  assert.equal(now.getTime() - resolveChartWindow('1Y', now).start.getTime(), 360 * 60 * 60 * 1000);
+  assert.equal(now.getTime() - resolveChartWindow('1Y', now).start.getTime(), 720 * 60 * 60 * 1000);
   const fiveY = resolveChartWindow('5Y', now);
   assert.equal(fiveY.grain, 'month');
   const all = resolveChartWindow('ALL', now);
@@ -178,7 +178,7 @@ test('loadMarketOhlc never scans ticks and aliases old windows', async () => {
     async listMarketHistory(query) {
       grains.push(query.grain);
       assert.notEqual(query.grain, 'tick');
-      assert.ok(query.limit <= 400);
+      assert.ok(query.limit <= 800);
       if (query.grain === 'month') return [];
       return [
         {
@@ -225,16 +225,16 @@ test('market client pins the axis and draws a close line', () => {
   assert.doesNotMatch(src, /heatmap|market-filter/);
 });
 
-// Lockstep with bot `src/engine/timeLabels.test.js`: same table, now mid-day at a month start (day 12000.5).
-test('timeAgoLabel ladder matches the bot', () => {
-  const now = 12000;
+// Now is VT day 0 of 2027-03-10 (day 10392 from the 2026-01-01 epoch); a VT year is the real month.
+test('timeAgoLabel ladder follows the game calendar', () => {
+  const now = 10392;
   const table = [
     [0, 'today'], [1, 'yesterday'], [2, '2 days ago'], [13, '13 days ago'],
-    [30, 'last month'], [60, '2 months ago'], [330, '11 months ago'], [360, 'last year'], [720, '2 years ago'],
+    [24, 'last month'], [48, '2 months ago'], [216, '9 months ago'], [240, 'last year'], [1200, '2 years ago'],
   ];
   for (const [days, want] of table) assert.equal(timeAgoLabel(now - days, now, 'day'), want, `${days} days`);
   assert.equal(timeAgoLabel(now, now, 'month'), 'today');
-  assert.equal(timeAgoLabel(now - 90, now, 'month'), '3 months ago');
+  assert.equal(timeAgoLabel(now - 72, now, 'month'), '3 months ago');
 });
 
 test('chart formulas: parsed here, never eval, bad input throws a short message', async () => {

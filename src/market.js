@@ -3,8 +3,8 @@ import { sanitizeTicker } from './ticker.js';
 /** The bot writes its `time` config to engine_state.game_time at boot; setGameTime applies it. These are the fallback until then. */
 export const GAME_TIME = {
   realMsPerInGameDay: 60 * 60 * 1000,
-  inGameDaysPerMonth: 30,
-  inGameMonthsPerYear: 12,
+  inGameDaysPerMonth: 24,
+  inGameMonthsPerYear: 30,
   epoch: '2026-01-01T00:00:00.000Z',
 };
 
@@ -25,16 +25,17 @@ export function setGameTime(time) {
 
 export const MARKET_CACHE_TTL_MS = 15_000;
 export const MARKET_OHLC_CACHE_MAX = 64;
-export const MARKET_BAR_CAP = 400;
+export const MARKET_BAR_CAP = 800;
 export const DEFAULT_CHART_WINDOW = '1M';
 export const CHART_WINDOW_KEYS = ['7D', '1M', '6M', '1Y', '5Y', 'ALL'];
 
 export const CHART_WINDOWS = {
   '7D': { key: '7D', label: '7D', grain: 'day', inGameDays: 7, targetBars: 9 },
-  '1M': { key: '1M', label: '1M', grain: 'day', inGameDays: 30, targetBars: 36 },
-  '6M': { key: '6M', label: '6M', grain: 'day', inGameDays: 180, targetBars: 188 },
-  '1Y': { key: '1Y', label: '1Y', grain: 'day', inGameDays: 360, targetBars: 368 },
-  '5Y': { key: '5Y', label: '5Y', grain: 'month', inGameMonths: 60, targetBars: 64 },
+  // The game calendar: VT month = 24 VT days (an RT day); a year is the real month, so 1Y and 5Y use a normal year of 30.
+  '1M': { key: '1M', label: '1M', grain: 'day', inGameDays: 24, targetBars: 30 },
+  '6M': { key: '6M', label: '6M', grain: 'day', inGameDays: 144, targetBars: 152 },
+  '1Y': { key: '1Y', label: '1Y', grain: 'day', inGameDays: 720, targetBars: 728 },
+  '5Y': { key: '5Y', label: '5Y', grain: 'month', inGameMonths: 150, targetBars: 156 },
   ALL: { key: 'ALL', label: 'ALL', grain: 'month', fromEpoch: true, targetBars: 240 },
 };
 
@@ -68,11 +69,11 @@ export function toInGameUnix(at, time = GAME_TIME) {
 
 /**
  * Relative VT label ("yesterday", "3 months ago") for an in-game day index, aligned to in-game day, month
- * and year blocks. Keep in lockstep with bot `src/engine/timeLabels.js`; both test the same table.
+ * and year blocks. A VT year is the real month, so years count UTC months.
  */
 export function timeAgoLabel(thenDay, nowDay, grain = 'day', time = GAME_TIME) {
-  const perMonth = Number(time.inGameDaysPerMonth) || 30;
-  const perYear = Number(time.inGameMonthsPerYear) || 12;
+  const perMonth = Number(time.inGameDaysPerMonth) || 24;
+  const at = (day) => new Date(Date.parse(time.epoch) + day * (Number(time.realMsPerInGameDay) || 3_600_000));
   const then = Math.floor(thenDay);
   const now = Math.floor(nowDay);
   const days = Math.max(0, now - then);
@@ -83,8 +84,9 @@ export function timeAgoLabel(thenDay, nowDay, grain = 'day', time = GAME_TIME) {
   const months = Math.max(0, Math.floor(now / perMonth) - Math.floor(then / perMonth));
   if (months === 0) return grain === 'day' ? 'this month' : 'today';
   if (months === 1) return 'last month';
-  if (months < perYear) return `${months} months ago`;
-  const years = Math.floor(months / perYear);
+  const [a, b] = [at(then), at(now)];
+  const years = (b.getUTCFullYear() - a.getUTCFullYear()) * 12 + b.getUTCMonth() - a.getUTCMonth();
+  if (years < 1) return `${months} months ago`;
   return years === 1 ? 'last year' : `${years} years ago`;
 }
 
@@ -94,7 +96,7 @@ export function resolveChartWindow(windowKey, now = new Date(), time = GAME_TIME
   const end = now instanceof Date ? now : new Date(now);
   const epochMs = Date.parse(time.epoch);
   const dayMs = Number(time.realMsPerInGameDay) || 3_600_000;
-  const daysPerMonth = Number(time.inGameDaysPerMonth) || 30;
+  const daysPerMonth = Number(time.inGameDaysPerMonth) || 24;
   let start;
   if (window.fromEpoch) {
     start = new Date(epochMs);
@@ -173,7 +175,7 @@ export function publicOhlc(ticker, windowKey, bars, now = new Date()) {
     if (cleaned.length >= MARKET_BAR_CAP) break;
   }
   // A gap of a month or more between bars means month-grain bars.
-  const monthly = cleaned.length > 1 && cleaned[1].t - cleaned[0].t >= 25 * 86_400;
+  const monthly = cleaned.length > 1 && cleaned[1].t - cleaned[0].t >= 20 * 86_400;
   const nowDay = inGameDayIndex(now);
   for (const bar of cleaned) bar.ago = timeAgoLabel(bar.t / 86_400, nowDay, monthly ? 'month' : 'day');
   return { ticker: symbol, window, bars: cleaned };
