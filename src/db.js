@@ -191,7 +191,7 @@ export function createDb(databaseUrl) {
       const id = Number(assetId);
       if (!Number.isInteger(id) || id <= 0) return [];
       const grainKey = grain === 'month' ? 'month' : 'day';
-      const cap = Math.min(Math.max(Number(limit) || 120, 1), 400);
+      const cap = Math.min(Math.max(Number(limit) || 120, 1), 800);
       const { rows } = await pool.query(MARKET_OHLC_SQL, [id, grainKey, since, cap]);
       return rows;
     },
